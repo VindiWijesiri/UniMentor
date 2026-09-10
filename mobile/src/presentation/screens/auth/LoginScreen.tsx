@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AuthStackParamList } from '@presentation/navigation/AuthNavigator';
-import { useAuthStore } from '@domain/stores/authStore';
-import { loginUseCase } from '@domain/usecases/auth/loginUseCase';
+import { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { useAuthStore } from '../../../domain/stores/authStore';
+import { loginUseCase } from '../../../domain/usecases/auth/loginUseCase';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -44,7 +39,6 @@ export default function LoginScreen({ navigation }: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>UniMentor</Text>
       <Text style={styles.subtitle}>Connect. Learn. Grow.</Text>
-
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -60,11 +54,9 @@ export default function LoginScreen({ navigation }: Props) {
         value={password}
         onChangeText={setPassword}
       />
-
       <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
-
       <TouchableOpacity onPress={() => navigation.navigate('Register')}>
         <Text style={styles.link}>Don't have an account? Register</Text>
       </TouchableOpacity>
@@ -77,19 +69,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#4F46E5' },
   subtitle: { fontSize: 16, textAlign: 'center', color: '#6B7280', marginBottom: 32 },
   input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
+    borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8,
+    padding: 12, marginBottom: 16, fontSize: 16,
   },
   button: {
-    backgroundColor: '#4F46E5',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 16,
+    backgroundColor: '#4F46E5', padding: 14, borderRadius: 8,
+    alignItems: 'center', marginBottom: 16,
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { textAlign: 'center', color: '#4F46E5', fontSize: 14 },

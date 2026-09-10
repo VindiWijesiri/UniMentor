@@ -1,10 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-
-import HomeScreen from '@presentation/screens/home/HomeScreen';
-import SearchScreen from '@presentation/screens/search/SearchScreen';
-import SessionsScreen from '@presentation/screens/sessions/SessionsScreen';
-import ProfileScreen from '@presentation/screens/profile/ProfileScreen';
+import HomeScreen from '../screens/home/HomeScreen';
+import SearchScreen from '../screens/search/SearchScreen';
+import SessionsScreen from '../screens/sessions/SessionsScreen';
+import ProfileScreen from '../screens/profile/ProfileScreen';
 
 export type AppTabParamList = {
   Home: undefined;

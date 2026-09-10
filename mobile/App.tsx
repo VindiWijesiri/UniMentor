@@ -1,7 +1,7 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import RootNavigator from '@presentation/navigation/RootNavigator';
+import RootNavigator from './src/presentation/navigation/RootNavigator';
 
 export default function App() {
   return (
