@@ -42,14 +42,22 @@ UniMentor/
 
 ### Prerequisites
 - Node.js >= 18
-- MongoDB (local or Atlas)
-- Expo CLI: `npm install -g expo-cli`
+- A [MongoDB Atlas](https://www.mongodb.com/atlas) cluster
+- Expo Go on your phone
 
 ### Backend
 
+1. In Atlas: create a free cluster, a database user, and allow your IP (or `0.0.0.0/0` for development).
+2. Click **Connect** → **Drivers** and copy the `mongodb+srv://...` URI.
+
 ```bash
 cd backend
-cp .env.example .env      # fill in MONGO_URI and JWT_SECRET
+cp .env.example .env
+```
+
+Set `MONGO_URI` to that Atlas URI (include `/unimentor` before the `?`) and set `JWT_SECRET`.
+
+```bash
 npm install
 npm run dev               # starts on http://localhost:5000
 ```
