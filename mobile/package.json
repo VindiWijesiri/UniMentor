@@ -14,22 +14,22 @@
     "@react-navigation/native-stack": "^6.11.0",
     "axios": "^1.6.2",
     "expo": "~57.0.21",
-    "expo-asset": "~11.1.4",
-    "expo-font": "~13.3.1",
+    "expo-asset": "~57.0.16",
+    "expo-font": "~57.0.3",
     "expo-modules-core": "~57.0.17",
-    "expo-secure-store": "~14.2.3",
-    "expo-status-bar": "~2.2.3",
-    "react": "19.2.0",
+    "expo-secure-store": "~57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-safe-area-context": "5.4.0",
-    "react-native-screens": "~4.10.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@types/react": "~19.0.10",
+    "@types/react": "~19.2.2",
     "babel-plugin-module-resolver": "^5.0.3",
-    "typescript": "^5.3.3"
+    "typescript": "~6.0.3"
   },
   "private": true
 }

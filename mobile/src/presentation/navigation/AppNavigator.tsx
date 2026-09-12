@@ -9,7 +9,12 @@ import { colors } from '../../shared/theme';
 
 export type AppTabParamList = {
   Home: undefined;
-  Search: undefined;
+  Search: {
+    initialQuery?: string;
+    faculty?: string;
+    department?: string;
+    programme?: string;
+  } | undefined;
   Sessions: undefined;
   Profile: undefined;
 };
@@ -51,7 +56,7 @@ export default function AppNavigator() {
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home', headerShown: false }} />
       <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarLabel: 'Search' }} />
       <Tab.Screen name="Sessions" component={SessionsScreen} options={{ tabBarLabel: 'Sessions' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />

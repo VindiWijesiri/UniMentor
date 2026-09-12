@@ -29,8 +29,8 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       const result = await loginUseCase({ email, password });
-      setUser(result.user);
       setToken(result.token);
+      setUser(result.user);
     } catch (err: any) {
       Alert.alert('Login Failed', err.message ?? 'Something went wrong.');
     } finally {

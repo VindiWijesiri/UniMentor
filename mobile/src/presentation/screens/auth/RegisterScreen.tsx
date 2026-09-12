@@ -31,8 +31,8 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       const result = await registerUseCase({ name, email, password, role });
-      setUser(result.user);
       setToken(result.token);
+      setUser(result.user);
     } catch (err: any) {
       Alert.alert('Registration Failed', err.message ?? 'Something went wrong.');
     } finally {
