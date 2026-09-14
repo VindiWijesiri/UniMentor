@@ -4,6 +4,8 @@ import authRoutes from './routes/authRoutes';
 import mentorRoutes from './routes/mentorRoutes';
 import sessionRoutes from './routes/sessionRoutes';
 import userRoutes from './routes/userRoutes';
+import reviewRoutes from './routes/reviewRoutes';
+import chatRoutes from './routes/chatRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -21,6 +23,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/mentors', mentorRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/chats', chatRoutes);
 
 // Global error handler — must be last
 app.use(errorHandler);

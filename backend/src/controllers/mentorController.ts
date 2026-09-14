@@ -9,6 +9,10 @@ export async function searchMentors(req: AuthRequest, res: Response, next: NextF
 
     const mentors = await User.find({
       role: 'mentor',
+      $nor: [
+        { name: /^demo mentor$/i },
+        { email: /^demo@/i },
+      ],
       $or: [{ name: regex }, { subjects: regex }, { bio: regex }],
     }).select('-password');
 

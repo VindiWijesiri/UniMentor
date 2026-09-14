@@ -10,6 +10,7 @@ export interface IUser extends Document {
   bio?: string;
   subjects?: string[];
   rating?: number;
+  reviewCount?: number;
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -24,6 +25,7 @@ const userSchema = new Schema<IUser>(
     bio: { type: String },
     subjects: [{ type: String }],
     rating: { type: Number, default: 0 },
+    reviewCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
@@ -43,7 +45,7 @@ userSchema.methods.comparePassword = function (candidate: string): Promise<boole
 // Never expose password in JSON responses
 userSchema.set('toJSON', {
   transform: (_doc, ret) => {
-    delete ret.password;
+    delete (ret as { password?: string }).password;
     return ret;
   },
 });
