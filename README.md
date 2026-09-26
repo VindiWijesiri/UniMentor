@@ -85,8 +85,17 @@ npx expo start            # scan QR with Expo Go
 | GET | `/api/sessions/me` | ✅ | Get my sessions |
 | POST | `/api/sessions` | ✅ | Book a session |
 | PATCH | `/api/sessions/:id/cancel` | ✅ | Cancel a session |
-| GET | `/api/users/profile` | ✅ | Get own profile |
-| PUT | `/api/users/profile` | ✅ | Update own profile |
+| POST | `/api/sessions/:id/verify` | mentor | Verify booking with student code |
+| GET | `/api/learning/dashboard` | ✅ | Role-based learning home data |
+| GET/POST | `/api/materials` | ✅ | Study packs (mentors create) |
+| GET/POST | `/api/assessments` | ✅ | Quizzes and submissions |
+| GET/POST | `/api/goals` | student | Learning goals and hour logs |
+| GET/POST | `/api/groups` | ✅ | Study groups |
+| GET/POST | `/api/chats` | ✅ | Direct and group messages |
+| GET | `/api/notifications` | ✅ | Alerts |
+| GET/POST | `/api/complaints` | ✅ | Academic integrity cases |
+
+Demo logins after `npm run init-db`: `student@unimentor.dev`, `mentor@unimentor.dev`, `lic@unimentor.dev`, `admin@unimentor.dev` (password `password123`).
 
 ---
 

@@ -1,69 +1,71 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { searchMentorsUseCase } from '../../../domain/usecases/mentor/searchMentorsUseCase';
 import { Mentor } from '../../../domain/entities/Mentor';
+import { apiError } from '../../../shared/format';
+import { colors, inputStyle } from '../../../shared/theme';
+import ScreenLayout from '../../components/ScreenLayout';
+import { Card, EmptyState, PrimaryButton } from '../../components/Ui';
+import type { AppStackParamList } from '../../navigation/AppNavigator';
 
-export default function SearchScreen() {
+type Props = { navigation: NativeStackNavigationProp<AppStackParamList, 'Search'> };
+
+export default function SearchScreen({ navigation }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Mentor[]>([]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const handleSearch = useCallback(async (value = query) => {
+    setLoading(true);
+    setError('');
     try {
-      const mentors = await searchMentorsUseCase(query);
-      setResults(mentors);
-    } catch {}
-  };
+      setResults(await searchMentorsUseCase(value));
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [query]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void handleSearch('');
+    }, [])
+  );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Find a Mentor</Text>
-      <View style={styles.searchRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Search by name or subject..."
-          value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={handleSearch}
-          returnKeyType="search"
-        />
-        <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
-          <Text style={styles.searchBtnText}>Search</Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={results}
-        keyExtractor={(item) => item._id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.mentorName}>{item.name}</Text>
-            <Text style={styles.mentorSubject}>{item.subjects.join(', ')}</Text>
-          </View>
-        )}
-        ListEmptyComponent={<Text style={styles.empty}>No mentors found.</Text>}
+    <ScreenLayout title="Find a mentor" showBack activeTab="Home">
+      <TextInput
+        style={[inputStyle, styles.gap]}
+        placeholder="Search name or subject"
+        value={query}
+        onChangeText={setQuery}
+        onSubmitEditing={() => void handleSearch()}
+        returnKeyType="search"
       />
-    </View>
+      <PrimaryButton label={loading ? 'Searching…' : 'Search'} onPress={() => void handleSearch()} loading={loading} />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {results.map((item) => (
+        <TouchableOpacity key={item._id} onPress={() => navigation.navigate('TutorProfile', { mentor: item })}>
+          <Card style={styles.card}>
+            <Text style={styles.name}>{item.name}</Text>
+            <Text style={styles.meta}>{(item.subjects ?? []).join(', ') || 'No subjects listed'}</Text>
+            {item.bio ? <Text style={styles.meta}>{item.bio}</Text> : null}
+          </Card>
+        </TouchableOpacity>
+      ))}
+      {!results.length ? <EmptyState text="No mentors match that search yet." /> : null}
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: '#F9FAFB' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 16 },
-  searchRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  input: {
-    flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8,
-    padding: 10, fontSize: 15, backgroundColor: '#fff',
-  },
-  searchBtn: {
-    backgroundColor: '#4F46E5', paddingHorizontal: 16,
-    borderRadius: 8, justifyContent: 'center',
-  },
-  searchBtnText: { color: '#fff', fontWeight: '600' },
-  card: {
-    backgroundColor: '#fff', borderRadius: 10, padding: 16,
-    marginBottom: 12, elevation: 1,
-  },
-  mentorName: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  mentorSubject: { fontSize: 14, color: '#6B7280', marginTop: 4 },
-  empty: { textAlign: 'center', color: '#9CA3AF', marginTop: 40 },
+  gap: { marginBottom: 12 },
+  error: { color: colors.danger, marginTop: 8 },
+  card: { marginTop: 12 },
+  name: { fontSize: 16, fontWeight: '800', color: colors.navy },
+  meta: { color: colors.muted, marginTop: 4 },
 });

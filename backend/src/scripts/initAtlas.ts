@@ -2,6 +2,10 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import User from '../models/User';
 import Session from '../models/Session';
+import Material from '../models/Material';
+import Assessment from '../models/Assessment';
+import Goal from '../models/Goal';
+import Settings from '../models/Settings';
 import { connectDB } from '../config/db';
 
 dotenv.config();
@@ -11,30 +15,110 @@ async function init() {
 
   await User.createIndexes();
   await Session.createIndexes();
+  await Material.createIndexes();
+  await Assessment.createIndexes();
+  await Settings.getApp();
 
-  const studentEmail = 'student@unimentor.dev';
-  const mentorEmail = 'mentor@unimentor.dev';
-
-  if (!(await User.findOne({ email: studentEmail }))) {
-    await User.create({
+  const accounts = [
+    {
       name: 'Demo Student',
-      email: studentEmail,
+      email: 'student@unimentor.dev',
       password: 'password123',
-      role: 'student',
-    });
-    console.log('Created demo student:', studentEmail);
+      role: 'student' as const,
+    },
+    {
+      name: 'Demo Mentor',
+      email: 'mentor@unimentor.dev',
+      password: 'password123',
+      role: 'mentor' as const,
+      bio: 'Peer tutor for computing modules.',
+      subjects: ['Data Structures', 'OOP', 'Probability'],
+    },
+    {
+      name: 'Demo LIC',
+      email: 'lic@unimentor.dev',
+      password: 'password123',
+      role: 'lic' as const,
+      bio: 'Academic integrity officer.',
+    },
+    {
+      name: 'Demo Admin',
+      email: 'admin@unimentor.dev',
+      password: 'password123',
+      role: 'admin' as const,
+    },
+  ];
+
+  for (const account of accounts) {
+    if (!(await User.findOne({ email: account.email }))) {
+      await User.create(account);
+      console.log('Created', account.email);
+    }
   }
 
-  if (!(await User.findOne({ email: mentorEmail }))) {
-    await User.create({
-      name: 'Demo Mentor',
-      email: mentorEmail,
-      password: 'password123',
-      role: 'mentor',
-      bio: 'Helps with computer science and maths.',
-      subjects: ['Computer Science', 'Maths'],
+  const student = await User.findOne({ email: 'student@unimentor.dev' });
+  const mentor = await User.findOne({ email: 'mentor@unimentor.dev' });
+
+  if (student && mentor && !(await Material.findOne({ title: 'Graph Traversal Notes' }))) {
+    await Material.create({
+      mentorId: mentor._id,
+      title: 'Graph Traversal Notes',
+      subject: 'Data Structures',
+      module: 'IT2040',
+      description: 'BFS, DFS and when to use each on campus exam questions.',
+      resourceUrl: 'https://en.wikipedia.org/wiki/Graph_traversal',
+      price: 0,
+      published: true,
     });
-    console.log('Created demo mentor:', mentorEmail);
+  }
+
+  if (mentor && !(await Assessment.findOne({ title: 'OOP Polymorphism Quiz' }))) {
+    await Assessment.create({
+      mentorId: mentor._id,
+      title: 'OOP Polymorphism Quiz',
+      subject: 'Object Oriented Programming',
+      module: 'CS2010',
+      instructions: 'Choose the best answer. Auto-graded on submit.',
+      durationMinutes: 20,
+      published: true,
+      questions: [
+        {
+          type: 'mcq',
+          prompt: 'Which statement best describes polymorphism?',
+          points: 2,
+          options: [
+            'A class can have only one method',
+            'The same interface can have many implementations',
+            'Objects cannot inherit fields',
+            'All methods must be static',
+          ],
+          correctIndex: 1,
+        },
+        {
+          type: 'true_false',
+          prompt: 'Method overriding happens at runtime in Java.',
+          points: 1,
+          correctBoolean: true,
+        },
+        {
+          type: 'short_answer',
+          prompt: 'Name the OOP pillar that hides internal details.',
+          points: 2,
+          acceptedAnswers: ['encapsulation', 'Encapsulation'],
+        },
+      ],
+    });
+  }
+
+  if (student && !(await Goal.findOne({ title: 'Graph BFS Exercises' }))) {
+    await Goal.create({
+      studentId: student._id,
+      title: 'Graph BFS Exercises',
+      subject: 'Data Structures',
+      module: 'IT2040',
+      targetHours: 6,
+      logs: [{ date: new Date(), minutes: 90, note: 'Worked through lecture examples' }],
+    });
   }
 
   const dbName = mongoose.connection.db?.databaseName;

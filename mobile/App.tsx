@@ -6,7 +6,7 @@ import RootNavigator from './src/presentation/navigation/RootNavigator';
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
       <RootNavigator />
     </SafeAreaProvider>
   );

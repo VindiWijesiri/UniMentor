@@ -6,4 +6,5 @@ export interface Mentor {
   bio: string;
   rating: number;
   profilePicture?: string;
+  role?: string;
 }

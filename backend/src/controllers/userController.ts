@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
+import { USER_ROLES } from '../types/roles';
 
 export async function getProfile(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -37,6 +38,24 @@ export async function updateProfile(req: AuthRequest, res: Response, next: NextF
     }
 
     res.json(user);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listUsers(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const role = req.query.role as string | undefined;
+    const q = ((req.query.q as string) ?? '').trim();
+    const filter: Record<string, unknown> = {};
+    if (role && (USER_ROLES as readonly string[]).includes(role)) {
+      filter.role = role;
+    }
+    if (q) {
+      filter.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
+    }
+    const users = await User.find(filter).select('-password').sort({ name: 1 }).limit(80);
+    res.json(users);
   } catch (err) {
     next(err);
   }
