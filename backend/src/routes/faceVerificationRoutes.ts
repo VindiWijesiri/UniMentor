@@ -23,7 +23,8 @@ const upload = multer({
   },
 });
 
-// Authenticated Face++ Verification Endpoints
+// Authenticated Face++ Verification Endpoints now
+
 router.post('/verify', authenticate, upload.single('selfie'), verifyFace);
 router.get('/status', authenticate, getVerificationStatus);
 router.get('/history', authenticate, getVerificationHistory);
