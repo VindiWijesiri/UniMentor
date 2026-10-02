@@ -4,6 +4,7 @@ import User from '../models/User';
 import { TutorPack, TutorStudent, TutorWorkspace } from '../models/tutorLearning';
 import { seedTutorLearningData } from '../services/seedTutorLearningData';
 import { seedPodData } from '../services/seedPodData';
+import { seedLibraryData } from '../services/seedLibraryData';
 
 function timeAgo(date?: Date): string {
   if (!date) return '';
@@ -46,6 +47,7 @@ async function readyTutor(req: AuthRequest): Promise<string> {
   if (req.userRole === 'mentor') {
     await seedTutorLearningData(tutorId);
     await seedPodData(tutorId);
+    await seedLibraryData(tutorId);
   }
   return tutorId;
 }

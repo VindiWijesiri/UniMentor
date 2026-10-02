@@ -13,8 +13,10 @@ import {
   StudyWeek,
 } from '../models/learning';
 import { PodConversation } from '../models/pod';
+import { LibraryMaterial } from '../models/library';
 import { seedLearningData } from '../services/seedLearningData';
 import { seedPodData } from '../services/seedPodData';
+import { seedLibraryData } from '../services/seedLibraryData';
 
 function hoursDone(days: { hours: number }[]): number {
   return Math.round(days.reduce((sum, day) => sum + day.hours, 0) * 10) / 10;
@@ -33,6 +35,7 @@ async function readyStudent(req: AuthRequest): Promise<string> {
   if (req.userRole === 'student') {
     await seedLearningData(studentId);
     await seedPodData(studentId);
+    await seedLibraryData(studentId);
   }
   return studentId;
 }
@@ -49,7 +52,7 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
       Session.find({ studentId }).populate('mentorId', 'name').sort({ scheduledAt: 1 }),
       Discussion.find({ studentId }).sort({ createdAt: -1 }),
       Assessment.find({ studentId }).sort({ scheduledAt: 1, dueDate: 1 }),
-      StudyMaterial.find({ studentId }).sort({ uploadedAt: -1 }),
+      LibraryMaterial.find({ $or: [{ owner: studentId }, { savedBy: studentId }] }).sort({ createdAt: -1 }).limit(6),
       PodConversation.find({ participants: studentId }),
     ]);
     const unreadChat = podConversations.reduce((sum, item) => {
@@ -142,12 +145,12 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
         })),
       },
       materials: materials.map((item) => ({
-        _id: item._id,
+        _id: String(item._id),
         title: item.title,
-        kind: item.kind,
-        sourceLabel: item.sourceLabel,
-        sourceType: item.sourceType,
-        uploadedAt: item.uploadedAt,
+        kind: item.kind === 'pdf' || item.kind === 'code' ? item.kind === 'code' ? 'set' : 'pdf' : 'notes',
+        sourceLabel: item.moduleName || item.moduleCode || 'Library',
+        sourceType: item.source === 'group' ? 'group' : 'session',
+        uploadedAt: item.createdAt,
       })),
     });
   } catch (err) {

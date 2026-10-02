@@ -32,6 +32,7 @@ import CreateSquadScreen from '../screens/learning/CreateSquadScreen';
 import StudyPlansScreen from '../screens/learning/StudyPlansScreen';
 import StudyMaterialsScreen from '../screens/learning/StudyMaterialsScreen';
 import StudyMaterialDetailScreen from '../screens/learning/StudyMaterialDetailScreen';
+import StoreMaterialScreen from '../screens/learning/StoreMaterialScreen';
 import AssessmentsScreen from '../screens/learning/AssessmentsScreen';
 import AssessmentDetailScreen from '../screens/learning/AssessmentDetailScreen';
 import LearningActivityScreen from '../screens/learning/LearningActivityScreen';
@@ -73,8 +74,9 @@ export type AppStackParamList = {
   PodThread: { conversationId: string };
   CreateSquad: undefined;
   StudyPlans: undefined;
-  StudyMaterials: undefined;
+  StudyMaterials: { conversationId?: string } | undefined;
   StudyMaterialDetail: { id: string };
+  StoreMaterial: { conversationId?: string } | undefined;
   Assessments: undefined;
   AssessmentDetail: { id: string };
   LearningActivity: { id?: string };
@@ -161,8 +163,6 @@ export default function AppNavigator() {
           <Stack.Screen name="CompareTutors" component={CompareTutorsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="RecommendedTutor" component={RecommendedTutorScreen} options={{ headerShown: false }} />
           <Stack.Screen name="StudyPlans" component={StudyPlansScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="StudyMaterials" component={StudyMaterialsScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="StudyMaterialDetail" component={StudyMaterialDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Assessments" component={AssessmentsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AssessmentDetail" component={AssessmentDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="LearningActivity" component={LearningActivityScreen} options={{ headerShown: false }} />
@@ -183,6 +183,9 @@ export default function AppNavigator() {
       <Stack.Screen name="ChatPod" component={ChatPodScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PodThread" component={PodThreadScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CreateSquad" component={CreateSquadScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="StudyMaterials" component={StudyMaterialsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="StudyMaterialDetail" component={StudyMaterialDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="StoreMaterial" component={StoreMaterialScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

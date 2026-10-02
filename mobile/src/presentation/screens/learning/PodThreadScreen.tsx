@@ -18,6 +18,7 @@ import type { PodConversation, PodMessage } from '../../../domain/entities/Pod';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { ink, muted, navy, yellow } from './learningTheme';
+import ChatMaterialsBar from './ChatMaterialsBar';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PodThread'>;
 
@@ -206,6 +207,13 @@ export default function PodThreadScreen({ route, navigation }: Props) {
         />
       )}
 
+      <ChatMaterialsBar
+        conversationId={route.params.conversationId}
+        conversationTitle={conversation?.title}
+        onOpenLibrary={() => navigation.navigate('StudyMaterials', { conversationId: route.params.conversationId })}
+        onStore={() => navigation.navigate('StoreMaterial', { conversationId: route.params.conversationId })}
+        onOpenItem={(id) => navigation.navigate('StudyMaterialDetail', { id })}
+      />
       <View style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <View style={styles.composer}>
           <TextInput

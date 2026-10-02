@@ -114,6 +114,14 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
             <View style={styles.podDot} />
             <Text style={styles.podChipText}>Chat Pod</Text>
           </TouchableOpacity>
+          <View style={styles.chipRow}>
+            <TouchableOpacity style={styles.libraryChip} onPress={() => stack?.navigate('StudyMaterials')}>
+              <Text style={styles.libraryChipText}>Materials Library</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.storeChip} onPress={() => stack?.navigate('StoreMaterial')}>
+              <Text style={styles.podChipText}>Store material</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {loading && !data ? (
@@ -362,6 +370,10 @@ const styles = StyleSheet.create({
   },
   podDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16A34A' },
   podChipText: { color: navy, fontWeight: '900', fontSize: 12 },
+  chipRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  libraryChip: { backgroundColor: '#EEF2FF', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
+  libraryChipText: { color: navy, fontWeight: '900', fontSize: 12 },
+  storeChip: { backgroundColor: yellow, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
   body: { padding: 14 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   statCard: {
