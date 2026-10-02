@@ -1,4 +1,12 @@
+import dns from 'dns';
 import mongoose from 'mongoose';
+
+function isDnsFailure(err: unknown): boolean {
+  const code = (err as { code?: string }).code ?? '';
+  const message = err instanceof Error ? err.message : '';
+  return code === 'ESERVFAIL' || code === 'ETIMEOUT' || code === 'ENOTFOUND'
+    || message.includes('querySrv') || message.includes('queryTxt');
+}
 
 async function migrateLegacyReviewIndexes(): Promise<void> {
   const db = mongoose.connection.db;
@@ -46,7 +54,24 @@ export async function connectDB(): Promise<void> {
     throw new Error('MONGO_URI is not defined in environment variables.');
   }
 
-  await mongoose.connect(uri);
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      await mongoose.connect(uri);
+      lastError = undefined;
+      break;
+    } catch (err) {
+      lastError = err;
+      await mongoose.disconnect().catch(() => undefined);
+      if (isDnsFailure(err)) {
+        dns.setServers(['8.8.8.8', '1.1.1.1']);
+      }
+      if (attempt === 4) break;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    }
+  }
+  if (lastError) throw lastError;
+
   await migrateLegacyReviewIndexes();
   console.log('✅ MongoDB connected');
 
