@@ -16,6 +16,7 @@ import type { LearningDashboard } from '../../../domain/entities/Learning';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { card, ink, live, muted, navy, pageBg, yellow } from './learningTheme';
+import RecentDiscussionsCard from './RecentDiscussionsCard';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
 type StackNav = NativeStackNavigationProp<AppStackParamList>;
@@ -143,8 +144,12 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                   key={goal._id}
                   style={styles.goalRow}
                   onPress={async () => {
-                    await learningRepository.toggleGoal(goal._id);
-                    load();
+                    try {
+                      await learningRepository.toggleGoal(goal._id);
+                      load();
+                    } catch {
+                      setError('Could not update this goal. Check your connection.');
+                    }
                   }}
                 >
                   <View style={[styles.goalCheck, goal.completed && styles.goalCheckOn]}>
@@ -219,28 +224,10 @@ export default function LearningDashboardScreen({ navigation }: Props) {
               ))}
             </View>
 
-            <View style={styles.card}>
-              <View style={styles.cardHead}>
-                <Text style={styles.cardTitle}>Recent Discussions</Text>
-                <TouchableOpacity onPress={() => stack?.navigate('Discussions')}>
-                  <Text style={styles.viewAll}>View All ({data?.discussions.total ?? 0})</Text>
-                </TouchableOpacity>
-              </View>
-              {(data?.discussions.items ?? []).map((item) => (
-                <TouchableOpacity key={item._id} style={styles.discussionRow} onPress={() => stack?.navigate('Discussions')}>
-                  <View style={styles.discAvatar}><Text style={styles.discInitials}>{item.authorInitials}</Text></View>
-                  <View style={styles.goalCopy}>
-                    <Text style={styles.goalTitle}>{item.title}</Text>
-                    <Text style={styles.goalMeta}>{item.authorName} · {item.preview}</Text>
-                    {item.votes > 0 && <Text style={styles.voteText}>{item.votes} voted · Join Pod</Text>}
-                  </View>
-                  <Text style={styles.timeAgo}>{item.timeAgo}</Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity style={styles.yellowBtn} onPress={() => stack?.navigate('ChatPod')}>
-                <Text style={styles.yellowBtnText}>Open Discussions Pod</Text>
-              </TouchableOpacity>
-            </View>
+            <RecentDiscussionsCard
+              onOpenPod={() => stack?.navigate('ChatPod')}
+              onOpenConversation={(conversation) => stack?.navigate('PodThread', { conversationId: conversation._id })}
+            />
 
             <View style={styles.card}>
               <View style={styles.cardHead}>
@@ -385,14 +372,6 @@ const styles = StyleSheet.create({
   liveTitle: { color: ink, fontSize: 16, fontWeight: '900' },
   upcomingRow: { paddingTop: 12, marginTop: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
   upcomingLabel: { color: muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.6, marginBottom: 4 },
-  discussionRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
-  discAvatar: {
-    width: 36, height: 36, borderRadius: 12, backgroundColor: '#FFF3BC',
-    alignItems: 'center', justifyContent: 'center', marginRight: 10,
-  },
-  discInitials: { color: navy, fontSize: 12, fontWeight: '900' },
-  voteText: { color: '#9A6A00', fontSize: 11, fontWeight: '800', marginTop: 4 },
-  timeAgo: { color: muted, fontSize: 10, marginLeft: 6 },
   assessmentBlock: { paddingTop: 12, marginTop: 8, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
   materialRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
   fileIcon: {

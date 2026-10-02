@@ -27,6 +27,8 @@ import TutorStudentScreen from '../screens/learning/TutorStudentScreen';
 import PackDispatcherScreen from '../screens/learning/PackDispatcherScreen';
 import TutorToolsScreen from '../screens/learning/TutorToolsScreen';
 import ChatPodScreen from '../screens/learning/ChatPodScreen';
+import PodThreadScreen from '../screens/learning/PodThreadScreen';
+import CreateSquadScreen from '../screens/learning/CreateSquadScreen';
 import StudyPlansScreen from '../screens/learning/StudyPlansScreen';
 import StudyMaterialsScreen from '../screens/learning/StudyMaterialsScreen';
 import StudyMaterialDetailScreen from '../screens/learning/StudyMaterialDetailScreen';
@@ -68,6 +70,8 @@ export type AppStackParamList = {
   RecommendedTutor: { mentor: Mentor; reviews: Review[]; comparedCount: number; isBestMatch: boolean };
   Chat: { mentor: Mentor };
   ChatPod: undefined;
+  PodThread: { conversationId: string };
+  CreateSquad: undefined;
   StudyPlans: undefined;
   StudyMaterials: undefined;
   StudyMaterialDetail: { id: string };
@@ -156,7 +160,6 @@ export default function AppNavigator() {
           <Stack.Screen name="Reviews" component={ReviewsScreen} options={{ title: 'Reviews' }} />
           <Stack.Screen name="CompareTutors" component={CompareTutorsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="RecommendedTutor" component={RecommendedTutorScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="ChatPod" component={ChatPodScreen} options={{ headerShown: false }} />
           <Stack.Screen name="StudyPlans" component={StudyPlansScreen} options={{ headerShown: false }} />
           <Stack.Screen name="StudyMaterials" component={StudyMaterialsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="StudyMaterialDetail" component={StudyMaterialDetailScreen} options={{ headerShown: false }} />
@@ -177,6 +180,9 @@ export default function AppNavigator() {
         </>
       )}
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ChatPod" component={ChatPodScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="PodThread" component={PodThreadScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CreateSquad" component={CreateSquadScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

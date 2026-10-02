@@ -16,6 +16,7 @@ export default function TutorStudentScreen({ route, navigation }: Props) {
   const load = useCallback(() => {
     learningRepository.getTutorStudent(route.params.id)
       .then(setStudent)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [route.params.id]);
 
@@ -23,9 +24,13 @@ export default function TutorStudentScreen({ route, navigation }: Props) {
 
   const assign = async () => {
     if (!student) return;
-    await learningRepository.assignTutorPack(student._id, 'study');
-    Alert.alert('Assigned', 'A study pack was added for this student.');
-    load();
+    try {
+      await learningRepository.assignTutorPack(student._id, 'study');
+      Alert.alert('Assigned', 'A study pack was added for this student.');
+      load();
+    } catch {
+      Alert.alert('Network error', 'Could not assign the pack.');
+    }
   };
 
   return (

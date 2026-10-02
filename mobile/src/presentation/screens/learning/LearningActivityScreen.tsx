@@ -16,6 +16,7 @@ export default function LearningActivityScreen({ route, navigation }: Props) {
   const load = useCallback(() => {
     learningRepository.getDashboard()
       .then((dashboard) => setActivity(dashboard.continueActivity))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -23,11 +24,15 @@ export default function LearningActivityScreen({ route, navigation }: Props) {
 
   const next = async () => {
     if (!activity) return;
-    const updated = await learningRepository.progressActivity(activity._id);
-    setActivity({
-      ...updated,
-      percent: Math.round((updated.done / updated.total) * 100),
-    });
+    try {
+      const updated = await learningRepository.progressActivity(activity._id);
+      setActivity({
+        ...updated,
+        percent: Math.round((updated.done / updated.total) * 100),
+      });
+    } catch {
+      // keep current progress if the API is unreachable
+    }
   };
 
   return (

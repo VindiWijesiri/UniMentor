@@ -18,6 +18,7 @@ export default function StudyMaterialsScreen({ navigation }: Props) {
     setLoading(true);
     learningRepository.getMaterials()
       .then((data) => { if (active) setMaterials(data); })
+      .catch(() => {})
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []));

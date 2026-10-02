@@ -18,6 +18,7 @@ export default function AssessmentsScreen({ navigation }: Props) {
     setLoading(true);
     learningRepository.getAssessments()
       .then((data) => { if (active) setItems(data); })
+      .catch(() => {})
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []));

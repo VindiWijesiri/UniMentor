@@ -16,15 +16,20 @@ export default function PackDispatcherScreen({ navigation }: Props) {
   const load = useCallback(() => {
     learningRepository.getTutorDashboard()
       .then(setData)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const dispatch = async (kind: 'mock' | 'study') => {
-    await learningRepository.dispatchTutorPack(kind);
-    Alert.alert('Dispatched', kind === 'mock' ? 'Batch mock assigned.' : 'Study pack pushed.');
-    load();
+    try {
+      await learningRepository.dispatchTutorPack(kind);
+      Alert.alert('Dispatched', kind === 'mock' ? 'Batch mock assigned.' : 'Study pack pushed.');
+      load();
+    } catch {
+      Alert.alert('Network error', 'Could not dispatch the pack.');
+    }
   };
 
   return (

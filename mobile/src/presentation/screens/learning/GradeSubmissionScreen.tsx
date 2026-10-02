@@ -20,6 +20,7 @@ export default function GradeSubmissionScreen({ route, navigation }: Props) {
         setStudent(data);
         if (data.score != null) setScore(String(data.score));
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [route.params.id]);
 
@@ -29,9 +30,13 @@ export default function GradeSubmissionScreen({ route, navigation }: Props) {
       Alert.alert('Invalid score', 'Enter a mark between 0 and 100.');
       return;
     }
-    await learningRepository.gradeTutorStudent(route.params.id, value);
-    Alert.alert('Graded', 'Score and feedback were saved to the queue.');
-    navigation.goBack();
+    try {
+      await learningRepository.gradeTutorStudent(route.params.id, value);
+      Alert.alert('Graded', 'Score and feedback were saved to the queue.');
+      navigation.goBack();
+    } catch {
+      Alert.alert('Network error', 'Could not save the grade. Check the API connection.');
+    }
   };
 
   return (

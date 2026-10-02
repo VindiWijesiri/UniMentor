@@ -36,6 +36,7 @@ export default function TutorToolsScreen({ route, navigation }: Props) {
           }
         }
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [tool]));
 

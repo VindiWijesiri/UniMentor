@@ -28,9 +28,26 @@ async function ensureTutor() {
 }
 
 export async function seedLearningData(studentId: string): Promise<void> {
+  try {
   const tutor = await ensureTutor();
   const alreadySeeded = await StudyWeek.findOne({ studentId, seedKey: 'weekly-v1' });
   if (alreadySeeded) return;
+
+  await StudyWeek.create({
+    studentId,
+    seedKey: 'weekly-v1',
+    sourcePage: 'plans',
+    hoursGoal: 20,
+    days: [
+      { day: 'M', hours: 2 },
+      { day: 'T', hours: 2.5 },
+      { day: 'W', hours: 3 },
+      { day: 'T', hours: 4 },
+      { day: 'F', hours: 2 },
+      { day: 'S', hours: 1 },
+      { day: 'S', hours: 0 },
+    ],
+  });
 
   await StudyGoal.insertMany([
     {
@@ -262,4 +279,7 @@ export async function seedLearningData(studentId: string): Promise<void> {
       seedKey: 'up-dijkstra',
     },
   ]);
+  } catch (error) {
+    if ((error as { code?: number }).code !== 11000) throw error;
+  }
 }

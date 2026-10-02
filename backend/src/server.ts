@@ -8,7 +8,7 @@ const PORT = process.env.PORT ?? 5000;
 
 async function bootstrap() {
   await connectDB();
-  app.listen(PORT, () => {
+  app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🚀 UniMentor API running on http://localhost:${PORT}`);
   });
 }

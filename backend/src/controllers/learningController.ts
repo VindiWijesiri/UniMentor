@@ -12,7 +12,9 @@ import {
   StudyPlan,
   StudyWeek,
 } from '../models/learning';
+import { PodConversation } from '../models/pod';
 import { seedLearningData } from '../services/seedLearningData';
+import { seedPodData } from '../services/seedPodData';
 
 function hoursDone(days: { hours: number }[]): number {
   return Math.round(days.reduce((sum, day) => sum + day.hours, 0) * 10) / 10;
@@ -30,6 +32,7 @@ async function readyStudent(req: AuthRequest): Promise<string> {
   const studentId = String(req.userId);
   if (req.userRole === 'student') {
     await seedLearningData(studentId);
+    await seedPodData(studentId);
   }
   return studentId;
 }
@@ -39,7 +42,7 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
     const studentId = await readyStudent(req);
     const user = await User.findById(studentId);
 
-    const [week, goals, activity, sessions, discussions, assessments, materials, unreadChat] = await Promise.all([
+    const [week, goals, activity, sessions, discussions, assessments, materials, podConversations] = await Promise.all([
       StudyWeek.findOne({ studentId }),
       StudyGoal.find({ studentId }).sort({ createdAt: 1 }),
       LearningActivity.findOne({ studentId }).sort({ updatedAt: -1 }),
@@ -47,8 +50,13 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
       Discussion.find({ studentId }).sort({ createdAt: -1 }),
       Assessment.find({ studentId }).sort({ scheduledAt: 1, dueDate: 1 }),
       StudyMaterial.find({ studentId }).sort({ uploadedAt: -1 }),
-      ChatPodMessage.countDocuments({ studentId, unread: true }),
+      PodConversation.find({ participants: studentId }),
     ]);
+    const unreadChat = podConversations.reduce((sum, item) => {
+      const counts = item.unreadCounts;
+      const value = counts instanceof Map ? counts.get(studentId) : (counts as unknown as Record<string, number> | undefined)?.[studentId];
+      return sum + (value ?? 0);
+    }, 0);
 
     const days = week?.days ?? [];
     const done = hoursDone(days);

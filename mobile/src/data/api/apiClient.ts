@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { NativeModules } from 'react-native';
+import Constants from 'expo-constants';
+import { NativeModules, Platform } from 'react-native';
 import { useAuthStore } from '../../domain/stores/authStore';
 
 function isPrivateHost(hostname: string): boolean {
@@ -13,42 +14,52 @@ function isPrivateHost(hostname: string): boolean {
   );
 }
 
-function packagerHost(): string | null {
-  const sourceCode = NativeModules.SourceCode as
-    | { scriptURL?: string; getConstants?: () => { scriptURL?: string | null } }
-    | undefined;
-  const scriptURL = sourceCode?.scriptURL ?? sourceCode?.getConstants?.()?.scriptURL ?? undefined;
-  if (!scriptURL) return null;
+function hostFromUri(value?: string | null): string | null {
+  if (!value) return null;
   try {
-    const hostname = new URL(scriptURL).hostname;
+    const normalized = value.includes('://') ? value : `http://${value}`;
+    const hostname = new URL(normalized).hostname;
     return isPrivateHost(hostname) ? hostname : null;
   } catch {
     return null;
   }
 }
 
+function packagerHost(): string | null {
+  const extras = Constants.expoConfig?.hostUri
+    ?? Constants.linkingUri
+    ?? (Constants as { debuggerHost?: string }).debuggerHost;
+  const fromExpo = hostFromUri(extras);
+  if (fromExpo) return fromExpo;
+
+  const sourceCode = NativeModules.SourceCode as
+    | { scriptURL?: string; getConstants?: () => { scriptURL?: string | null } }
+    | undefined;
+  const scriptURL = sourceCode?.scriptURL ?? sourceCode?.getConstants?.()?.scriptURL ?? undefined;
+  return hostFromUri(scriptURL);
+}
+
 function resolveBaseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api';
-  const host = packagerHost();
-  if (!host) return configured;
   try {
     const url = new URL(configured);
-    if (isPrivateHost(url.hostname)) url.hostname = host;
+    const host = packagerHost();
+    if (host && isPrivateHost(url.hostname)) {
+      url.hostname = Platform.OS === 'android' && host === 'localhost' ? '10.0.2.2' : host;
+    }
     return url.toString().replace(/\/$/, '');
   } catch {
-    return configured;
+    return configured.replace(/\/$/, '');
   }
 }
 
-const BASE_URL = resolveBaseUrl();
-
 const apiClient = axios.create({
-  baseURL: BASE_URL,
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });
 
 apiClient.interceptors.request.use((config) => {
+  config.baseURL = resolveBaseUrl();
   const token = useAuthStore.getState().token;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

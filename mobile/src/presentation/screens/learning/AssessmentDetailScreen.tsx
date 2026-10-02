@@ -16,15 +16,20 @@ export default function AssessmentDetailScreen({ route, navigation }: Props) {
   const load = useCallback(() => {
     learningRepository.getAssessment(route.params.id)
       .then(setItem)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [route.params.id]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const submit = async () => {
-    const updated = await learningRepository.submitAssessment(route.params.id);
-    setItem(updated);
-    Alert.alert('Submitted', 'Your work is marked as submitted.');
+    try {
+      const updated = await learningRepository.submitAssessment(route.params.id);
+      setItem(updated);
+      Alert.alert('Submitted', 'Your work is marked as submitted.');
+    } catch {
+      Alert.alert('Network error', 'Could not submit this assessment.');
+    }
   };
 
   return (

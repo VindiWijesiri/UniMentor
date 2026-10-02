@@ -18,6 +18,7 @@ export default function StudyPlansScreen({ navigation }: Props) {
     setLoading(true);
     learningRepository.getPlans()
       .then((data) => { if (active) setPlans(data); })
+      .catch(() => {})
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []));

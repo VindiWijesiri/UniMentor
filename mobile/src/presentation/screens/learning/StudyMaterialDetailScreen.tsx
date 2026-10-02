@@ -15,6 +15,7 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
   useEffect(() => {
     learningRepository.getMaterial(route.params.id)
       .then(setMaterial)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [route.params.id]);
 

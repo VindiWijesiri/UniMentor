@@ -17,6 +17,7 @@ import { learningRepository } from '../../../data/repositories/learningRepositor
 import type { TutorLearningDashboard, TutorQueueStudent, TutorStudentStatus } from '../../../domain/entities/Learning';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { card, ink, muted, navy, pageBg, yellow } from './learningTheme';
+import RecentDiscussionsCard from './RecentDiscussionsCard';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
 type StackNav = NativeStackNavigationProp<AppStackParamList>;
@@ -86,9 +87,13 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
   }, [data, filter, query]);
 
   const assign = async (student: TutorQueueStudent, kind: 'study' | 'recovery') => {
-    await learningRepository.assignTutorPack(student._id, kind);
-    Alert.alert(kind === 'recovery' ? 'Recovery pack assigned' : 'Material assigned', `${student.name} received the pack.`);
-    load();
+    try {
+      await learningRepository.assignTutorPack(student._id, kind);
+      Alert.alert(kind === 'recovery' ? 'Recovery pack assigned' : 'Material assigned', `${student.name} received the pack.`);
+      load();
+    } catch {
+      Alert.alert('Network error', 'Could not reach the UniMentor API. Check that the backend is running on this PC.');
+    }
   };
 
   return (
@@ -105,6 +110,10 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
           <Text style={styles.workspace}>
             Tutor Workspace · {data?.header.enrolled ?? 0} Enrolled · Cohort: {data?.header.cohort ?? 'DSA & OOP'}
           </Text>
+          <TouchableOpacity style={styles.podChip} onPress={() => stack?.navigate('ChatPod')}>
+            <View style={styles.podDot} />
+            <Text style={styles.podChipText}>Chat Pod</Text>
+          </TouchableOpacity>
         </View>
 
         {loading && !data ? (
@@ -175,9 +184,13 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
                 <TouchableOpacity
                   style={styles.dispatchBtn}
                   onPress={async () => {
-                    await learningRepository.dispatchTutorPack('mock');
-                    Alert.alert('Mock assigned', 'The batch mock was pushed to the cohort.');
-                    load();
+                    try {
+                      await learningRepository.dispatchTutorPack('mock');
+                      Alert.alert('Mock assigned', 'The batch mock was pushed to the cohort.');
+                      load();
+                    } catch {
+                      Alert.alert('Network error', 'Could not reach the UniMentor API.');
+                    }
                   }}
                 >
                   <Text style={styles.dispatchTitle}>Batch Assign Mock</Text>
@@ -186,9 +199,13 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
                 <TouchableOpacity
                   style={styles.dispatchBtn}
                   onPress={async () => {
-                    await learningRepository.dispatchTutorPack('study');
-                    Alert.alert('Study pack pushed', 'Notes were sent to the cohort.');
-                    load();
+                    try {
+                      await learningRepository.dispatchTutorPack('study');
+                      Alert.alert('Study pack pushed', 'Notes were sent to the cohort.');
+                      load();
+                    } catch {
+                      Alert.alert('Network error', 'Could not reach the UniMentor API.');
+                    }
                   }}
                 >
                   <Text style={styles.dispatchTitle}>Push Study Pack</Text>
@@ -197,6 +214,11 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
               </View>
               <Text style={styles.engine}>Rubric & Anti-Plagiarism Engine · {data?.tools.plagiarismFlags ?? 0} Flags</Text>
             </View>
+
+            <RecentDiscussionsCard
+              onOpenPod={() => stack?.navigate('ChatPod')}
+              onOpenConversation={(conversation) => stack?.navigate('PodThread', { conversationId: conversation._id })}
+            />
 
             <View style={styles.tools}>
               {[
@@ -208,7 +230,9 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
                 <TouchableOpacity
                   key={tool.key}
                   style={styles.tool}
-                  onPress={() => stack?.navigate('TutorTools', { tool: tool.key as 'bank' | 'voice' | 'squads' | 'export' })}
+                  onPress={() => tool.key === 'squads'
+                    ? stack?.navigate('ChatPod')
+                    : stack?.navigate('TutorTools', { tool: tool.key as 'bank' | 'voice' | 'squads' | 'export' })}
                 >
                   <View style={styles.toolDot} />
                   <Text style={styles.toolLabel}>{tool.label}</Text>
@@ -325,6 +349,19 @@ const styles = StyleSheet.create({
   heroTitle: { flex: 1, color: '#FFF', fontSize: 18, fontWeight: '900' },
   brand: { color: yellow, fontSize: 13, fontWeight: '800' },
   workspace: { color: '#C5D4EB', fontSize: 12, marginTop: 8 },
+  podChip: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    backgroundColor: yellow,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  podDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16A34A' },
+  podChipText: { color: navy, fontWeight: '900', fontSize: 12 },
   body: { padding: 14 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   statCard: {
