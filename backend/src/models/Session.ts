@@ -7,6 +7,11 @@ export interface ISession extends Document {
   scheduledAt: Date;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   notes?: string;
+  isLive?: boolean;
+  durationMin?: number;
+  moduleCode?: string;
+  sessionKind?: 'booking' | 'tutoring';
+  seedKey?: string;
 }
 
 const sessionSchema = new Schema<ISession>(
@@ -21,6 +26,11 @@ const sessionSchema = new Schema<ISession>(
       default: 'pending',
     },
     notes: { type: String },
+    isLive: { type: Boolean, default: false },
+    durationMin: { type: Number },
+    moduleCode: { type: String },
+    sessionKind: { type: String, enum: ['booking', 'tutoring'], default: 'booking' },
+    seedKey: { type: String },
   },
   { timestamps: true }
 );

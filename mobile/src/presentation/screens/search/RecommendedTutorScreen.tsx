@@ -28,7 +28,7 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
       Alert.alert(
         'Select a registered tutor',
         'This tutor profile is no longer available. Please return to Find Tutors and select a registered tutor.',
-        [{ text: 'Find Tutors', onPress: () => navigation.navigate('MainTabs', { screen: 'Search' }) }],
+        [{ text: 'Find Tutors', onPress: () => navigation.navigate('Search') }],
       );
       return;
     }

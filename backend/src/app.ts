@@ -6,6 +6,7 @@ import sessionRoutes from './routes/sessionRoutes';
 import userRoutes from './routes/userRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import chatRoutes from './routes/chatRoutes';
+import learningRoutes from './routes/learningRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -25,6 +26,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/learning', learningRoutes);
 
 // Global error handler — must be last
 app.use(errorHandler);

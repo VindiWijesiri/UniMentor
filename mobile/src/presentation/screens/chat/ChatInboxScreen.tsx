@@ -1,14 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { chatRepository } from '../../../data/repositories/chatRepository';
 import type { ChatConversation } from '../../../domain/entities/ChatMessage';
 import type { Mentor } from '../../../domain/entities/Mentor';
-import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import type { AppStackParamList } from '../../navigation/AppNavigator';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Messages'>;
+type Props = NativeStackScreenProps<AppStackParamList, 'TutorInbox'>;
 
 const formatDate = (date: string) => new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' });
 
@@ -48,7 +47,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
       rating: participant.rating ?? 0,
       reviewCount: participant.reviewCount ?? 0,
     };
-    navigation.getParent<NativeStackNavigationProp<AppStackParamList>>()?.navigate('Chat', { mentor });
+    navigation.navigate('Chat', { mentor });
   };
 
   return (

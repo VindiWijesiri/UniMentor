@@ -4,9 +4,10 @@ import {
   TouchableOpacity, View,
 } from 'react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../domain/stores/authStore';
-import type { AppTabParamList } from '../../navigation/AppNavigator';
+import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
 type FieldKey = 'faculty' | 'department' | 'programme' | 'academicYear' | 'semester'
@@ -244,7 +245,9 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.brandName}><Text style={styles.brandStrong}>Uni</Text>Mentor</Text>
               <Text style={styles.brandTagline}>Learn Better. Go Further.</Text>
             </View>
-            <TouchableOpacity style={styles.headerIcon}><Text style={styles.bell}>●</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Alerts')}>
+              <Text style={styles.bell}>●</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
               <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
             </TouchableOpacity>
@@ -328,7 +331,7 @@ export default function HomeScreen({ navigation }: Props) {
 
           <TouchableOpacity
             style={styles.continueButton}
-            onPress={() => navigation.navigate('Search', values.module ? {
+            onPress={() => navigation.getParent<NativeStackNavigationProp<AppStackParamList>>()?.navigate('Search', values.module ? {
               initialQuery: values.module,
               faculty: values.faculty,
               department: values.department,

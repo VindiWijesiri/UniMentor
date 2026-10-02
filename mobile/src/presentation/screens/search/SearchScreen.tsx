@@ -10,15 +10,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchMentorsUseCase } from '../../../domain/usecases/mentor/searchMentorsUseCase';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import { countTutorFilters } from '../../../domain/entities/TutorFilters';
-import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import type { AppStackParamList } from '../../navigation/AppNavigator';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Search'>;
+type Props = NativeStackScreenProps<AppStackParamList, 'Search'>;
 type MentorCard = Mentor & {
   experience?: string;
   sessionCount?: number;
@@ -140,8 +139,7 @@ export default function SearchScreen({ route, navigation }: Props) {
       Alert.alert('Select tutors', 'Choose at least 2 tutors to compare.');
       return;
     }
-    navigation.getParent<NativeStackNavigationProp<AppStackParamList>>()
-      ?.navigate('CompareTutors', { mentors });
+    navigation.navigate('CompareTutors', { mentors });
   };
 
   const renderMentor = ({ item }: { item: MentorCard }) => (
@@ -190,9 +188,7 @@ export default function SearchScreen({ route, navigation }: Props) {
           <TouchableOpacity
             style={styles.viewButton}
             activeOpacity={0.82}
-            onPress={() => navigation
-              .getParent<NativeStackNavigationProp<AppStackParamList>>()
-              ?.navigate('TutorProfile', { mentor: item })}
+            onPress={() => navigation.navigate('TutorProfile', { mentor: item })}
           >
             <Text style={styles.viewButtonText}>View profile</Text>
           </TouchableOpacity>
@@ -236,9 +232,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               <Text style={styles.browseLabel}>Filter by module</Text>
               <TouchableOpacity
                 style={[styles.openFiltersButton, activeFilterCount > 0 && styles.openFiltersButtonActive]}
-                onPress={() => navigation
-                  .getParent<NativeStackNavigationProp<AppStackParamList>>()
-                  ?.navigate('Filters', { filters, searchParams: route.params })}
+                onPress={() => navigation.navigate('Filters', { filters, searchParams: route.params })}
                 activeOpacity={0.8}
               >
                 <Text style={[styles.openFiltersIcon, activeFilterCount > 0 && styles.openFiltersTextActive]}>≡</Text>

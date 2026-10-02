@@ -12,7 +12,7 @@ export default function SessionsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My Sessions</Text>
+      <Text style={styles.title}>Bookings</Text>
       <FlatList
         data={sessions}
         keyExtractor={(item) => item._id}

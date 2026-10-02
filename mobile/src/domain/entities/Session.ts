@@ -6,4 +6,8 @@ export interface Session {
   scheduledAt: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   notes?: string;
+  isLive?: boolean;
+  durationMin?: number;
+  moduleCode?: string;
+  sessionKind?: 'booking' | 'tutoring';
 }

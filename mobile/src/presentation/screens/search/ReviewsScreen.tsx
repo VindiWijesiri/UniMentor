@@ -8,13 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { mentorRepository } from '../../../data/repositories/mentorRepository';
 import type { Mentor } from '../../../domain/entities/Mentor';
-import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import type { AppStackParamList } from '../../navigation/AppNavigator';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Reviews'>;
+type Props = NativeStackScreenProps<AppStackParamList, 'Reviews'>;
 
 export default function ReviewsScreen({ navigation }: Props) {
   const [tutors, setTutors] = useState<Mentor[]>([]);
@@ -50,9 +49,7 @@ export default function ReviewsScreen({ navigation }: Props) {
       .some((item) => item.toLowerCase().includes(value)));
   }, [query, tutors]);
 
-  const writeReview = (mentor: Mentor) => navigation
-    .getParent<NativeStackNavigationProp<AppStackParamList>>()
-    ?.navigate('WriteReview', { mentor });
+  const writeReview = (mentor: Mentor) => navigation.navigate('WriteReview', { mentor });
 
   return (
     <View style={styles.page}>
