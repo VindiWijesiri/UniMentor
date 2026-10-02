@@ -68,7 +68,83 @@ export async function saveTutorReview(req: AuthRequest, res: Response, next: Nex
     } catch (ratingError) {
       console.error('Review saved, but tutor rating refresh failed:', ratingError);
     }
+
     res.status(201).json(review);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyReviews(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const reviews = await Review.find({ student: req.userId })
+      .populate('tutor', 'name subjects profilePicture')
+      .sort({ updatedAt: -1 });
+    res.json(reviews);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateReview(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { rating, comment } = req.body;
+    const review = await Review.findById(req.params.id);
+    if (!review) {
+      res.status(404).json({ message: 'Review not found.' });
+      return;
+    }
+    if (String(review.student) !== req.userId) {
+      res.status(403).json({ message: 'Not authorised to edit this review.' });
+      return;
+    }
+
+    if (rating !== undefined) {
+      const numRating = Number(rating);
+      if (!Number.isFinite(numRating) || numRating < 1 || numRating > 5) {
+        res.status(400).json({ message: 'Rating must be between 1 and 5.' });
+        return;
+      }
+      review.rating = numRating;
+    }
+    if (comment !== undefined) {
+      review.comment = String(comment).trim();
+    }
+
+    await review.save();
+    try {
+      await refreshTutorRating(String(review.tutor));
+    } catch (ratingError) {
+      console.error('Tutor rating refresh error:', ratingError);
+    }
+
+    res.json(review);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteReview(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const review = await Review.findById(req.params.id);
+    if (!review) {
+      res.status(404).json({ message: 'Review not found.' });
+      return;
+    }
+    if (String(review.student) !== req.userId) {
+      res.status(403).json({ message: 'Not authorised to delete this review.' });
+      return;
+    }
+
+    const tutorId = String(review.tutor);
+    await Review.findByIdAndDelete(req.params.id);
+    try {
+      await refreshTutorRating(tutorId);
+    } catch (ratingError) {
+      console.error('Tutor rating refresh error:', ratingError);
+    }
+
+    res.json({ message: 'Review deleted successfully.', id: req.params.id });
   } catch (error) {
     next(error);
   }

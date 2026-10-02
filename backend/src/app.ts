@@ -13,6 +13,26 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Detailed Request & Response logger for debugging mobile client calls
+app.use((req, res, next) => {
+  const start = Date.now();
+  const hasAuth = !!req.headers.authorization;
+  console.log(`\n📡 [BACKEND INCOMING] ${req.method} ${req.originalUrl}`);
+  console.log(`   Origin IP: ${req.ip} | Authorization: ${hasAuth ? 'Bearer [token present]' : 'NONE'}`);
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    const safeBody = { ...req.body };
+    if (safeBody.password) safeBody.password = '****';
+    console.log(`   Body:`, JSON.stringify(safeBody));
+  }
+
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`📤 [BACKEND OUTGOING] ${req.method} ${req.originalUrl} -> Status: ${res.statusCode} (${duration}ms)`);
+  });
+
+  next();
+});
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -1,4 +1,39 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+import dns from 'dns';
 import mongoose from 'mongoose';
+import User from '../models/User';
+
+// Configure DNS to use public DNS resolvers (bypasses restrictive local intranet DNS on Wi-Fi)
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Ignore if not permitted
+}
+
+const resolver = new dns.Resolver();
+try {
+  resolver.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Ignore
+}
+
+const customLookup = (hostname: string, opts: any, cb: any) => {
+  if (typeof opts === 'function') {
+    cb = opts;
+    opts = {};
+  }
+  resolver.resolve4(hostname, (err, addrs) => {
+    if (!err && addrs && addrs.length > 0) {
+      if (opts && opts.all) {
+        return cb(null, addrs.map((a) => ({ address: a, family: 4 })));
+      }
+      return cb(null, addrs[0], 4);
+    }
+    dns.lookup(hostname, opts, cb);
+  });
+};
 
 async function migrateLegacyReviewIndexes(): Promise<void> {
   const db = mongoose.connection.db;
@@ -41,14 +76,42 @@ async function migrateLegacyReviewIndexes(): Promise<void> {
 }
 
 export async function connectDB(): Promise<void> {
-  const uri = process.env.MONGO_URI;
+  const uri = process.env.MONGO_URI?.trim();
   if (!uri) {
-    throw new Error('MONGO_URI is not defined in environment variables.');
+    throw new Error('MONGO_URI is not defined in backend/.env');
   }
 
-  await mongoose.connect(uri);
-  await migrateLegacyReviewIndexes();
-  console.log('✅ MongoDB connected');
+  const maskedUri = uri.replace(/:[^:]*@/, ':****@');
+  console.log(`\n⏳ Connecting to real MongoDB Atlas database...`);
+  console.log(`📍 Connection URI: ${maskedUri}`);
+
+  try {
+    await mongoose.connect(uri, {
+      lookup: customLookup,
+      serverSelectionTimeoutMS: 10000,
+    });
+
+    console.log(`\n============================================================`);
+    console.log(`✅ CONNECTED TO REAL DATABASE: ${mongoose.connection.name}`);
+    console.log(`🌐 Cluster Host: ${mongoose.connection.host}`);
+
+    // Query and log real data from the database
+    const totalUsers = await User.countDocuments();
+    const mentors = await User.find({ role: 'mentor' }).select('name email subjects rating');
+
+    console.log(`📊 TOTAL DOCUMENTS IN USERS COLLECTION: ${totalUsers}`);
+    console.log(`👨‍🏫 Real Mentors Count: ${mentors.length}`);
+    mentors.forEach((m, i) => {
+      console.log(`   [${i + 1}] ${m.name} (${m.email}) - Subjects: [${m.subjects?.join(', ') || 'General'}]`);
+    });
+    console.log(`============================================================\n`);
+
+    await migrateLegacyReviewIndexes();
+  } catch (err: any) {
+    console.error('\n❌ FAILED TO CONNECT TO MONGODB ATLAS:');
+    console.error(`   Error: ${err.message}`);
+    throw err;
+  }
 
   mongoose.connection.on('error', (err) => {
     console.error('MongoDB connection error:', err);

@@ -5,5 +5,18 @@ export interface User {
   role: 'student' | 'mentor';
   profilePicture?: string;
   bio?: string;
+  subjects?: string[];
+  degreeProgramme?: string;
+  academicYear?: string;
+  semester?: string;
+  academicStats?: {
+    goals: number;
+    plans: number;
+    dueTests: number;
+    done: number;
+  };
+  rating?: number;
+  reviewCount?: number;
+  hourlyRate?: number;
   createdAt: string;
 }

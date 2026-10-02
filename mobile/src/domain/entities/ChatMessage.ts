@@ -5,6 +5,11 @@ export interface ChatMessage {
   receiver: string;
   text: string;
   read: boolean;
+  messageType?: 'text' | 'voice' | 'system' | 'attachment';
+  voiceDuration?: number;
+  voiceWaveform?: number[];
+  attachmentUrl?: string;
+  attachmentName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,6 +24,9 @@ export interface ChatConversation {
     bio?: string;
     rating?: number;
     reviewCount?: number;
+    profilePicture?: string;
+    degreeProgramme?: string;
+    academicYear?: string;
   };
   lastMessage: ChatMessage;
   unreadCount: number;

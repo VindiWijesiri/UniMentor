@@ -1,12 +1,15 @@
-import React from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Mentor } from '../../../domain/entities/Mentor';
+import type { Review } from '../../../domain/entities/Review';
+import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'TutorProfile'>;
+type Props = any;
 type ProfileMentor = Mentor & {
   experience?: string;
   sessionCount?: number;
@@ -25,10 +28,86 @@ function SectionHeading({ icon, title }: { icon: string; title: string }) {
 
 export default function TutorProfileScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const mentor = route.params.mentor as ProfileMentor;
-  const rating = mentor.rating ? mentor.rating.toFixed(1) : 'New';
-  const currentRole = useAuthStore((state) => state.user?.role);
+  const currentUser = useAuthStore((state) => state.user);
+  const currentRole = currentUser?.role;
+
+  // Resolve mentor data: from route.params if provided, or from logged-in mentor user
+  const mentor: ProfileMentor = (route?.params?.mentor || {
+    _id: currentUser?._id || 'mentor-current',
+    name: currentUser?.name || 'Tutor Profile',
+    email: currentUser?.email || '',
+    bio:
+      currentUser?.bio ||
+      'Senior peer tutor dedicated to academic excellence, providing step-by-step guidance.',
+    subjects:
+      currentUser?.subjects && currentUser.subjects.length > 0
+        ? currentUser.subjects
+        : ['Academic Guidance'],
+    rating: currentUser?.rating || 5.0,
+    reviewCount: currentUser?.reviewCount || 0,
+    profilePicture: currentUser?.profilePicture,
+    hourlyRate: currentUser?.hourlyRate || 2000,
+    role: 'mentor' as const,
+  }) as ProfileMentor;
+
+  const isMentorOwnProfile =
+    currentRole === 'mentor' &&
+    (mentor._id === currentUser?._id ||
+      mentor.name.toLowerCase() === currentUser?.name?.toLowerCase());
+
   const chatLabel = currentRole === 'mentor' ? 'Chat with Student' : 'Chat with Tutor';
+
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+
+  const loadReviews = useCallback(async () => {
+    try {
+      const data = await reviewRepository.listForTutor(mentor._id);
+      setReviews(data);
+    } catch {
+      // Keep existing reviews
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, [mentor._id]);
+
+  const handleDeleteReview = (reviewId: string) => {
+    if (currentRole === 'mentor') {
+      Alert.alert('Permission Denied', 'Mentors cannot delete student reviews.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Review',
+      `Are you sure you want to permanently delete your review for ${mentor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await reviewRepository.delete(reviewId, mentor._id);
+              await loadReviews();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Could not delete review.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadReviews();
+    }, [loadReviews])
+  );
+
+  const totalReviews = reviews.length;
+  const avgRating = totalReviews > 0
+    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews).toFixed(1)
+    : (mentor.rating ? mentor.rating.toFixed(1) : 'New');
 
   const openChat = () => {
     if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
@@ -59,13 +138,28 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               <Text style={styles.name} numberOfLines={1}>{mentor.name}</Text>
               <Text style={styles.experience} numberOfLines={1}>{mentor.experience ?? 'Senior student tutor'}</Text>
             </View>
+            {isMentorOwnProfile && (
+              <TouchableOpacity
+                style={styles.heroSignOutBtn}
+                onPress={() => useAuthStore.getState().logout()}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.heroSignOutText}>Sign Out 🚪</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.heroStats}>
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatValue}><Text style={styles.star}>★</Text> {rating}</Text>
-              <Text style={styles.heroStatLabel}>Rating</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.heroStat}
+              onPress={() => currentRole === 'student' && navigation.navigate('WriteReview', { mentor })}
+              activeOpacity={currentRole === 'student' ? 0.75 : 1}
+            >
+              <Text style={styles.heroStatValue}><Text style={styles.star}>★</Text> {avgRating}</Text>
+              <Text style={styles.heroStatLabel}>
+                {totalReviews} {totalReviews === 1 ? 'Review' : 'Reviews'} {currentRole === 'student' ? '• +Rate' : ''}
+              </Text>
+            </TouchableOpacity>
             <View style={styles.heroDivider} />
             <View style={styles.heroStat}>
               <Text style={styles.heroStatValue}>{mentor.sessionCount ?? 0}+</Text>
@@ -118,90 +212,590 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             </View>
           </View>
 
+          {/* STUDENT REVIEWS SECTION */}
+          <View style={styles.reviewsCard}>
+            <View style={styles.reviewsHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#FEF3C7' }]}>
+                  <Text style={[styles.sectionIconText, { color: '#D97706' }]}>★</Text>
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Student Reviews</Text>
+                  <Text style={styles.reviewsSubCount}>
+                    {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'} from verified students
+                  </Text>
+                </View>
+              </View>
+
+              {currentRole !== 'mentor' && (
+                <TouchableOpacity
+                  style={styles.writeReviewHeaderBtn}
+                  onPress={() => navigation.navigate('WriteReview', { mentor })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.writeReviewHeaderBtnText}>+ Write Review</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Rating Breakdown Banner */}
+            <View style={styles.ratingSummaryBanner}>
+              <View style={styles.ratingBigCol}>
+                <Text style={styles.ratingBigNumber}>{avgRating}</Text>
+                <View style={styles.starsRow}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Text
+                      key={s}
+                      style={[
+                        styles.starIcon,
+                        s <= Math.round(Number(avgRating) || 0) ? styles.starFilled : styles.starEmpty,
+                      ]}
+                    >
+                      ★
+                    </Text>
+                  ))}
+                </View>
+                <Text style={styles.ratingTotalText}>Based on {totalReviews} reviews</Text>
+              </View>
+
+              <View style={styles.ratingBarsCol}>
+                {[5, 4, 3, 2, 1].map((starLevel) => {
+                  const count = reviews.filter((r) => Math.round(r.rating) === starLevel).length;
+                  const pct = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
+                  return (
+                    <View key={starLevel} style={styles.starBarRow}>
+                      <Text style={styles.starBarLabel}>{starLevel}★</Text>
+                      <View style={styles.starBarTrack}>
+                        <View style={[styles.starBarFill, { width: `${pct}%` }]} />
+                      </View>
+                      <Text style={styles.starBarCount}>{count}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Reviews List */}
+            {loadingReviews ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#061E47" />
+                <Text style={{ marginTop: 8, color: '#64748B', fontSize: 12 }}>Loading reviews...</Text>
+              </View>
+            ) : reviews.length === 0 ? (
+              <View style={styles.emptyReviewsBox}>
+                <Text style={styles.emptyReviewsEmoji}>💬</Text>
+                <Text style={styles.emptyReviewsTitle}>No reviews yet</Text>
+                <Text style={styles.emptyReviewsSubtitle}>
+                  Be the first student to share your learning experience with {mentor.name}!
+                </Text>
+                {currentRole !== 'mentor' && (
+                  <TouchableOpacity
+                    style={styles.emptyWriteBtn}
+                    onPress={() => navigation.navigate('WriteReview', { mentor })}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.emptyWriteBtnText}>Write a Review</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.reviewsList}>
+                {reviews.map((rev, index) => {
+                  const initials = (rev.studentName || 'Student').charAt(0).toUpperCase();
+                  const reviewDate = rev.createdAt
+                    ? new Date(rev.createdAt).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'Recent';
+
+                  const revStudentId =
+                    typeof rev.student === 'object' && rev.student !== null
+                      ? (rev.student as any)._id
+                      : rev.student;
+                  const isMyReview =
+                    currentRole !== 'mentor' &&
+                    ((currentUser?._id && (revStudentId === currentUser._id || rev.student === currentUser._id)) ||
+                      (currentUser?.name &&
+                        rev.studentName &&
+                        rev.studentName.toLowerCase() === currentUser.name.toLowerCase()) ||
+                      rev.student === 'current-student');
+
+                  return (
+                    <View key={rev._id || `rev-${index}`} style={styles.reviewItem}>
+                      <View style={styles.reviewTopRow}>
+                        <View style={styles.reviewAvatar}>
+                          <Text style={styles.reviewAvatarText}>{initials}</Text>
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.reviewAuthor}>{rev.studentName || 'Verified Student'}</Text>
+                            {isMyReview && (
+                              <View style={styles.myReviewPill}>
+                                <Text style={styles.myReviewPillText}>You</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.reviewDate}>{reviewDate}</Text>
+                        </View>
+                        <View style={styles.reviewStarsRow}>
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Text
+                              key={s}
+                              style={[
+                                styles.reviewStar,
+                                s <= rev.rating ? styles.starFilled : styles.starEmpty,
+                              ]}
+                            >
+                              ★
+                            </Text>
+                          ))}
+                        </View>
+                      </View>
+
+                      <Text style={styles.reviewComment}>{rev.comment}</Text>
+
+                      {isMyReview && (
+                        <View style={styles.reviewActionsRow}>
+                          <TouchableOpacity
+                            style={styles.reviewEditBtn}
+                            onPress={() =>
+                              navigation.navigate('WriteReview', { mentor, existingReview: rev })
+                            }
+                            activeOpacity={0.75}
+                          >
+                            <Text style={styles.reviewEditBtnText}>✏️ Edit</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.reviewDeleteBtn}
+                            onPress={() => handleDeleteReview(rev._id)}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={styles.reviewDeleteBtnText}>🗑️ Delete</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
         </View>
       </ScrollView>
 
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.82}>
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.chatButton} onPress={openChat} activeOpacity={0.84}>
-          <View style={styles.chatIcon}><Text style={styles.chatIconText}>•••</Text></View>
-          <View>
-            <Text style={styles.chatButtonLabel}>DIRECT MESSAGE</Text>
-            <Text style={styles.chatButtonText}>{chatLabel}</Text>
-          </View>
-          <Text style={styles.chatArrow}>→</Text>
-        </TouchableOpacity>
-      </View>
+      {isMentorOwnProfile ? (
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <TouchableOpacity
+            style={styles.mentorTabActionBtn}
+            onPress={() => navigation.navigate('Messages')}
+            activeOpacity={0.84}
+          >
+            <Text style={styles.mentorTabActionText}>💬 Student Messages</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.mentorTabLogoutBtn}
+            onPress={() => useAuthStore.getState().logout()}
+            activeOpacity={0.84}
+          >
+            <Text style={styles.mentorTabLogoutText}>Sign Out 🚪</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              }
+            }}
+            activeOpacity={0.82}
+          >
+            <Text style={styles.backArrow}>←</Text>
+            <Text style={styles.backButtonText}>Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.chatButton} onPress={openChat} activeOpacity={0.84}>
+            <View style={styles.chatIcon}><Text style={styles.chatIconText}>•••</Text></View>
+            <View>
+              <Text style={styles.chatButtonLabel}>DIRECT MESSAGE</Text>
+              <Text style={styles.chatButtonText}>{chatLabel}</Text>
+            </View>
+            <Text style={styles.chatArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
 
-const navy = '#061F5C';
-const royal = '#0A4AAB';
-const yellow = '#FFD21C';
+const navy = '#061E47';
+const navyCard = '#0B2754';
+const amber = '#F59E0B';
+const gold = '#FBBF24';
+const onlineGreen = '#22C55E';
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F4F7FC' },
-  content: { backgroundColor: '#F4F7FC' },
+  page: { flex: 1, backgroundColor: '#F4F7FB' },
+  content: { backgroundColor: '#F4F7FB' },
   hero: { backgroundColor: navy, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, overflow: 'hidden' },
-  heroOrbLarge: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: royal, right: -92, top: -104, opacity: 0.58 },
-  heroOrbSmall: { position: 'absolute', width: 74, height: 74, borderRadius: 37, backgroundColor: '#1264C9', left: -38, bottom: 8, opacity: 0.42 },
+  heroOrbLarge: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: navyCard, right: -92, top: -104, opacity: 0.65 },
+  heroOrbSmall: { position: 'absolute', width: 74, height: 74, borderRadius: 37, backgroundColor: '#0D3875', left: -38, bottom: 8, opacity: 0.42 },
   profileRow: { flexDirection: 'row', alignItems: 'center', zIndex: 2 },
   avatarWrap: { marginRight: 15 },
-  avatar: { width: 86, height: 86, borderRadius: 27, backgroundColor: '#FFF3BC', borderWidth: 3, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
+  avatar: { width: 86, height: 86, borderRadius: 27, backgroundColor: '#EEF2F8', borderWidth: 3, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
   avatarText: { color: navy, fontSize: 35, fontWeight: '900' },
-  onlineDot: { position: 'absolute', right: -3, bottom: -3, width: 21, height: 21, borderRadius: 11, backgroundColor: yellow, borderWidth: 4, borderColor: navy },
+  onlineDot: { position: 'absolute', right: -3, bottom: -3, width: 21, height: 21, borderRadius: 11, backgroundColor: onlineGreen, borderWidth: 4, borderColor: navy },
   profileCopy: { flex: 1, minWidth: 0 },
-  verifiedBadge: { alignSelf: 'flex-start', borderRadius: 11, backgroundColor: 'rgba(255,210,28,0.16)', borderWidth: 1, borderColor: 'rgba(255,210,28,0.45)', paddingHorizontal: 8, paddingVertical: 4, marginBottom: 7 },
-  verifiedText: { color: yellow, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.7 },
+  verifiedBadge: { alignSelf: 'flex-start', borderRadius: 11, backgroundColor: '#FFFDF0', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 8, paddingVertical: 4, marginBottom: 7 },
+  verifiedText: { color: '#D97706', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.7 },
   name: { color: '#FFF', fontSize: 23, fontWeight: '900', letterSpacing: -0.3 },
   experience: { color: '#C9D8EF', fontSize: 12, marginTop: 4 },
+  heroSignOutBtn: {
+    backgroundColor: 'rgba(254, 226, 226, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(248, 113, 113, 0.6)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+    marginLeft: 8,
+  },
+  heroSignOutText: {
+    color: '#FECACA',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
   heroStats: { height: 70, marginTop: 22, borderRadius: 17, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', zIndex: 2 },
   heroStat: { flex: 1, alignItems: 'center' },
   heroStatValue: { color: '#FFF', fontSize: 16, fontWeight: '900' },
   heroStatLabel: { color: '#AFC3E2', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 4 },
   heroDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.18)' },
-  star: { color: yellow },
-  onlineText: { color: yellow },
+  star: { color: gold },
+  onlineText: { color: onlineGreen },
   bodyWrap: { paddingHorizontal: 16, paddingTop: 14 },
-  availabilityCard: { minHeight: 68, borderRadius: 18, backgroundColor: '#FFF8D5', borderWidth: 1, borderColor: '#F3DC72', paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', shadowColor: '#7D6510', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
-  calendarBox: { width: 42, height: 42, borderRadius: 13, backgroundColor: yellow, alignItems: 'center', justifyContent: 'center', marginRight: 11 },
-  calendarIcon: { color: navy, fontSize: 20, fontWeight: '900' },
+  availabilityCard: { minHeight: 68, borderRadius: 18, backgroundColor: '#FFFDF0', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', shadowColor: '#7D6510', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  calendarBox: { width: 42, height: 42, borderRadius: 13, backgroundColor: amber, alignItems: 'center', justifyContent: 'center', marginRight: 11 },
+  calendarIcon: { color: '#FFF', fontSize: 20, fontWeight: '900' },
   availabilityCopy: { flex: 1 },
-  availabilityLabel: { color: '#8A6900', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.8 },
+  availabilityLabel: { color: '#D97706', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.8 },
   availabilityValue: { color: navy, fontSize: 14, fontWeight: '900', marginTop: 3 },
   availableBadge: { borderRadius: 10, backgroundColor: '#FFF', paddingHorizontal: 9, paddingVertical: 5 },
-  availableBadgeText: { color: '#8A6900', fontSize: 9, fontWeight: '800' },
-  card: { borderRadius: 18, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E3EAF4', padding: 16, marginTop: 12, shadowColor: '#1D3D66', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  availableBadgeText: { color: '#D97706', fontSize: 9, fontWeight: '800' },
+  card: { borderRadius: 18, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', padding: 16, marginTop: 12, shadowColor: '#1D3D66', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', marginBottom: 11 },
-  sectionIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: '#EAF2FF', alignItems: 'center', justifyContent: 'center', marginRight: 9 },
-  sectionIconText: { color: royal, fontSize: 13, fontWeight: '900' },
+  sectionIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: '#EEF2F8', alignItems: 'center', justifyContent: 'center', marginRight: 9 },
+  sectionIconText: { color: navy, fontSize: 13, fontWeight: '900' },
   sectionTitle: { color: navy, fontSize: 16, fontWeight: '900' },
   bodyText: { color: '#596B87', fontSize: 13, lineHeight: 20 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { minHeight: 33, borderRadius: 12, backgroundColor: '#F1F5FB', borderWidth: 1, borderColor: '#E1E8F2', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center' },
-  primaryTag: { backgroundColor: '#EAF2FF', borderColor: '#CFE0F8' },
+  primaryTag: { backgroundColor: '#EEF2F8', borderColor: '#CBD5E1' },
   tagDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#9AA9BF', marginRight: 7 },
-  primaryTagDot: { backgroundColor: yellow },
+  primaryTagDot: { backgroundColor: amber },
   tagText: { color: '#52647F', fontSize: 11, fontWeight: '700' },
-  primaryTagText: { color: royal },
-  supportCard: { borderRadius: 18, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E3EAF4', padding: 16, marginTop: 12 },
+  primaryTagText: { color: navy },
+  supportCard: { borderRadius: 18, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', padding: 16, marginTop: 12 },
   supportRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 7 },
   supportItem: { flex: 1, alignItems: 'center', borderRadius: 13, backgroundColor: '#F7F9FD', paddingVertical: 11 },
-  supportCheck: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FFF3BC', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  supportCheckText: { color: navy, fontSize: 12, fontWeight: '900' },
+  supportCheck: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  supportCheckText: { color: amber, fontSize: 12, fontWeight: '900' },
   supportText: { color: '#536580', fontSize: 10, fontWeight: '800' },
-  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingTop: 10, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#E3EAF4', shadowColor: '#17365E', shadowOpacity: 0.10, shadowRadius: 12, elevation: 10, flexDirection: 'row', gap: 8 },
-  backButton: { width: 91, height: 52, borderRadius: 15, backgroundColor: yellow, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: '#D6A700', shadowOpacity: 0.20, shadowRadius: 7, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingTop: 10, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#E2E8F0', shadowColor: '#17365E', shadowOpacity: 0.10, shadowRadius: 12, elevation: 10, flexDirection: 'row', gap: 8 },
+  backButton: { width: 91, height: 52, borderRadius: 15, backgroundColor: '#EEF2F8', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 2 },
   backArrow: { color: navy, fontSize: 19, fontWeight: '900', marginRight: 6, marginTop: -2 },
   backButtonText: { color: navy, fontSize: 12.5, fontWeight: '900' },
-  chatButton: { flex: 1, height: 52, borderRadius: 15, backgroundColor: navy, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', shadowColor: '#062B67', shadowOpacity: 0.18, shadowRadius: 7, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  chatIcon: { width: 31, height: 31, borderRadius: 10, backgroundColor: 'rgba(255,210,28,0.16)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  chatIconText: { color: yellow, fontSize: 12, lineHeight: 12, fontWeight: '900', marginTop: -5 },
+  chatButton: { flex: 1, height: 52, borderRadius: 15, backgroundColor: navy, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', shadowColor: navy, shadowOpacity: 0.18, shadowRadius: 7, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  chatIcon: { width: 31, height: 31, borderRadius: 10, backgroundColor: 'rgba(245,158,11,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  chatIconText: { color: amber, fontSize: 12, lineHeight: 12, fontWeight: '900', marginTop: -5 },
   chatButtonLabel: { color: '#AFC2DF', fontSize: 7.5, fontWeight: '900', letterSpacing: 0.6 },
   chatButtonText: { color: '#FFF', fontSize: 12, fontWeight: '900', marginTop: 2 },
-  chatArrow: { color: yellow, fontSize: 19, fontWeight: '900', marginLeft: 'auto' },
+  chatArrow: { color: gold, fontSize: 19, fontWeight: '900', marginLeft: 'auto' },
+
+  /* Reviews Card & Styles */
+  reviewsCard: {
+    borderRadius: 18,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginTop: 12,
+    shadowColor: '#1D3D66',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  reviewsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  reviewsSubCount: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  writeReviewHeaderBtn: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  writeReviewHeaderBtnText: {
+    color: '#B45309',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  ratingSummaryBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  ratingBigCol: {
+    alignItems: 'center',
+    paddingRight: 16,
+    borderRightWidth: 1,
+    borderRightColor: '#E2E8F0',
+  },
+  ratingBigNumber: {
+    color: navy,
+    fontSize: 32,
+    fontWeight: '900',
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 2,
+    marginVertical: 3,
+  },
+  starIcon: {
+    fontSize: 13,
+  },
+  starFilled: {
+    color: '#F59E0B',
+  },
+  starEmpty: {
+    color: '#CBD5E1',
+  },
+  ratingTotalText: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  ratingBarsCol: {
+    flex: 1,
+    paddingLeft: 14,
+    gap: 4,
+  },
+  starBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  starBarLabel: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '700',
+    width: 22,
+  },
+  starBarTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  starBarFill: {
+    height: 6,
+    backgroundColor: '#F59E0B',
+    borderRadius: 3,
+  },
+  starBarCount: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+    width: 14,
+    textAlign: 'right',
+  },
+  reviewsList: {
+    gap: 10,
+  },
+  reviewItem: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  reviewTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#EEF2F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewAvatarText: {
+    color: navy,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  reviewAuthor: {
+    color: navy,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  reviewDate: {
+    color: '#94A3B8',
+    fontSize: 10,
+    marginTop: 1,
+  },
+  reviewStarsRow: {
+    flexDirection: 'row',
+    gap: 1,
+  },
+  reviewStar: {
+    fontSize: 12,
+  },
+  reviewComment: {
+    color: '#334155',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  emptyReviewsBox: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyReviewsEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  emptyReviewsTitle: {
+    color: navy,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  emptyReviewsSubtitle: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+    marginHorizontal: 16,
+    lineHeight: 16,
+  },
+  emptyWriteBtn: {
+    marginTop: 14,
+    backgroundColor: '#0D4F9E',
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  emptyWriteBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  myReviewPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  myReviewPillText: {
+    color: '#B45309',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  reviewActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  reviewEditBtn: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  reviewEditBtnText: {
+    color: '#1D4ED8',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  reviewDeleteBtn: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  reviewDeleteBtnText: {
+    color: '#DC2626',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  mentorTabActionBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    shadowColor: navy,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  mentorTabActionText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  mentorTabLogoutBtn: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  mentorTabLogoutText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '800',
+  },
 });

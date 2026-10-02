@@ -1,6 +1,41 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export interface IEnrolledModule {
+  code: string;
+  name: string;
+  credits?: number;
+  faculty?: string;
+  department?: string;
+  progress?: number;
+  status?: string;
+  nextSession?: string;
+  mentor?: {
+    id?: string;
+    name: string;
+    roleTitle?: string;
+    batch?: string;
+    rating?: number;
+    reviewCount?: number;
+    avatar?: string;
+    isVerified?: boolean;
+    activeStudentsCount?: number;
+    hourlyRate?: number;
+  };
+}
+
+export interface IShortlistedMentor {
+  mentorId: string;
+  name: string;
+  avatar?: string;
+  hourlyRate: number;
+  rating: number;
+  subjects: string[];
+  priority: 'Top Choice' | 'Considering' | 'Backup';
+  notes?: string;
+  savedAt: Date;
+}
+
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -9,11 +44,71 @@ export interface IUser extends Document {
   profilePicture?: string;
   bio?: string;
   subjects?: string[];
+  degreeProgramme?: string;
+  academicYear?: string;
+  semester?: string;
+  academicStats?: {
+    goals: number;
+    plans: number;
+    dueTests: number;
+    done: number;
+  };
+  enrolledModules?: IEnrolledModule[];
+  shortlistedMentors?: IShortlistedMentor[];
   rating?: number;
   reviewCount?: number;
+  hourlyRate?: number;
+  experience?: string;
+  sessionCount?: number;
+  availability?: string;
+  qualification?: string;
+  languages?: string[];
+  teachingMode?: string;
+  lessonTypes?: string[];
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
+
+const enrolledModuleSchema = new Schema<IEnrolledModule>(
+  {
+    code: { type: String, required: true },
+    name: { type: String, required: true },
+    credits: { type: Number, default: 3 },
+    faculty: { type: String },
+    department: { type: String },
+    progress: { type: Number, default: 50 },
+    status: { type: String, default: 'active' },
+    nextSession: { type: String },
+    mentor: {
+      id: { type: String },
+      name: { type: String, default: 'Unassigned Mentor' },
+      roleTitle: { type: String, default: 'Peer Mentor' },
+      batch: { type: String, default: "Batch '24" },
+      rating: { type: Number, default: 4.8 },
+      reviewCount: { type: Number, default: 20 },
+      avatar: { type: String },
+      isVerified: { type: Boolean, default: true },
+      activeStudentsCount: { type: Number, default: 15 },
+      hourlyRate: { type: Number, default: 1800 },
+    },
+  },
+  { _id: false }
+);
+
+const shortlistedMentorSchema = new Schema<IShortlistedMentor>(
+  {
+    mentorId: { type: String, required: true },
+    name: { type: String, required: true },
+    avatar: { type: String },
+    hourlyRate: { type: Number, default: 2000 },
+    rating: { type: Number, default: 4.8 },
+    subjects: [{ type: String }],
+    priority: { type: String, enum: ['Top Choice', 'Considering', 'Backup'], default: 'Considering' },
+    notes: { type: String, default: '' },
+    savedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
 
 const userSchema = new Schema<IUser>(
   {
@@ -24,8 +119,27 @@ const userSchema = new Schema<IUser>(
     profilePicture: { type: String },
     bio: { type: String },
     subjects: [{ type: String }],
+    degreeProgramme: { type: String, default: 'BSc (Hons) Software Engineering' },
+    academicYear: { type: String, default: 'Year 3' },
+    semester: { type: String, default: 'Sem 2' },
+    academicStats: {
+      goals: { type: Number, default: 4 },
+      plans: { type: Number, default: 3 },
+      dueTests: { type: Number, default: 2 },
+      done: { type: Number, default: 18 },
+    },
+    enrolledModules: [enrolledModuleSchema],
+    shortlistedMentors: [shortlistedMentorSchema],
     rating: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
+    hourlyRate: { type: Number, default: 1800 },
+    experience: { type: String, default: 'Verified Senior Mentor' },
+    sessionCount: { type: Number, default: 14 },
+    availability: { type: String, default: 'Weekdays & Weekends' },
+    qualification: { type: String, default: 'Undergraduate Teaching Assistant' },
+    languages: [{ type: String, default: 'English' }],
+    teachingMode: { type: String, default: 'Online / Hybrid' },
+    lessonTypes: [{ type: String, default: 'Individual' }],
   },
   { timestamps: true }
 );

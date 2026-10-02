@@ -87,6 +87,32 @@ export default function LoginScreen({ navigation }: Props) {
               Don't have an account? <Text style={styles.linkBold}>Register</Text>
             </Text>
           </TouchableOpacity>
+
+          {/* Quick Demo Switcher */}
+          <View style={styles.demoSection}>
+            <Text style={styles.demoLabel}>Demo Fast Login:</Text>
+            <View style={styles.demoButtonsRow}>
+              <TouchableOpacity
+                style={styles.demoBtn}
+                onPress={() => {
+                  setEmail('student@unimentor.dev');
+                  setPassword('password123');
+                }}
+              >
+                <Text style={styles.demoBtnText}>🎓 Student Account</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.demoBtn, styles.demoBtnMentor]}
+                onPress={() => {
+                  setEmail('kavindu.perera@unimentor.lk');
+                  setPassword('password123');
+                }}
+              >
+                <Text style={[styles.demoBtnText, styles.demoBtnTextMentor]}>⭐ Mentor Account</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -152,4 +178,45 @@ const styles = StyleSheet.create({
   buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   link: { textAlign: 'center', color: colors.textLight, fontSize: 14 },
   linkBold: { color: colors.primary, fontWeight: '700' },
+  demoSection: {
+    marginTop: 28,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    alignItems: 'center',
+  },
+  demoLabel: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  demoButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  demoBtn: {
+    flex: 1,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  demoBtnText: {
+    color: '#1E40AF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  demoBtnMentor: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+  },
+  demoBtnTextMentor: {
+    color: '#92400E',
+  },
 });

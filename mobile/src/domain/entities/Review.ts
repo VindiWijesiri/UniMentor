@@ -1,6 +1,6 @@
 export interface Review {
   _id: string;
-  tutor: string;
+  tutor: string | { _id?: string; name?: string; subjects?: string[]; profilePicture?: string };
   student: string;
   studentName: string;
   rating: number;

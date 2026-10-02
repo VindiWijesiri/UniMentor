@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   Modal, Pressable, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
@@ -8,7 +9,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppTabParamList } from '../../navigation/AppNavigator';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
+type Props = {
+  navigation: any;
+  route?: any;
+};
 type FieldKey = 'faculty' | 'department' | 'programme' | 'academicYear' | 'semester'
   | 'module' | 'topic';
 type FieldConfig = { key: FieldKey; label: string; placeholder: string; icon: string; tone: string };
@@ -121,13 +125,13 @@ const semesters = ['Semester 1', 'Semester 2'];
 const topics = ['Assignment support', 'Exam preparation', 'Practical help', 'Project guidance'];
 
 const academicFields: FieldConfig[] = [
-  { key: 'faculty', label: 'Faculty', placeholder: 'Select faculty', icon: '▥', tone: '#E5F7EF' },
-  { key: 'department', label: 'Department', placeholder: 'Select department', icon: '●', tone: '#FFF4D8' },
-  { key: 'programme', label: 'Degree Programme', placeholder: 'Select programme', icon: '◆', tone: '#E2F7EF' },
-  { key: 'academicYear', label: 'Academic Year', placeholder: 'Select academic year', icon: '▣', tone: '#FFF0E8' },
-  { key: 'semester', label: 'Semester', placeholder: 'Select semester', icon: '▤', tone: '#FFE8EC' },
-  { key: 'module', label: 'Module', placeholder: 'Select module', icon: '▦', tone: '#E1F4EE' },
-  { key: 'topic', label: 'Topic', placeholder: 'Select topic', icon: '◎', tone: '#FFF4D8' },
+  { key: 'faculty', label: 'Faculty', placeholder: 'Select faculty', icon: '▥', tone: '#FEF3C7' },
+  { key: 'department', label: 'Department', placeholder: 'Select department', icon: '●', tone: '#FFFDF0' },
+  { key: 'programme', label: 'Degree Programme', placeholder: 'Select programme', icon: '◆', tone: '#FEF3C7' },
+  { key: 'academicYear', label: 'Academic Year', placeholder: 'Select academic year', icon: '▣', tone: '#FFFDF0' },
+  { key: 'semester', label: 'Semester', placeholder: 'Select semester', icon: '▤', tone: '#FEF3C7' },
+  { key: 'module', label: 'Module', placeholder: 'Select module', icon: '▦', tone: '#FFFDF0' },
+  { key: 'topic', label: 'Topic', placeholder: 'Select topic', icon: '◎', tone: '#FEF3C7' },
 ];
 
 function SelectField({
@@ -143,7 +147,11 @@ function SelectField({
 }) {
   return (
     <TouchableOpacity
-      style={[styles.selectField, disabled && styles.selectFieldDisabled]}
+      style={[
+        styles.selectField,
+        disabled && styles.selectFieldDisabled,
+        value ? styles.selectFieldFilled : null,
+      ]}
       onPress={onPress}
       activeOpacity={0.75}
       disabled={disabled}
@@ -152,12 +160,18 @@ function SelectField({
         <Text style={styles.fieldIconText}>{field.icon}</Text>
       </View>
       <View style={styles.fieldTextWrap}>
-        <Text style={styles.fieldLabel} numberOfLines={1}>{field.label}</Text>
+        <Text style={styles.fieldLabel} numberOfLines={1}>
+          {field.label} <Text style={styles.requiredStar}>*</Text>
+        </Text>
         <Text style={[styles.fieldValue, value && styles.fieldValueSelected]} numberOfLines={1}>
           {value || field.placeholder}
         </Text>
       </View>
-      <Text style={styles.chevron}>⌄</Text>
+      {value ? (
+        <Text style={styles.fieldCheck}>✓</Text>
+      ) : (
+        <Text style={styles.chevron}>⌄</Text>
+      )}
     </TouchableOpacity>
   );
 }
@@ -234,10 +248,38 @@ export default function HomeScreen({ navigation }: Props) {
     setSelectedField(null);
   };
 
+  const missingFields = useMemo(() => {
+    return academicFields.filter((f) => !values[f.key]);
+  }, [values]);
+
+  const isFormComplete = missingFields.length === 0;
+
+  const handleContinue = () => {
+    if (!isFormComplete) {
+      const missingLabels = missingFields.map((f) => f.label);
+      Alert.alert(
+        'Required Fields Incomplete',
+        `Please select all academic fields before proceeding to find your mentor:\n\n• ${missingLabels.join('\n• ')}`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    navigation.navigate('Search', {
+      initialQuery: values.module,
+      faculty: values.faculty,
+      department: values.department,
+      programme: values.programme,
+      academicYear: values.academicYear,
+      semester: values.semester,
+      topic: values.topic,
+    });
+  };
+
   return (
     <View style={styles.page}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.hero, { paddingTop: insets.top + 14 }]}>
+        <View style={[styles.hero, { paddingTop: navigation.canGoBack?.() ? 12 : insets.top + 14 }]}>
           <View style={styles.brandRow}>
             <View style={styles.brandMark}><Text style={styles.brandMarkText}>U</Text></View>
             <View style={styles.brandCopy}>
@@ -326,17 +368,23 @@ export default function HomeScreen({ navigation }: Props) {
             </ScrollView>
           </View>
 
+          {/* Validation Status Indicator */}
+          <View style={styles.validationRow}>
+            <Text style={[styles.validationText, isFormComplete ? styles.validationTextComplete : styles.validationTextPending]}>
+              {isFormComplete
+                ? '✓ All fields selected! Ready to find your mentor.'
+                : `⚠️ Please select all fields (${academicFields.length - missingFields.length}/${academicFields.length} selected)`}
+            </Text>
+          </View>
+
           <TouchableOpacity
-            style={styles.continueButton}
-            onPress={() => navigation.navigate('Search', values.module ? {
-              initialQuery: values.module,
-              faculty: values.faculty,
-              department: values.department,
-              programme: values.programme,
-            } : undefined)}
-            activeOpacity={0.85}
+            style={[styles.continueButton, !isFormComplete && styles.continueButtonDisabled]}
+            onPress={handleContinue}
+            activeOpacity={isFormComplete ? 0.85 : 0.65}
           >
-            <Text style={styles.continueText}>Continue  →</Text>
+            <Text style={[styles.continueText, !isFormComplete && styles.continueTextDisabled]}>
+              {isFormComplete ? 'Continue  →' : `Complete All Fields (${academicFields.length - missingFields.length}/${academicFields.length})  →`}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -359,8 +407,8 @@ export default function HomeScreen({ navigation }: Props) {
   );
 }
 
-const navy = '#062B67';
-const blue = '#0D4F9E';
+const navy = '#061E47';
+const blue = '#0B2754';
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' }, scrollContent: { paddingBottom: 16 },
   hero: { backgroundColor: navy, paddingHorizontal: 20, paddingBottom: 44, overflow: 'hidden' },
@@ -370,33 +418,43 @@ const styles = StyleSheet.create({
   brandName: { color: '#FFF', fontSize: 24, fontWeight: '400' }, brandStrong: { fontWeight: '900' },
   brandTagline: { color: '#D7E6FA', fontSize: 11 },
   headerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center', marginRight: 9 },
-  bell: { color: '#FFD200', fontSize: 15 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#0B1F4C', borderWidth: 2, borderColor: '#416FA7', alignItems: 'center', justifyContent: 'center' },
+  bell: { color: '#FBBF24', fontSize: 15 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#0B2754', borderWidth: 2, borderColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFF', fontSize: 18, fontWeight: '800' }, heroBody: { flexDirection: 'row', marginTop: 18 },
-  heroCopy: { flex: 1.3 }, stepPill: { alignSelf: 'flex-start', backgroundColor: 'rgba(38,125,215,0.42)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 9 },
-  stepPillText: { color: '#FFF', fontSize: 13, fontWeight: '600' }, heroTitle: { color: '#FFF', fontSize: 27, lineHeight: 32, fontWeight: '900' },
+  heroCopy: { flex: 1.3 }, stepPill: { alignSelf: 'flex-start', backgroundColor: 'rgba(245, 158, 11, 0.16)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 9 },
+  stepPillText: { color: '#FBBF24', fontSize: 13, fontWeight: '700' }, heroTitle: { color: '#FFF', fontSize: 27, lineHeight: 32, fontWeight: '900' },
   heroSubtitle: { color: '#E1ECFA', fontSize: 13, lineHeight: 18, marginTop: 6, maxWidth: 260 },
   heroArt: { flex: 0.7, minHeight: 112, alignItems: 'center', justifyContent: 'center' },
-  cap: { color: '#151A22', fontSize: 58, fontWeight: '900', transform: [{ rotate: '-8deg' }] }, books: { color: '#FFB700', fontSize: 55, marginTop: -24 },
+  cap: { color: '#0B2754', fontSize: 58, fontWeight: '900', transform: [{ rotate: '-8deg' }] }, books: { color: '#F59E0B', fontSize: 55, marginTop: -24 },
   goalBubble: { position: 'absolute', right: -8, top: 2, backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 8, paddingVertical: 10 },
   goalText: { color: navy, textAlign: 'center', fontSize: 10, fontWeight: '800' },
-  contentPanel: { marginTop: -26, backgroundColor: '#F7F9FC', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 14, paddingTop: 14 },
+  contentPanel: { marginTop: -26, backgroundColor: '#F4F7FB', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 14, paddingTop: 14 },
   progressRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 8, marginBottom: 14 }, progressItem: { alignItems: 'center', width: 84 },
-  progressCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E3E9F4', alignItems: 'center', justifyContent: 'center' }, progressCircleActive: { backgroundColor: '#093F9B' },
-  progressNumber: { color: '#7282A4', fontSize: 17, fontWeight: '700' }, progressNumberActive: { color: '#FFF' },
-  progressLabel: { color: '#8190AE', fontSize: 11, textAlign: 'center', marginTop: 6 }, progressLabelActive: { color: navy, fontWeight: '800' },
-  progressLine: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#E2E8F2', marginTop: 15, marginHorizontal: -8 }, progressLineActive: { backgroundColor: '#154DA5' },
-  sectionCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 12, marginBottom: 10, shadowColor: '#244369', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  progressCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }, progressCircleActive: { backgroundColor: '#061E47' },
+  progressNumber: { color: '#64748B', fontSize: 17, fontWeight: '700' }, progressNumberActive: { color: '#FBBF24' },
+  progressLabel: { color: '#64748B', fontSize: 11, textAlign: 'center', marginTop: 6 }, progressLabelActive: { color: navy, fontWeight: '800' },
+  progressLine: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginTop: 15, marginHorizontal: -8 }, progressLineActive: { backgroundColor: '#061E47' },
+  sectionCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 12, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2, borderWidth: 1, borderColor: '#E2E8F0' },
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 }, sectionIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
-  alertIcon: { color: '#F6A700', fontSize: 22, fontWeight: '900' },
-  sectionHeadingCopy: { flex: 1 }, sectionTitle: { color: navy, fontSize: 16, fontWeight: '800' }, sectionSubtitle: { color: '#7585A5', fontSize: 12, marginTop: 2 },
+  alertIcon: { color: '#F59E0B', fontSize: 22, fontWeight: '900' },
+  sectionHeadingCopy: { flex: 1 }, sectionTitle: { color: navy, fontSize: 16, fontWeight: '800' }, sectionSubtitle: { color: '#64748B', fontSize: 12, marginTop: 2 },
   fieldsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 7 },
-  selectField: { width: '49%', minHeight: 56, borderWidth: 1, borderColor: '#E0E6F0', borderRadius: 13, padding: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF' },
-  selectFieldDisabled: { opacity: 0.55, backgroundColor: '#F4F6F9' },
-  fieldIcon: { width: 34, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginRight: 7 }, fieldIconText: { color: '#087B59', fontWeight: '900', fontSize: 15 },
-  fieldTextWrap: { flex: 1, minWidth: 0 }, fieldLabel: { color: navy, fontSize: 12, fontWeight: '800' }, fieldValue: { color: '#8795B4', fontSize: 11, marginTop: 4 }, fieldValueSelected: { color: blue, fontWeight: '600' }, chevron: { color: '#4F6290', fontSize: 18, marginLeft: 2, marginTop: -5 },
-  popularCard: { backgroundColor: '#FFF', borderRadius: 20, paddingVertical: 11, marginBottom: 10, shadowColor: '#244369', shadowOpacity: 0.07, shadowRadius: 12, elevation: 2 }, popularHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }, star: { color: '#FFB000', fontSize: 22 }, seeAll: { color: '#075A4D', fontSize: 12, fontWeight: '800' }, chipsRow: { paddingHorizontal: 12, gap: 8, marginTop: 8 }, chip: { borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 }, chipText: { color: '#13221F', fontSize: 12, fontWeight: '700' },
-  modulesHint: { color: '#8795B4', fontSize: 12, paddingVertical: 6 },
-  continueButton: { backgroundColor: '#FFD200', borderRadius: 18, paddingVertical: 14, alignItems: 'center', marginHorizontal: 1, shadowColor: '#E9B600', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 }, continueText: { color: navy, fontSize: 17, fontWeight: '900' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(4,19,45,0.52)', justifyContent: 'flex-end' }, optionSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 34 }, sheetHandle: { width: 44, height: 5, borderRadius: 3, backgroundColor: '#D8DFEA', alignSelf: 'center', marginBottom: 16 }, sheetTitle: { color: navy, fontSize: 19, fontWeight: '800', marginBottom: 8 }, optionRow: { minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#EDF0F5', flexDirection: 'row', alignItems: 'center' }, optionText: { flex: 1, color: '#273550', fontSize: 15 }, check: { color: '#0A865D', fontSize: 18, fontWeight: '900' },
+  selectField: { width: '49%', minHeight: 56, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 13, padding: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF' },
+  selectFieldDisabled: { opacity: 0.55, backgroundColor: '#F8FAFC' },
+  fieldIcon: { width: 34, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginRight: 7 }, fieldIconText: { color: '#D97706', fontWeight: '900', fontSize: 15 },
+  fieldTextWrap: { flex: 1, minWidth: 0 }, fieldLabel: { color: navy, fontSize: 12, fontWeight: '800' }, fieldValue: { color: '#64748B', fontSize: 11, marginTop: 4 }, fieldValueSelected: { color: navy, fontWeight: '700' }, chevron: { color: '#94A3B8', fontSize: 18, marginLeft: 2, marginTop: -5 },
+  popularCard: { backgroundColor: '#FFF', borderRadius: 20, paddingVertical: 11, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, elevation: 2, borderWidth: 1, borderColor: '#E2E8F0' }, popularHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }, star: { color: '#F59E0B', fontSize: 22 }, seeAll: { color: '#F59E0B', fontSize: 12, fontWeight: '800' }, chipsRow: { paddingHorizontal: 12, gap: 8, marginTop: 8 }, chip: { borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 }, chipText: { color: '#0F172A', fontSize: 12, fontWeight: '700' },
+  modulesHint: { color: '#64748B', fontSize: 12, paddingVertical: 6 },
+  continueButton: { backgroundColor: '#F59E0B', borderRadius: 18, paddingVertical: 14, alignItems: 'center', marginHorizontal: 1, shadowColor: '#F59E0B', shadowOpacity: 0.32, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  continueButtonDisabled: { backgroundColor: '#E2E8F0', shadowOpacity: 0, elevation: 0 },
+  continueText: { color: '#FFFFFF', fontSize: 17, fontWeight: '900' },
+  continueTextDisabled: { color: '#94A3B8', fontSize: 15, fontWeight: '700' },
+  validationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, marginTop: 6, paddingHorizontal: 12 },
+  validationText: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  validationTextPending: { color: '#D97706' },
+  validationTextComplete: { color: '#16A34A' },
+  requiredStar: { color: '#EF4444', fontSize: 12, fontWeight: '900' },
+  selectFieldFilled: { borderColor: '#F59E0B', backgroundColor: '#FFFDF0' },
+  fieldCheck: { color: '#16A34A', fontSize: 14, fontWeight: '900', marginLeft: 3 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(6,30,71,0.52)', justifyContent: 'flex-end' }, optionSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 34 }, sheetHandle: { width: 44, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1', alignSelf: 'center', marginBottom: 16 }, sheetTitle: { color: navy, fontSize: 19, fontWeight: '800', marginBottom: 8 }, optionRow: { minHeight: 48, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexDirection: 'row', alignItems: 'center' }, optionText: { flex: 1, color: '#0F172A', fontSize: 15 }, check: { color: '#22C55E', fontSize: 18, fontWeight: '900' },
 });

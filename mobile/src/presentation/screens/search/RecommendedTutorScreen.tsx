@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { getMentorRate } from './SearchScreen';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'RecommendedTutor'>;
 
@@ -123,7 +124,7 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
           <View style={styles.valueCard}>
             <View>
               <Text style={styles.valueLabel}>HOURLY RATE</Text>
-              <Text style={styles.valuePrice}>LKR {(mentor.hourlyRate ?? 1500).toLocaleString()} <Text style={styles.valueUnit}>/ hour</Text></Text>
+              <Text style={styles.valuePrice}>LKR {getMentorRate(mentor).toLocaleString()} <Text style={styles.valueUnit}>/ hour</Text></Text>
             </View>
             <View style={styles.valueDivider} />
             <View style={styles.valueRight}>
@@ -159,65 +160,66 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
   );
 }
 
-const navy = '#061F5C';
-const royal = '#0A57CB';
-const yellow = '#FFD21C';
+const navy = '#061E47';
+const navyCard = '#0B2754';
+const amber = '#F59E0B';
+const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F4F7FC' },
+  page: { flex: 1, backgroundColor: '#F4F7FB' },
   hero: { minHeight: 244, backgroundColor: navy, paddingHorizontal: 17, paddingBottom: 28, overflow: 'hidden' },
-  heroOrbLarge: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: royal, right: -90, top: -110, opacity: 0.62 },
-  heroOrbSmall: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#1267D5', left: -48, bottom: 8, opacity: 0.4 },
+  heroOrbLarge: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: navyCard, right: -90, top: -110, opacity: 0.65 },
+  heroOrbSmall: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#0D3875', left: -48, bottom: 8, opacity: 0.4 },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(255,255,255,0.23)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   backText: { color: '#FFF', fontSize: 34, lineHeight: 35, marginTop: -3 },
   headerCopy: { flex: 1, marginLeft: 12 },
   headerTitle: { color: '#FFF', fontSize: 21, fontWeight: '900' },
   headerSubtitle: { color: '#BFCFE7', fontSize: 10.5, marginTop: 2 },
-  stepBadge: { borderRadius: 12, backgroundColor: 'rgba(255,210,28,0.16)', paddingHorizontal: 10, paddingVertical: 6 },
-  stepText: { color: yellow, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.8 },
-  profileCard: { minHeight: 106, borderRadius: 20, backgroundColor: '#FFF', padding: 13, marginTop: 21, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, elevation: 5 },
-  avatar: { width: 72, height: 72, borderRadius: 23, backgroundColor: '#FFF3BC', borderWidth: 2, borderColor: '#E8D46F', alignItems: 'center', justifyContent: 'center', marginRight: 13 },
+  stepBadge: { borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.2)', paddingHorizontal: 10, paddingVertical: 6 },
+  stepText: { color: gold, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.8 },
+  profileCard: { minHeight: 106, borderRadius: 20, backgroundColor: '#FFF', padding: 13, marginTop: 21, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: '#E2E8F0' },
+  avatar: { width: 72, height: 72, borderRadius: 23, backgroundColor: '#EEF2F8', borderWidth: 2, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center', marginRight: 13 },
   avatarText: { color: navy, fontSize: 29, fontWeight: '900' },
   profileCopy: { flex: 1, minWidth: 0 },
-  matchBadge: { alignSelf: 'flex-start', borderRadius: 9, backgroundColor: yellow, paddingHorizontal: 8, paddingVertical: 4 },
-  matchBadgeText: { color: navy, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.5 },
+  matchBadge: { alignSelf: 'flex-start', borderRadius: 9, backgroundColor: amber, paddingHorizontal: 8, paddingVertical: 4 },
+  matchBadgeText: { color: '#FFF', fontSize: 7.5, fontWeight: '900', letterSpacing: 0.5 },
   mentorName: { color: navy, fontSize: 19, fontWeight: '900', marginTop: 7 },
   mentorMeta: { color: '#72819A', fontSize: 10.5, marginTop: 3 },
   body: { paddingHorizontal: 16, paddingTop: 18 },
-  sectionEyebrow: { color: royal, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  sectionEyebrow: { color: '#64748B', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
   title: { color: navy, fontSize: 23, fontWeight: '900', marginTop: 4 },
   subtitle: { color: '#71819A', fontSize: 11.5, lineHeight: 17, marginTop: 4 },
   scoreGrid: { flexDirection: 'row', gap: 8, marginTop: 15 },
-  scoreCard: { flex: 1, minHeight: 107, borderRadius: 17, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E1E9F3', alignItems: 'center', justifyContent: 'center' },
-  scoreIcon: { width: 29, height: 29, borderRadius: 10, backgroundColor: '#FFF3BC', alignItems: 'center', justifyContent: 'center' },
-  scoreIconText: { color: '#9A6A00', fontSize: 13, fontWeight: '900' },
+  scoreCard: { flex: 1, minHeight: 107, borderRadius: 17, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  scoreIcon: { width: 29, height: 29, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  scoreIconText: { color: amber, fontSize: 13, fontWeight: '900' },
   scoreValue: { color: navy, fontSize: 18, fontWeight: '900', marginTop: 6 },
   scoreLabel: { color: '#7A899F', fontSize: 8.5, fontWeight: '700', marginTop: 2, textAlign: 'center' },
-  reasonCard: { borderRadius: 18, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2EAF4', padding: 15, marginTop: 11 },
+  reasonCard: { borderRadius: 18, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', padding: 15, marginTop: 11 },
   reasonHeader: { flexDirection: 'row', alignItems: 'center' },
-  reasonNumber: { width: 37, height: 37, borderRadius: 12, backgroundColor: '#EAF2FF', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  reasonNumberText: { color: royal, fontSize: 11, fontWeight: '900' },
+  reasonNumber: { width: 37, height: 37, borderRadius: 12, backgroundColor: '#EEF2F8', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  reasonNumberText: { color: navy, fontSize: 11, fontWeight: '900' },
   reasonTitle: { color: navy, fontSize: 14, fontWeight: '900' },
   reasonSubtitle: { color: '#8491A6', fontSize: 9.5, marginTop: 2 },
   reasonText: { color: '#5C6D87', fontSize: 11.5, lineHeight: 18, marginTop: 11 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
-  tag: { borderRadius: 11, backgroundColor: '#EDF4FF', paddingHorizontal: 10, paddingVertical: 7 },
-  tagText: { color: '#285B97', fontSize: 10, fontWeight: '800' },
-  valueCard: { minHeight: 78, borderRadius: 18, backgroundColor: '#FFF8D8', borderWidth: 1, borderColor: '#F0DA78', paddingHorizontal: 15, marginTop: 11, flexDirection: 'row', alignItems: 'center' },
-  valueLabel: { color: '#8A6A00', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  tag: { borderRadius: 11, backgroundColor: '#EEF2F8', paddingHorizontal: 10, paddingVertical: 7 },
+  tagText: { color: navy, fontSize: 10, fontWeight: '800' },
+  valueCard: { minHeight: 78, borderRadius: 18, backgroundColor: '#FFFDF0', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 15, marginTop: 11, flexDirection: 'row', alignItems: 'center' },
+  valueLabel: { color: '#D97706', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
   valuePrice: { color: navy, fontSize: 16, fontWeight: '900', marginTop: 4 },
   valueUnit: { color: '#7A6B3A', fontSize: 9, fontWeight: '600' },
-  valueDivider: { width: 1, height: 42, backgroundColor: '#E2CA68', marginHorizontal: 17 },
+  valueDivider: { width: 1, height: 42, backgroundColor: '#FDE68A', marginHorizontal: 17 },
   valueRight: { flex: 1 },
   valueExperience: { color: navy, fontSize: 11.5, lineHeight: 15, fontWeight: '800', marginTop: 4 },
-  quoteCard: { borderRadius: 18, backgroundColor: navy, padding: 16, marginTop: 11 },
-  quoteMark: { color: yellow, fontSize: 28, lineHeight: 22, fontWeight: '900' },
+  quoteCard: { borderRadius: 18, backgroundColor: navyCard, padding: 16, marginTop: 11 },
+  quoteMark: { color: gold, fontSize: 28, lineHeight: 22, fontWeight: '900' },
   quoteText: { color: '#FFF', fontSize: 11.5, lineHeight: 18, fontStyle: 'italic', marginTop: 3 },
   quoteAuthor: { color: '#BFCFE7', fontSize: 9.5, fontWeight: '700', marginTop: 9 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#FFF', paddingHorizontal: 15, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E0E8F2' },
-  confirmButton: { minHeight: 56, borderRadius: 15, backgroundColor: yellow, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#D1A100', shadowOpacity: 0.24, shadowRadius: 8, elevation: 4 },
-  confirmLabel: { color: '#806300', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  confirmText: { color: navy, fontSize: 14, fontWeight: '900', marginTop: 2 },
-  confirmArrow: { color: navy, fontSize: 24, fontWeight: '900' },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#FFF', paddingHorizontal: 15, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+  confirmButton: { minHeight: 56, borderRadius: 15, backgroundColor: amber, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: amber, shadowOpacity: 0.24, shadowRadius: 8, elevation: 4 },
+  confirmLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  confirmText: { color: '#FFF', fontSize: 14, fontWeight: '900', marginTop: 2 },
+  confirmArrow: { color: '#FFF', fontSize: 24, fontWeight: '900' },
 });

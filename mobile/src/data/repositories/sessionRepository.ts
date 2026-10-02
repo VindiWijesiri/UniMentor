@@ -15,7 +15,24 @@ export const sessionRepository = {
     const response = await apiClient.post<Session>('/sessions', payload);
     return response.data;
   },
-  async cancelSession(sessionId: string): Promise<void> {
-    await apiClient.patch(`/sessions/${sessionId}/cancel`);
+  async updateSession(
+    sessionId: string,
+    payload: {
+      subject?: string;
+      scheduledAt?: string;
+      notes?: string;
+      status?: string;
+      mentorId?: string;
+    }
+  ): Promise<Session> {
+    const response = await apiClient.put<Session>(`/sessions/${sessionId}`, payload);
+    return response.data;
+  },
+  async cancelSession(sessionId: string): Promise<Session> {
+    const response = await apiClient.patch<Session>(`/sessions/${sessionId}/cancel`);
+    return response.data;
+  },
+  async deleteSession(sessionId: string): Promise<void> {
+    await apiClient.delete(`/sessions/${sessionId}`);
   },
 };

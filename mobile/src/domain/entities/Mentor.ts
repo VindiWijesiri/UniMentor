@@ -16,4 +16,6 @@ export interface Mentor {
   teachingMode?: string;
   lessonTypes?: string[];
   role?: 'student' | 'mentor';
+  degreeProgramme?: string;
+  academicYear?: string;
 }
