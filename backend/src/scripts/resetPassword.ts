@@ -34,6 +34,7 @@ const customLookup = (hostname: string, opts: any, cb: any) => {
   });
 };
 
+// function setup
 async function setupAccounts() {
   const uri = process.env.MONGO_URI;
   if (!uri) {
