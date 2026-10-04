@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import {
-  
+
   createPodSquad,
   getPodConversation,
   getPodFeed,
@@ -32,3 +32,4 @@ router.post('/conversations/:id/vote', authenticate, votePodConversation);
 router.post('/conversations/:id/proposal', authenticate, respondPodProposal);
 
 export default router;
+
