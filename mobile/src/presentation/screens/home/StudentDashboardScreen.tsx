@@ -1700,7 +1700,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   scrollContainer: {
-    paddingBottom: 110,
+    paddingBottom: 24,
   },
 
   /* Profile Card */

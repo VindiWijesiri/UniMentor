@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  scrollContent: { paddingBottom: 110 },
+  scrollContent: { paddingBottom: 24 },
   hero: { backgroundColor: navy, paddingHorizontal: 20, paddingBottom: 44, overflow: 'hidden' },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
   brandMark: { width: 42, height: 34, borderRadius: 10, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },

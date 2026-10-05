@@ -160,7 +160,7 @@ export default function SessionsScreen() {
         keyExtractor={(item) => item.code}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: Math.max(insets.bottom, 20) + 110 },
+          { paddingBottom: 24 },
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#061E47" />

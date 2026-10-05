@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   filterChipText: { color: '#475569', fontSize: 12, fontWeight: '700' },
   filterChipTextActive: { color: '#FFFFFF', fontWeight: '800' },
 
-  listContent: { paddingHorizontal: 16, paddingTop: 14, flexGrow: 1, paddingBottom: 110 },
+  listContent: { paddingHorizontal: 16, paddingTop: 14, flexGrow: 1, paddingBottom: 20 },
   card: {
     minHeight: 84,
     borderRadius: 18,

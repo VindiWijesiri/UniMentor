@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -15,9 +16,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useUserStore } from '../../../domain/stores/userStore';
 import { useStudentStore } from '../../../domain/stores/studentStore';
+
+const AVATAR_PRESETS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+];
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -37,6 +48,10 @@ export default function ProfileScreen() {
   const [editYear, setEditYear] = useState('Year 3');
   const [editSem, setEditSem] = useState('Sem 2');
   const [editAvatar, setEditAvatar] = useState('');
+
+  // Status state
+  const [isPickingImage, setIsPickingImage] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Add interest tag
   const [newInterest, setNewInterest] = useState('');
@@ -74,23 +89,93 @@ export default function ProfileScreen() {
     setShowEditModal(true);
   };
 
+  const handlePickFromGallery = async () => {
+    try {
+      setIsPickingImage(true);
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission Needed',
+          'Please allow photo library access to choose a profile picture.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const newUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        setEditAvatar(newUri);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to select image.');
+    } finally {
+      setIsPickingImage(false);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      setIsPickingImage(true);
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission Needed',
+          'Please allow camera access to take a profile picture.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const newUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        setEditAvatar(newUri);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to capture photo.');
+    } finally {
+      setIsPickingImage(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
       Alert.alert('Required', 'Name cannot be empty.');
       return;
     }
 
-    await updateProfile({
-      name: editName.trim(),
-      bio: editBio.trim(),
-      degreeProgramme: editDegree.trim(),
-      academicYear: editYear,
-      semester: editSem,
-      profilePicture: editAvatar.trim(),
-    });
+    try {
+      setIsSaving(true);
+      await updateProfile({
+        name: editName.trim(),
+        bio: editBio.trim(),
+        degreeProgramme: editDegree.trim(),
+        academicYear: editYear,
+        semester: editSem,
+        profilePicture: editAvatar.trim(),
+      });
 
-    setShowEditModal(false);
-    Alert.alert('Profile Updated', 'Your profile changes have been saved.');
+      setShowEditModal(false);
+      Alert.alert('Profile Updated', 'Your profile changes have been saved.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to save profile changes.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddInterest = async () => {
@@ -142,10 +227,18 @@ export default function ProfileScreen() {
         {/* Profile Hero Card */}
         <View style={styles.profileHeroCard}>
           <View style={styles.profileSummaryRow}>
-            <View style={styles.avatarWrap}>
+            {/* Clickable Avatar to edit picture directly */}
+            <TouchableOpacity
+              style={styles.avatarWrap}
+              onPress={openEditModal}
+              activeOpacity={0.85}
+            >
               <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
               <View style={styles.onlineDot} />
-            </View>
+              <View style={styles.avatarCameraBadgeSmall}>
+                <Ionicons name="camera" size={11} color="#061E47" />
+              </View>
+            </TouchableOpacity>
 
             <View style={styles.profileCopyWrap}>
               <View style={styles.roleRow}>
@@ -158,12 +251,14 @@ export default function ProfileScreen() {
               <Text style={styles.academicPillText}>{`${degree} • ${academicYear} ${semester}`}</Text>
             </View>
 
+            {/* Edit button placed lower down */}
             <TouchableOpacity style={styles.editProfileBtn} onPress={openEditModal} activeOpacity={0.8}>
               <Ionicons name="create-outline" size={13} color="#061E47" />
               <Text style={styles.editProfileBtnText}>Edit</Text>
             </TouchableOpacity>
           </View>
         </View>
+
         {/* Academic Stats */}
         <View style={styles.statsCard}>
           <Text style={styles.sectionHeading}>ACADEMIC SUMMARY</Text>
@@ -235,7 +330,7 @@ export default function ProfileScreen() {
         <View style={styles.actionCard}>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutPrompt} activeOpacity={0.85}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Ionicons name="log-out-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="log-out-outline" size={18} color="#DC2626" />
               <Text style={styles.logoutBtnText}>Log Out</Text>
             </View>
           </TouchableOpacity>
@@ -248,72 +343,169 @@ export default function ProfileScreen() {
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Edit Student Profile</Text>
-            <Text style={styles.sheetSubtitle}>Update your degree and academic information.</Text>
+            <Text style={styles.sheetSubtitle}>Update your photo, degree, and academic information.</Text>
 
-            <Text style={styles.inputLabel}>Full Name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={editName}
-              onChangeText={setEditName}
-              placeholder="Your name"
-            />
-
-            <Text style={styles.inputLabel}>Degree Programme</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={editDegree}
-              onChangeText={setEditDegree}
-              placeholder="e.g. BSc (Hons) Software Engineering"
-            />
-
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Year</Text>
-                <View style={styles.chipsWrap}>
-                  {['Year 1', 'Year 2', 'Year 3', 'Year 4'].map((yr) => (
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Profile Image Customization Section */}
+              <View style={styles.avatarEditSection}>
+                <Text style={styles.avatarSectionTitle}>PROFILE PICTURE</Text>
+                <View style={styles.avatarPreviewRow}>
+                  <View style={styles.modalAvatarWrapper}>
+                    <Image
+                      source={{ uri: editAvatar || avatarUri }}
+                      style={styles.modalAvatarImg}
+                    />
                     <TouchableOpacity
-                      key={yr}
-                      style={[styles.smallChip, editYear === yr && styles.smallChipActive]}
-                      onPress={() => setEditYear(yr)}
+                      style={styles.avatarCameraBadge}
+                      onPress={handlePickFromGallery}
+                      activeOpacity={0.8}
                     >
-                      <Text style={[styles.smallChipText, editYear === yr && styles.smallChipTextActive]}>
-                        {yr}
-                      </Text>
+                      <Ionicons name="camera" size={13} color="#061E47" />
                     </TouchableOpacity>
-                  ))}
+                  </View>
+
+                  <View style={styles.avatarActionBtnsCol}>
+                    <TouchableOpacity
+                      style={styles.imageActionBtn}
+                      onPress={handlePickFromGallery}
+                      disabled={isPickingImage}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="images-outline" size={14} color="#061E47" />
+                      <Text style={styles.imageActionBtnText}>Choose Photo</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.imageActionBtnSecondary}
+                      onPress={handleTakePhoto}
+                      disabled={isPickingImage}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="camera-outline" size={14} color="#061E47" />
+                      <Text style={styles.imageActionBtnTextSecondary}>Take Photo</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Preset Avatars */}
+                <Text style={styles.presetLabel}>Or choose an avatar:</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.presetsList}
+                >
+                  {AVATAR_PRESETS.map((preset, idx) => {
+                    const isSelected = editAvatar === preset;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        onPress={() => setEditAvatar(preset)}
+                        style={[
+                          styles.presetAvatarItem,
+                          isSelected && styles.presetAvatarItemSelected,
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <Image source={{ uri: preset }} style={styles.presetImg} />
+                        {isSelected && (
+                          <View style={styles.presetCheckmarkBadge}>
+                            <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Your name"
+                placeholderTextColor="#94A3B8"
+              />
+
+              <Text style={styles.inputLabel}>Degree Programme</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editDegree}
+                onChangeText={setEditDegree}
+                placeholder="e.g. BSc (Hons) Software Engineering"
+                placeholderTextColor="#94A3B8"
+              />
+
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Year</Text>
+                  <View style={styles.chipsWrap}>
+                    {['Year 1', 'Year 2', 'Year 3', 'Year 4'].map((yr) => (
+                      <TouchableOpacity
+                        key={yr}
+                        style={[styles.smallChip, editYear === yr && styles.smallChipActive]}
+                        onPress={() => setEditYear(yr)}
+                      >
+                        <Text style={[styles.smallChipText, editYear === yr && styles.smallChipTextActive]}>
+                          {yr}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Semester</Text>
+                  <View style={styles.chipsWrap}>
+                    {['Sem 1', 'Sem 2'].map((sm) => (
+                      <TouchableOpacity
+                        key={sm}
+                        style={[styles.smallChip, editSem === sm && styles.smallChipActive]}
+                        onPress={() => setEditSem(sm)}
+                      >
+                        <Text style={[styles.smallChipText, editSem === sm && styles.smallChipTextActive]}>
+                          {sm}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               </View>
 
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Semester</Text>
-                <View style={styles.chipsWrap}>
-                  {['Sem 1', 'Sem 2'].map((sm) => (
-                    <TouchableOpacity
-                      key={sm}
-                      style={[styles.smallChip, editSem === sm && styles.smallChipActive]}
-                      onPress={() => setEditSem(sm)}
-                    >
-                      <Text style={[styles.smallChipText, editSem === sm && styles.smallChipTextActive]}>
-                        {sm}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
+              <Text style={styles.inputLabel}>Bio</Text>
+              <TextInput
+                style={[styles.modalInput, { height: 75, textAlignVertical: 'top' }]}
+                value={editBio}
+                onChangeText={setEditBio}
+                multiline
+                placeholder="Tell us about your academic goals..."
+                placeholderTextColor="#94A3B8"
+              />
 
-            <Text style={styles.inputLabel}>Bio</Text>
-            <TextInput
-              style={[styles.modalInput, { height: 75, textAlignVertical: 'top' }]}
-              value={editBio}
-              onChangeText={setEditBio}
-              multiline
-              placeholder="Tell us about your academic goals..."
-            />
+              <TouchableOpacity
+                style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
+                onPress={handleSaveProfile}
+                disabled={isSaving}
+                activeOpacity={0.85}
+              >
+                {isSaving ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.saveBtnText}>Saving Profile...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.saveBtnText}>Save Profile</Text>
+                )}
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile}>
-              <Text style={styles.saveBtnText}>Save Profile</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setShowEditModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -389,13 +581,14 @@ const styles = StyleSheet.create({
   },
   editProfileBtn: {
     backgroundColor: '#FBBF24',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
+    marginBottom: 4,
     marginLeft: 8,
   },
   editProfileBtnText: {
@@ -427,6 +620,19 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: '#22C55E',
     borderWidth: 2,
+    borderColor: '#061E47',
+  },
+  avatarCameraBadgeSmall: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
     borderColor: '#061E47',
   },
   profileCopyWrap: {
@@ -466,7 +672,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 110,
+    paddingBottom: 24,
   },
   statsCard: {
     backgroundColor: '#0B2754',
@@ -586,6 +792,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    maxHeight: '90%',
   },
   sheetHandle: {
     width: 38,
@@ -606,6 +813,127 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 14,
   },
+
+  /* Avatar Section in Modal */
+  avatarEditSection: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  avatarSectionTitle: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    marginBottom: 10,
+  },
+  avatarPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 14,
+  },
+  modalAvatarWrapper: {
+    position: 'relative',
+  },
+  modalAvatarImg: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 2.5,
+    borderColor: '#F59E0B',
+  },
+  avatarCameraBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarActionBtnsCol: {
+    flex: 1,
+    gap: 8,
+  },
+  imageActionBtn: {
+    backgroundColor: '#FBBF24',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  imageActionBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  imageActionBtnSecondary: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  imageActionBtnTextSecondary: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  presetLabel: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  presetsList: {
+    gap: 10,
+    paddingVertical: 2,
+  },
+  presetAvatarItem: {
+    position: 'relative',
+    borderRadius: 22,
+    borderWidth: 2.5,
+    borderColor: 'transparent',
+    padding: 1,
+  },
+  presetAvatarItemSelected: {
+    borderColor: '#F59E0B',
+  },
+  presetImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  presetCheckmarkBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    backgroundColor: '#F59E0B',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+
   inputLabel: {
     color: '#334155',
     fontSize: 11,
@@ -652,11 +980,21 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 14,
   },
   saveBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  cancelBtn: {
+    paddingVertical: 11,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  cancelBtnText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

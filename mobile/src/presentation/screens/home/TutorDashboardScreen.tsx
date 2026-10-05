@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
   },
   scrollContent: {
-    paddingBottom: 110,
+    paddingBottom: 24,
   },
 
   // 2. Schedule Card
