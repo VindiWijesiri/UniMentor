@@ -482,10 +482,11 @@ export default function StudentDashboardScreen({ navigation }: Props) {
         </View>
 
         {/* Deadline Approaching Alert Card */}
+        {/* Deadline Approaching Alert Card */}
         {alert && (
           <View style={styles.alertCard}>
             <View style={styles.alertClockIconWrap}>
-              <Text style={styles.alertClockEmoji}>⏰</Text>
+              <Ionicons name="time" size={22} color="#FFFFFF" />
             </View>
 
             <View style={styles.alertCopyWrap}>
@@ -498,14 +499,20 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                 style={styles.alertActionBtn}
                 onPress={() => navigation.navigate('Reviews')}
               >
-                <Text style={styles.alertActionBtnText}>Review &gt;</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Text style={styles.alertActionBtnText}>Review</Text>
+                  <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.alertActionBtn, { marginTop: 6 }]}
                 onPress={() => navigation.navigate('Search', { initialQuery: 'Probability' })}
               >
-                <Text style={styles.alertActionBtnText}>Find Tutor &gt;</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Text style={styles.alertActionBtnText}>Find Tutor</Text>
+                  <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -524,7 +531,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             onPress={() => setShowGoalModal(true)}
           >
             <View style={styles.launchpadIconCircle}>
-              <Text style={styles.launchpadOrangeIcon}>✓⁺</Text>
+              <Ionicons name="add-circle" size={22} color="#FFFFFF" />
             </View>
             <Text style={styles.launchpadOrangeLabel}>New Goal</Text>
           </TouchableOpacity>
@@ -536,7 +543,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             onPress={() => setShowPodsModal(true)}
           >
             <View style={styles.podsIconWrapper}>
-              <Text style={styles.launchpadEmoji}>💬</Text>
+              <Ionicons name="chatbubbles" size={24} color="#0D4F9E" />
               <View style={styles.badgeRed}>
                 <Text style={styles.badgeRedText}>3</Text>
               </View>
@@ -550,7 +557,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             activeOpacity={0.85}
             onPress={() => setShowLiveRoom(true)}
           >
-            <Text style={styles.launchpadEmoji}>📹</Text>
+            <Ionicons name="videocam" size={24} color="#0D4F9E" />
             <Text style={styles.launchpadWhiteLabel}>Join session</Text>
           </TouchableOpacity>
 
@@ -560,12 +567,12 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             activeOpacity={0.85}
             onPress={() => setShowLibraryModal(true)}
           >
-            <Text style={styles.launchpadEmoji}>📥</Text>
+            <Ionicons name="folder-open" size={24} color="#0D4F9E" />
             <Text style={styles.launchpadWhiteLabel}>Library</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Live Session Hero Card (Exact Match with Image) */}
+        {/* Live Session Hero Card */}
         {liveSession && (
           <View style={styles.liveCard}>
             <View style={styles.liveTopBadgesRow}>
@@ -573,7 +580,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                 <View style={styles.greenPulseDot} />
                 <Text style={styles.livePillText}>{liveSession.tag}</Text>
               </View>
-              <Text style={styles.liveTimeText}>⏰ {liveSession.timeRemaining}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="time-outline" size={13} color="#EF4444" />
+                <Text style={styles.liveTimeText}>{liveSession.timeRemaining}</Text>
+              </View>
             </View>
 
             <Text style={styles.liveSessionTitle}>{liveSession.title}</Text>
@@ -584,14 +594,14 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               <View style={styles.liveMentorAvatarWrapper}>
                 <Image source={{ uri: liveSession.mentor.avatar }} style={styles.liveMentorAvatar} />
                 <View style={styles.verifiedCheckBadge}>
-                  <Text style={styles.verifiedCheckText}>✓</Text>
+                  <Ionicons name="checkmark" size={9} color="#FFFFFF" />
                 </View>
               </View>
 
               <View style={styles.liveMentorInfo}>
                 <View style={styles.mentorNameRow}>
                   <Text style={styles.liveMentorName}>{liveSession.mentor.name}</Text>
-                  <Text style={styles.verifiedGoldBadge}> ✓</Text>
+                  <Ionicons name="checkmark-circle" size={14} color="#F59E0B" style={{ marginLeft: 4 }} />
                 </View>
                 <Text style={styles.liveMentorRole}>
                   {liveSession.mentor.roleTitle} • {liveSession.mentor.batch}
@@ -609,7 +619,11 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               activeOpacity={0.85}
               onPress={() => setShowLiveRoom(true)}
             >
-              <Text style={styles.joinRoomText}>🚪 Join Room  →</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.joinRoomText}>Join Room</Text>
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+              </View>
             </TouchableOpacity>
           </View>
         )}
@@ -619,22 +633,18 @@ export default function StudentDashboardScreen({ navigation }: Props) {
           <View style={{ flex: 1 }}>
             <Text style={styles.modulesSectionTitle}>Registered Modules</Text>
             <Text style={styles.modulesSectionSubtitle}>
-              {enrolledModules.length} Modules Enrolled • Assigned Peer Mentors
+              {enrolledModules.length} Modules Enrolled • Synchronized with Database
             </Text>
           </View>
           <TouchableOpacity
             style={styles.addModulePillBtn}
             activeOpacity={0.85}
-            onPress={() => {
-              const parent = navigation.getParent<NativeStackNavigationProp<AppStackParamList>>();
-              if (parent) {
-                parent.navigate('GuidanceWizard');
-              } else {
-                (navigation as any).navigate('GuidanceWizard');
-              }
-            }}
+            onPress={() => setShowRegisterModal(true)}
           >
-            <Text style={styles.addModuleBtnText}>+ Register</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Text style={styles.addModuleBtnText}>Register</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -674,7 +684,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                 <View style={[styles.progressBarFill, { width: `${item.progress || 60}%` }]} />
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <Text style={styles.editProgressHint}>✏️ Tap to update progress</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="create-outline" size={13} color="#0D4F9E" />
+                  <Text style={styles.editProgressHint}>Tap to update progress</Text>
+                </View>
                 <Text style={styles.progressPercentageText}>{item.progress || 60}% Complete</Text>
               </View>
             </TouchableOpacity>
@@ -682,7 +695,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             {/* ASSIGNED MENTOR SUB-CARD */}
             <View style={styles.mentorBox}>
               <View style={styles.mentorBoxHeader}>
-                <Text style={styles.mentorBoxLabel}>⭐ ASSIGNED MENTOR</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="shield-checkmark" size={13} color="#F59E0B" />
+                  <Text style={styles.mentorBoxLabel}>ASSIGNED MENTOR</Text>
+                </View>
                 <TouchableOpacity onPress={() => setShowChangeMentorModal(item)}>
                   <Text style={styles.changeMentorLink}>Change Mentor</Text>
                 </TouchableOpacity>
@@ -711,7 +727,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                       style={{ flexDirection: 'row', alignItems: 'center' }}
                     >
                       <Text style={styles.mentorCardName}>{item.mentor.name}</Text>
-                      <Text style={styles.verifiedGoldBadge}> ✓</Text>
+                      <Ionicons name="checkmark-circle" size={14} color="#F59E0B" style={{ marginLeft: 4 }} />
                     </TouchableOpacity>
 
                     <Text style={styles.mentorCardRole}>
@@ -722,9 +738,12 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                       onPress={() => navigation.navigate('Reviews')}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.mentorRatingText}>
-                        ★ {item.mentor.rating || 4.9} ({item.mentor.reviewCount || 28} reviews) • LKR {(item.mentor.hourlyRate || 1800).toLocaleString()}/hr
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <Ionicons name="star" size={12} color="#F59E0B" />
+                        <Text style={styles.mentorRatingText}>
+                          {item.mentor.rating || 4.9} ({item.mentor.reviewCount || 28} reviews) • LKR {(item.mentor.hourlyRate || 1800).toLocaleString()}/hr
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -739,7 +758,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
               {/* Next Session Note */}
               <View style={styles.nextSessionRow}>
-                <Text style={styles.nextSessionIcon}>📅</Text>
+                <Ionicons name="calendar-outline" size={14} color="#0D4F9E" style={{ marginRight: 6 }} />
                 <Text style={styles.nextSessionText}>
                   {item.nextSession || 'Weekly revision session scheduled'}
                 </Text>
@@ -752,7 +771,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                     style={styles.chatMentorBtn}
                     onPress={() => handleOpenChat(item.mentor!)}
                   >
-                    <Text style={styles.chatMentorBtnText}>💬 Chat</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="chatbubble-ellipses" size={13} color="#FFFFFF" />
+                      <Text style={styles.chatMentorBtnText}>Chat</Text>
+                    </View>
                   </TouchableOpacity>
                 )}
 
@@ -761,7 +783,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                     style={styles.bookMentorBtn}
                     onPress={() => handleViewTutorProfile(item.mentor!)}
                   >
-                    <Text style={styles.bookMentorBtnText}>📅 Book</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="calendar" size={13} color="#0D4F9E" />
+                      <Text style={styles.bookMentorBtnText}>Book</Text>
+                    </View>
                   </TouchableOpacity>
                 )}
 
@@ -771,7 +796,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                     onPress={() => navigation.navigate('Reviews')}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.reviewMentorBtnText}>⭐ Review</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="star-outline" size={13} color="#475569" />
+                      <Text style={styles.reviewMentorBtnText}>Review</Text>
+                    </View>
                   </TouchableOpacity>
                 )}
 
@@ -792,7 +820,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                     );
                   }}
                 >
-                  <Text style={styles.dropModuleBtnText}>✕</Text>
+                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -813,13 +841,13 @@ export default function StudentDashboardScreen({ navigation }: Props) {
           activeOpacity={0.88}
         >
           <View style={styles.explorerIconCircle}>
-            <Text style={styles.explorerEmoji}>🎓</Text>
+            <Ionicons name="school-outline" size={22} color="#0D4F9E" />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.explorerTitle}>Academic Guidance & Registration</Text>
             <Text style={styles.explorerSubtitle}>Register modules, explore faculties, and get academic guidance.</Text>
           </View>
-          <Text style={styles.explorerChevron}>→</Text>
+          <Ionicons name="chevron-forward" size={20} color="#0D4F9E" />
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -833,7 +861,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <View style={{ flex: 1 }}>
               <View style={styles.examTagRow}>
                 <View style={styles.examTagBadge}>
-                  <Text style={styles.examTagBadgeText}>⏰ EXAM IN 2 DAYS</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="time" size={12} color="#D97706" />
+                    <Text style={styles.examTagBadgeText}>EXAM IN 2 DAYS</Text>
+                  </View>
                 </View>
                 <View style={[styles.examTagBadge, { backgroundColor: '#ECFDF5' }]}>
                   <Text style={[styles.examTagBadgeText, { color: '#059669' }]}>
@@ -846,7 +877,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             </View>
 
             <TouchableOpacity style={styles.closeExamModalBtn} onPress={() => setShowExamReviewModal(false)}>
-              <Text style={styles.closeExamModalText}>✕</Text>
+              <Ionicons name="close" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
@@ -856,27 +887,36 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               style={[styles.examTabBtn, examReviewTab === 'syllabus' && styles.examTabBtnActive]}
               onPress={() => setExamReviewTab('syllabus')}
             >
-              <Text style={[styles.examTabText, examReviewTab === 'syllabus' && styles.examTabTextActive]}>
-                📋 Syllabus
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="book-outline" size={14} color={examReviewTab === 'syllabus' ? '#0D4F9E' : '#64748B'} />
+                <Text style={[styles.examTabText, examReviewTab === 'syllabus' && styles.examTabTextActive]}>
+                  Syllabus
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.examTabBtn, examReviewTab === 'quiz' && styles.examTabBtnActive]}
               onPress={() => setExamReviewTab('quiz')}
             >
-              <Text style={[styles.examTabText, examReviewTab === 'quiz' && styles.examTabTextActive]}>
-                📝 Quiz ({Object.keys(quizAnswers).length}/4)
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="help-circle-outline" size={14} color={examReviewTab === 'quiz' ? '#0D4F9E' : '#64748B'} />
+                <Text style={[styles.examTabText, examReviewTab === 'quiz' && styles.examTabTextActive]}>
+                  Quiz ({Object.keys(quizAnswers).length}/4)
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.examTabBtn, examReviewTab === 'formulas' && styles.examTabBtnActive]}
               onPress={() => setExamReviewTab('formulas')}
             >
-              <Text style={[styles.examTabText, examReviewTab === 'formulas' && styles.examTabTextActive]}>
-                📐 Formulas
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="calculator-outline" size={14} color={examReviewTab === 'formulas' ? '#0D4F9E' : '#64748B'} />
+                <Text style={[styles.examTabText, examReviewTab === 'formulas' && styles.examTabTextActive]}>
+                  Formulas
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -894,7 +934,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                   </View>
                   <Text style={styles.readinessHint}>
                     {reviewedExam
-                      ? '🎉 You have completed this mock exam review!'
+                      ? 'You have completed this mock exam review!'
                       : '4 of 5 core module units reviewed. 1 unit needs practice before exam day.'}
                   </Text>
                 </View>
@@ -979,7 +1019,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                         });
                       }}
                     >
-                      <Text style={styles.examBookMentorBtnText}>📅 Book Revision Session</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="calendar" size={15} color="#FFFFFF" />
+                        <Text style={styles.examBookMentorBtnText}>Book Revision Session</Text>
+                      </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -1000,7 +1043,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                         });
                       }}
                     >
-                      <Text style={styles.examChatMentorBtnText}>💬 Chat</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="chatbubbles" size={14} color="#0F172A" />
+                        <Text style={styles.examChatMentorBtnText}>Chat</Text>
+                      </View>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1010,13 +1056,16 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                   style={[styles.markReviewedBtn, reviewedExam && styles.markReviewedBtnDone]}
                   onPress={() => {
                     setReviewedExam(true);
-                    Alert.alert('Review Completed! 🌟', 'MA2010 Mock Exam status marked as reviewed. You are all set for exam day!');
+                    Alert.alert('Review Completed!', 'MA2010 Mock Exam status marked as reviewed. You are all set for exam day!');
                   }}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.markReviewedBtnText}>
-                    {reviewedExam ? '✓ Exam Review Completed' : 'Mark Exam as Reviewed ✅'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                    <Text style={styles.markReviewedBtnText}>
+                      {reviewedExam ? 'Exam Review Completed' : 'Mark Exam as Reviewed'}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             )}
@@ -1081,10 +1130,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                               </View>
                               <Text style={textStyle}>{opt}</Text>
                               {hasAnswered && isThisCorrect && (
-                                <Text style={{ color: '#16A34A', fontWeight: '800', marginLeft: 'auto' }}>✓</Text>
+                                <Ionicons name="checkmark-circle" size={16} color="#16A34A" style={{ marginLeft: 'auto' }} />
                               )}
                               {hasAnswered && isThisSelected && !isThisCorrect && (
-                                <Text style={{ color: '#DC2626', fontWeight: '800', marginLeft: 'auto' }}>✕</Text>
+                                <Ionicons name="close-circle" size={16} color="#DC2626" style={{ marginLeft: 'auto' }} />
                               )}
                             </TouchableOpacity>
                           );
@@ -1093,7 +1142,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
                       {hasAnswered && (
                         <View style={[styles.explanationBox, isCorrect ? styles.explanationCorrect : styles.explanationWrong]}>
-                          <Text style={styles.explanationTitle}>{isCorrect ? '✓ Correct!' : '✕ Explanation:'}</Text>
+                          <Text style={styles.explanationTitle}>{isCorrect ? 'Correct!' : 'Explanation:'}</Text>
                           <Text style={styles.explanationText}>{q.explanation}</Text>
                         </View>
                       )}
@@ -1106,7 +1155,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                   onPress={handleCalculateScore}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.calcScoreBtnText}>Calculate & Save Score 🎯</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="ribbon-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.calcScoreBtnText}>Calculate & Save Score</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             )}
@@ -1155,13 +1207,16 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                   style={styles.downloadPdfBtn}
                   onPress={() => {
                     Alert.alert(
-                      'Download Summary 📄',
+                      'Download Summary',
                       'MA2010_Probability_Cheat_Sheet.pdf has been saved to your downloads folder.'
                     );
                   }}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.downloadPdfBtnText}>📥 Download PDF Cheatsheet</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.downloadPdfBtnText}>Download PDF Cheatsheet</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             )}
@@ -1194,12 +1249,18 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               style={styles.stageHostVideo}
             />
             <View style={styles.stageOverlay}>
-              <Text style={styles.stageHostTag}>🎤 Tharushi Perera (Presenting Breadth-First Search)</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="mic" size={14} color="#FFFFFF" />
+                <Text style={styles.stageHostTag}>Tharushi Perera (Presenting Breadth-First Search)</Text>
+              </View>
             </View>
 
             {/* Floating student peer thumbnail */}
             <View style={styles.peerThumb}>
-              <Text style={styles.peerThumbText}>🧑‍🎓 You</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="person-circle" size={14} color="#FFFFFF" />
+                <Text style={styles.peerThumbText}>You</Text>
+              </View>
             </View>
           </View>
 
@@ -1209,7 +1270,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               style={[styles.controlBtn, isMicMuted && styles.controlBtnMuted]}
               onPress={() => setIsMicMuted(!isMicMuted)}
             >
-              <Text style={styles.controlBtnIcon}>{isMicMuted ? '🔇' : '🎙️'}</Text>
+              <Ionicons name={isMicMuted ? 'mic-off' : 'mic'} size={20} color="#FFFFFF" />
               <Text style={styles.controlBtnLabel}>{isMicMuted ? 'Unmute' : 'Mute'}</Text>
             </TouchableOpacity>
 
@@ -1217,26 +1278,27 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               style={[styles.controlBtn, isCameraOff && styles.controlBtnMuted]}
               onPress={() => setIsCameraOff(!isCameraOff)}
             >
-              <Text style={styles.controlBtnIcon}>{isCameraOff ? '🚫' : '📹'}</Text>
+              <Ionicons name={isCameraOff ? 'videocam-off' : 'videocam'} size={20} color="#FFFFFF" />
               <Text style={styles.controlBtnLabel}>{isCameraOff ? 'Start Cam' : 'Stop Cam'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.controlBtn}
-              onPress={() => Alert.alert('Hand Raised ✋', 'Mentor Tharushi Perera has been notified you have a question.')}
+              onPress={() => Alert.alert('Hand Raised', 'Mentor Tharushi Perera has been notified you have a question.')}
             >
-              <Text style={styles.controlBtnIcon}>✋</Text>
+              <Ionicons name="hand-right" size={20} color="#FFFFFF" />
               <Text style={styles.controlBtnLabel}>Raise Hand</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.controlBtn}
-              onPress={() => Alert.alert('Session Material 📄', 'Graph Traversals Cheatsheet & Code Samples downloaded to your UniMentor Library.')}
+              onPress={() => Alert.alert('Session Material', 'Graph Traversals Cheatsheet & Code Samples downloaded to your UniMentor Library.')}
             >
-              <Text style={styles.controlBtnIcon}>📑</Text>
+              <Ionicons name="document-text" size={20} color="#FFFFFF" />
               <Text style={styles.controlBtnLabel}>Notes</Text>
             </TouchableOpacity>
           </View>
+
 
           {/* Live Chat in Room */}
           <View style={styles.roomChatContainer}>
@@ -1422,7 +1484,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
         <Pressable style={styles.modalOverlay} onPress={() => setShowGoalModal(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetHeading}>Academic Goals ({goalsList.length}) 🎯</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Ionicons name="trophy" size={22} color="#F59E0B" />
+              <Text style={styles.sheetHeading}>Academic Goals ({goalsList.length})</Text>
+            </View>
             <Text style={styles.sheetSubheading}>Create, complete, and manage your semester study goals.</Text>
 
             {/* Create Goal Form */}
@@ -1435,7 +1500,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                 onChangeText={setGoalText}
               />
               <TouchableOpacity style={styles.smallAddBtn} onPress={handleSaveGoal}>
-                <Text style={styles.smallAddBtnText}>+ Add</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Ionicons name="add" size={14} color="#FFFFFF" />
+                  <Text style={styles.smallAddBtnText}>Add</Text>
+                </View>
               </TouchableOpacity>
             </View>
 
@@ -1447,7 +1515,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                     style={[styles.goalCheckbox, g.done && styles.goalCheckboxDone]}
                     onPress={() => handleToggleGoal(g.id)}
                   >
-                    {g.done && <Text style={styles.goalCheckmarkText}>✓</Text>}
+                    {g.done && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </TouchableOpacity>
 
                   <Text
@@ -1458,7 +1526,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                   </Text>
 
                   <TouchableOpacity onPress={() => handleDeleteGoal(g.id)} style={{ padding: 6 }}>
-                    <Text style={{ fontSize: 13 }}>🗑️</Text>
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -1476,7 +1544,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
         <Pressable style={styles.modalOverlay} onPress={() => setShowPodsModal(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetHeading}>Study Pods ({podsList.length} Active)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Ionicons name="people" size={22} color="#0D4F9E" />
+              <Text style={styles.sheetHeading}>Study Pods ({podsList.length} Active)</Text>
+            </View>
             <Text style={styles.sheetSubheading}>Peer revision groups for collaborative problem solving.</Text>
 
             {/* Create Pod Form */}
@@ -1490,7 +1561,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                 onChangeText={setNewPodName}
               />
               <TouchableOpacity style={styles.confirmModalBtn} onPress={handleCreatePod}>
-                <Text style={styles.confirmModalBtnText}>+ Create Pod Group</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                  <Text style={styles.confirmModalBtnText}>Create Pod Group</Text>
+                </View>
               </TouchableOpacity>
             </View>
 
@@ -1498,10 +1572,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <ScrollView style={{ maxHeight: 240 }}>
               {podsList.map((pod) => (
                 <View key={pod.id} style={styles.podCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={styles.podName}>{pod.name}</Text>
                     <TouchableOpacity onPress={() => handleDeletePod(pod.id)}>
-                      <Text style={{ fontSize: 12 }}>🗑️</Text>
+                      <Ionicons name="trash-outline" size={15} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.podMeta}>Module: {pod.module} • {pod.peers} Active Peers • {pod.schedule}</Text>
@@ -1512,7 +1586,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                       setShowLiveRoom(true);
                     }}
                   >
-                    <Text style={styles.podJoinText}>Join Pod Room</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="log-in-outline" size={16} color="#FFFFFF" />
+                      <Text style={styles.podJoinText}>Join Pod Room</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -1530,7 +1607,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
         <Pressable style={styles.modalOverlay} onPress={() => setShowLibraryModal(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetHeading}>Module Resource Library ({libraryList.length}) 📥</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Ionicons name="folder-open" size={22} color="#0D4F9E" />
+              <Text style={styles.sheetHeading}>Module Resource Library ({libraryList.length})</Text>
+            </View>
             <Text style={styles.sheetSubheading}>Curated lecture summaries, tutorial sheets, and past papers.</Text>
 
             {/* Create / Upload Resource Form */}
@@ -1543,7 +1623,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                 onChangeText={setNewResourceTitle}
               />
               <TouchableOpacity style={styles.smallAddBtn} onPress={handleAddLibraryResource}>
-                <Text style={styles.smallAddBtnText}>+ Upload</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Ionicons name="cloud-upload" size={14} color="#FFFFFF" />
+                  <Text style={styles.smallAddBtnText}>Upload</Text>
+                </View>
               </TouchableOpacity>
             </View>
 
@@ -1551,7 +1634,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <ScrollView style={{ maxHeight: 260 }}>
               {libraryList.map((item) => (
                 <View key={item.id} style={styles.libraryItem}>
-                  <Text style={styles.libraryIcon}>📄</Text>
+                  <Ionicons name="document-text" size={22} color="#0D4F9E" style={{ marginRight: 10 }} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.libraryTitle}>{item.title}</Text>
                     <Text style={styles.libraryMeta}>{item.meta}</Text>
@@ -1560,7 +1643,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                     <Text style={styles.downloadLink}>Download</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDeleteLibraryResource(item.id)} style={{ marginLeft: 8 }}>
-                    <Text style={{ fontSize: 13 }}>🗑️</Text>
+                    <Ionicons name="trash-outline" size={15} color="#EF4444" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -1628,7 +1711,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   scrollContainer: {
-    paddingBottom: 24,
+    paddingBottom: 110,
   },
 
   /* Profile Card */

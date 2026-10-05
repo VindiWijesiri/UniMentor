@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 36,
+    paddingBottom: 110,
   },
   statsCard: {
     backgroundColor: '#0B2754',

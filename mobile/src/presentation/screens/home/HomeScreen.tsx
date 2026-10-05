@@ -410,7 +410,7 @@ export default function HomeScreen({ navigation }: Props) {
 const navy = '#061E47';
 const blue = '#0B2754';
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F4F7FB' }, scrollContent: { paddingBottom: 16 },
+  page: { flex: 1, backgroundColor: '#F4F7FB' }, scrollContent: { paddingBottom: 110 },
   hero: { backgroundColor: navy, paddingHorizontal: 20, paddingBottom: 44, overflow: 'hidden' },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
   brandMark: { width: 42, height: 34, borderRadius: 10, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },

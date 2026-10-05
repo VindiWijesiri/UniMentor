@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { Ionicons } from '@expo/vector-icons';
 
 type FacultyFilter = 'all' | 'Computing' | 'Engineering' | 'Business' | 'Architecture';
 
@@ -142,9 +143,9 @@ export default function SessionsScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerTopRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>My Selected Modules</Text>
+            <Text style={styles.headerTitle}>My Bookings & Modules</Text>
             <Text style={styles.headerSubtitle}>
-              Modules you have selected for academic peer guidance
+              Peer tutoring sessions and registered modules
             </Text>
           </View>
           <View style={styles.moduleCountBadge}>
@@ -172,7 +173,7 @@ export default function SessionsScreen() {
 
         {/* Search Bar */}
         <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search" size={16} color="#8997AF" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search selected modules, codes, or mentors..."
@@ -224,7 +225,7 @@ export default function SessionsScreen() {
         keyExtractor={(item) => item.code}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: Math.max(insets.bottom, 20) + 16 },
+          { paddingBottom: Math.max(insets.bottom, 20) + 110 },
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#061E47" />
@@ -234,7 +235,7 @@ export default function SessionsScreen() {
             <ActivityIndicator size="large" color="#061E47" style={{ marginTop: 40 }} />
           ) : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>📚</Text>
+              <Ionicons name="calendar-outline" size={48} color="#94A3B8" style={{ marginBottom: 12 }} />
               <Text style={styles.emptyTitle}>
                 {searchQuery || selectedFaculty !== 'all'
                   ? 'No Matching Modules Found'
@@ -315,7 +316,7 @@ export default function SessionsScreen() {
               {/* Next Session Agenda Highlight */}
               {item.nextSession ? (
                 <View style={styles.agendaBox}>
-                  <Text style={styles.agendaIcon}>📌</Text>
+                  <Ionicons name="bookmark" size={16} color="#0284C7" style={{ marginRight: 8, marginTop: 2 }} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.agendaLabel}>NEXT FOCUS / AGENDA</Text>
                     <Text style={styles.agendaText}>{item.nextSession}</Text>
