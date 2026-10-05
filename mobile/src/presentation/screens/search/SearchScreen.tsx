@@ -335,7 +335,7 @@ export default function SearchScreen({ route, navigation }: Props) {
             <Text style={styles.mentorName} numberOfLines={1}>{item.name}</Text>
             <Text style={styles.experience}>{item.experience ?? 'Verified senior student mentor'}</Text>
             <View style={styles.ratingRow}>
-              <Text style={styles.star}>★</Text>
+              <Ionicons name="star" size={13} color="#F59E0B" style={{ marginRight: 3 }} />
               <Text style={styles.rating}>{item.rating?.toFixed(1) ?? 'New'}</Text>
               <Text style={styles.sessions}>  ·  {item.sessionCount ?? 0}+ sessions</Text>
             </View>
@@ -363,9 +363,16 @@ export default function SearchScreen({ route, navigation }: Props) {
               onPress={() => openSaveModal(item)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.saveShortlistText, isShortlisted && styles.saveShortlistTextActive]}>
-                {isShortlisted ? '★ Saved' : '☆ Save'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons
+                  name={isShortlisted ? 'bookmark' : 'bookmark-outline'}
+                  size={13}
+                  color={isShortlisted ? '#B45309' : '#0F172A'}
+                />
+                <Text style={[styles.saveShortlistText, isShortlisted && styles.saveShortlistTextActive]}>
+                  {isShortlisted ? 'Saved' : 'Save'}
+                </Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.addCompareButton, comparisonIds.includes(item._id) && styles.addCompareButtonSelected]}
@@ -412,7 +419,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               </View>
             </View>
             <View style={styles.ratingRow}>
-              <Text style={styles.star}>★</Text>
+              <Ionicons name="star" size={13} color="#F59E0B" style={{ marginRight: 3 }} />
               <Text style={styles.rating}>{item.rating?.toFixed(1) ?? '4.8'}</Text>
               <Text style={styles.sessions}>  ·  LKR {item.hourlyRate.toLocaleString()} / hour</Text>
             </View>
@@ -443,13 +450,19 @@ export default function SearchScreen({ route, navigation }: Props) {
               style={styles.editNotesBtn}
               onPress={() => openEditShortlistModal(item)}
             >
-              <Text style={styles.editNotesBtnText}>✏️ Edit Notes</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="create-outline" size={14} color="#0D4F9E" />
+                <Text style={styles.editNotesBtnText}>Edit Notes</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.removeBtn}
               onPress={() => handleRemoveFromShortlist(item.mentorId, item.name)}
             >
-              <Text style={styles.removeBtnText}>🗑️ Remove</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                <Text style={styles.removeBtnText}>Remove</Text>
+              </View>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
@@ -478,33 +491,22 @@ export default function SearchScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
         <View style={styles.headerTopBar}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleGoBack}
-            activeOpacity={0.7}
-            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons
-              name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-              size={26}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-          <Text style={styles.title} numberOfLines={1}>Find Your Mentor</Text>
-          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle} numberOfLines={1}>Find Your Mentor</Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
 
-        <Text style={styles.subtitle}>Choose a tutor for your module.</Text>
+        <Text style={styles.subtitle}>Choose a verified peer tutor for your module</Text>
 
         <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Ionicons name="search" size={16} color="#8492AD" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.input}
-            placeholder="Search module or tutor"
+            placeholder="Search module, tutor name, or topic..."
             placeholderTextColor="#8492AD"
             value={query}
             onChangeText={setQuery}
@@ -530,9 +532,16 @@ export default function SearchScreen({ route, navigation }: Props) {
             style={[styles.tabSwitchBtn, searchTab === 'shortlist' && styles.tabSwitchBtnActive]}
             onPress={() => setSearchTab('shortlist')}
           >
-            <Text style={[styles.tabSwitchText, searchTab === 'shortlist' && styles.tabSwitchTextActive]}>
-              ★ My Shortlist ({shortlist.length})
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons
+                name="star"
+                size={13}
+                color={searchTab === 'shortlist' ? '#FFFFFF' : '#F59E0B'}
+              />
+              <Text style={[styles.tabSwitchText, searchTab === 'shortlist' && styles.tabSwitchTextActive]}>
+                My Shortlist ({shortlist.length})
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -554,7 +563,12 @@ export default function SearchScreen({ route, navigation }: Props) {
                   ?.navigate('Filters', { filters, searchParams: route.params })}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.openFiltersIcon, activeFilterCount > 0 && styles.openFiltersTextActive]}>≡</Text>
+                <Ionicons
+                  name="options-outline"
+                  size={15}
+                  color={activeFilterCount > 0 ? '#FFFFFF' : '#0B2754'}
+                  style={{ marginRight: 4 }}
+                />
                 <Text style={[styles.openFiltersText, activeFilterCount > 0 && styles.openFiltersTextActive]}>Filters</Text>
                 {activeFilterCount > 0 && <View style={styles.filterCount}><Text style={styles.filterCountText}>{activeFilterCount}</Text></View>}
               </TouchableOpacity>
@@ -613,7 +627,12 @@ export default function SearchScreen({ route, navigation }: Props) {
         )}
         ListEmptyComponent={(
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>{searchTab === 'browse' ? '⌕' : '★'}</Text>
+            <Ionicons
+              name={searchTab === 'browse' ? 'search-outline' : 'star-outline'}
+              size={44}
+              color="#94A3B8"
+              style={{ marginBottom: 10 }}
+            />
             <Text style={styles.emptyTitle}>
               {searchTab === 'browse' ? 'No mentors found' : 'Your Shortlist is Empty'}
             </Text>
@@ -725,36 +744,50 @@ const onlineGreen = '#22C55E';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  header: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 22 },
+  header: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
   headerTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 44,
+    justifyContent: 'space-between',
+    minHeight: 36,
     marginBottom: 4,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 6,
-    marginLeft: -4,
-  },
-  headerSpacer: { width: 40 },
-  title: {
-    flex: 1,
-    color: '#FFF',
-    fontSize: 22,
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
   },
   subtitle: {
     color: '#D5E3F6',
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 18,
     marginTop: 2,
-    marginBottom: 16,
-    paddingLeft: 2,
+    marginBottom: 12,
   },
   searchBox: { height: 54, borderRadius: 16, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center', paddingLeft: 13, shadowColor: '#001433', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   searchIcon: { color: navy, fontSize: 25, fontWeight: '800', marginRight: 7, marginTop: -3 },

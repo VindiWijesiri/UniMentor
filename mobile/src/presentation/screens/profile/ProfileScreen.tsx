@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useUserStore } from '../../../domain/stores/userStore';
 import { useStudentStore } from '../../../domain/stores/studentStore';
@@ -124,12 +125,21 @@ export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>My Student Profile</Text>
-          <TouchableOpacity style={styles.editHeaderBtn} onPress={openEditModal}>
-            <Text style={styles.editHeaderBtnText}>✏️ Edit</Text>
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Profile</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity style={styles.editHeaderBtn} onPress={openEditModal} activeOpacity={0.8}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="create-outline" size={13} color="#FBBF24" />
+                <Text style={styles.editHeaderBtnText}>Edit</Text>
+              </View>
+            </TouchableOpacity>
+            <View style={styles.brandRow}>
+              <Text style={styles.brandUni}>Uni</Text>
+              <Text style={styles.brandMentor}>Mentor</Text>
+            </View>
+          </View>
         </View>
 
         {/* Profile Card Summary */}
@@ -213,7 +223,7 @@ export default function ProfileScreen() {
                   onPress={() => handleRemoveInterest(sub)}
                   style={styles.removeTagBtn}
                 >
-                  <Text style={styles.removeTagBtnText}>✕</Text>
+                  <Ionicons name="close-circle" size={15} color="#94A3B8" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -222,8 +232,11 @@ export default function ProfileScreen() {
 
         {/* Account Actions */}
         <View style={styles.actionCard}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutPrompt}>
-            <Text style={styles.logoutBtnText}>Log Out</Text>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutPrompt} activeOpacity={0.85}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Ionicons name="log-out-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.logoutBtnText}>Log Out</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -334,24 +347,42 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F4F7FB' },
   header: {
     backgroundColor: '#061E47',
-    paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 36,
     marginBottom: 14,
   },
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
   },
   editHeaderBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 12,
   },
   editHeaderBtnText: {

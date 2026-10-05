@@ -140,16 +140,17 @@ export default function SessionsScreen() {
   return (
     <View style={styles.screen}>
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
         <View style={styles.headerTopRow}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={styles.headerTitle}>My Bookings & Modules</Text>
             <Text style={styles.headerSubtitle}>
               Peer tutoring sessions and registered modules
             </Text>
           </View>
-          <View style={styles.moduleCountBadge}>
-            <Text style={styles.moduleCountText}>{enrolledModules.length} Enrolled</Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
 
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
   /* Header */
   header: {
     backgroundColor: navy,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 14,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -453,14 +454,28 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#FFFFFF',
-    fontSize: 21,
-    fontWeight: '900',
-    letterSpacing: 0.2,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   headerSubtitle: {
     color: '#D7E6FA',
     fontSize: 12,
     marginTop: 2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
   },
   moduleCountBadge: {
     backgroundColor: 'rgba(245, 158, 11, 0.2)',

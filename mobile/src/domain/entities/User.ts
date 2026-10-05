@@ -1,8 +1,11 @@
 export interface User {
   _id: string;
+  id?: string;
   name: string;
   email: string;
   role: 'student' | 'mentor';
+  faculty?: string;
+  department?: string;
   profilePicture?: string;
   bio?: string;
   subjects?: string[];
@@ -18,5 +21,5 @@ export interface User {
   rating?: number;
   reviewCount?: number;
   hourlyRate?: number;
-  createdAt: string;
+  createdAt?: string;
 }

@@ -12,6 +12,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: {
+    _id: 'demo-tutor-1',
     id: 'demo-tutor-1',
     name: 'Tharushi Perera',
     email: 'tharushi.p@unimentor.sliit.lk',

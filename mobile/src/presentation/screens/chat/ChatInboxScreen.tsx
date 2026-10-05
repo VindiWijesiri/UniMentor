@@ -10,7 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,6 +28,7 @@ const formatDate = (date: string) =>
   new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' });
 
 export default function ChatInboxScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const currentUser = useAuthStore((state) => state.user);
   const isMentor = currentUser?.role === 'mentor';
 
@@ -128,14 +130,18 @@ export default function ChatInboxScreen({ navigation }: Props) {
   return (
     <View style={styles.page}>
       {/* Hero Header */}
-      <View style={styles.hero}>
+      <View style={[styles.hero, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
         <View style={styles.heroOrb} />
-        <Text style={styles.eyebrow}>
-          {isMentor ? 'MENTOR CHAT HUB' : 'DIRECT MESSAGING'}
-        </Text>
-        <Text style={styles.title}>
-          {isMentor ? 'Student Inquiries' : 'Messages'}
-        </Text>
+        <View style={styles.headerTopBar}>
+          <Text style={styles.headerTitle}>
+            {isMentor ? 'Student Inquiries' : 'Messages & Alerts'}
+          </Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+
         <Text style={styles.subtitle}>
           {isMentor
             ? 'Real-time discussions and voice notes from your peer mentees'
@@ -144,7 +150,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
 
         {/* Search Bar */}
         <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search" size={16} color="#8997AF" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
             placeholder={
@@ -156,7 +162,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
           />
           {searchQuery ? (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={{ color: '#8997AF', paddingHorizontal: 6 }}>✕</Text>
+              <Ionicons name="close-circle" size={16} color="#8997AF" />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -236,11 +242,18 @@ export default function ChatInboxScreen({ navigation }: Props) {
                 </View>
 
                 {/* Subtitle tag */}
-                <Text style={styles.role} numberOfLines={1}>
-                  {isParticipantStudent
-                    ? `🎓 ${item.participant.degreeProgramme || 'Student Peer Mentee'}`
-                    : `⭐ Senior Peer Mentor • Batch '24`}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                  <Ionicons
+                    name={isParticipantStudent ? 'school-outline' : 'star'}
+                    size={12}
+                    color={isParticipantStudent ? '#0B2754' : '#F59E0B'}
+                  />
+                  <Text style={styles.role} numberOfLines={1}>
+                    {isParticipantStudent
+                      ? (item.participant.degreeProgramme || 'Student Peer Mentee')
+                      : "Senior Peer Mentor • Batch '24"}
+                  </Text>
+                </View>
 
                 {/* Last message preview */}
                 <View style={styles.previewRow}>
@@ -314,10 +327,38 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   hero: {
     backgroundColor: navy,
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     overflow: 'hidden',
+  },
+  headerTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+    marginBottom: 4,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
   },
   heroOrb: {
     position: 'absolute',
@@ -329,23 +370,12 @@ const styles = StyleSheet.create({
     top: -90,
     opacity: 0.85,
   },
-  eyebrow: {
-    color: '#FBBF24',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: '900',
-    marginTop: 3,
-  },
   subtitle: {
-    color: '#94A3B8',
-    fontSize: 11.5,
-    marginTop: 3,
-    maxWidth: 320,
+    color: '#D5E3F6',
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 2,
+    marginBottom: 12,
   },
 
   searchBox: {
