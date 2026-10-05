@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +31,8 @@ function SectionHeading({ icon, title }: { icon: keyof typeof Ionicons.glyphMap;
 
 export default function TutorProfileScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const currentUser = useAuthStore((state) => state.user);
   const currentRole = currentUser?.role;
 
@@ -123,7 +125,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
   return (
     <View style={styles.page}>
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeftRow}>
             {navigation.canGoBack?.() ? (

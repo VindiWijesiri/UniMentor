@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
-  Modal, Pressable, ScrollView, StyleSheet, Text,
+  Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -184,6 +184,8 @@ function SelectField({
 
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { user } = useAuthStore();
   const [selectedField, setSelectedField] = useState<FieldKey | null>(null);
   const [values, setValues] = useState<Partial<Record<FieldKey, string>>>({});
@@ -285,7 +287,7 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <View style={styles.page}>
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeftRow}>
             {navigation.canGoBack?.() ? (

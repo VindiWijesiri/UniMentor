@@ -10,6 +10,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -32,6 +33,8 @@ type ActiveTab = 'tutors' | 'my-reviews';
 
 export default function ReviewsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const [activeTab, setActiveTab] = useState<ActiveTab>('tutors');
   const [tutors, setTutors] = useState<Mentor[]>([]);
   const [query, setQuery] = useState('');
@@ -152,7 +155,7 @@ export default function ReviewsScreen({ navigation }: Props) {
   return (
     <View style={styles.page}>
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeftRow}>
             {navigation.canGoBack?.() ? (

@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -60,6 +61,8 @@ export function getMentorRate(mentor: { _id?: string; name: string; hourlyRate?:
 
 export default function SearchScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const initialQuery = route.params?.initialQuery ?? '';
   const faculty = route.params?.faculty;
   const department = route.params?.department;
@@ -492,7 +495,7 @@ export default function SearchScreen({ route, navigation }: Props) {
   return (
     <View style={styles.page}>
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>Find Your Mentor</Text>
           <View style={styles.brandRow}>

@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   RefreshControl,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -29,6 +31,8 @@ const formatDate = (date: string) =>
 
 export default function ChatInboxScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const currentUser = useAuthStore((state) => state.user);
   const isMentor = currentUser?.role === 'mentor';
 
@@ -130,7 +134,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
   return (
     <View style={styles.page}>
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>
             {isMentor ? 'Student Inquiries' : 'Messages & Alerts'}

@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -64,6 +65,8 @@ const academicCatalogData: Record<string, Record<string, string[]>> = {
 
 export default function StudentDashboardScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const authUser = useAuthStore((state) => state.user);
   const {
     dashboard,
@@ -386,8 +389,9 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Student Dashboard</Text>
           <View style={styles.brandRow}>
@@ -1661,6 +1665,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 36,
   },
   headerLeftRow: {
     flexDirection: 'row',
@@ -1678,7 +1683,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   brandRow: {
     flexDirection: 'row',

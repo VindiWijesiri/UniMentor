@@ -3,8 +3,10 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Platform,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -23,6 +25,8 @@ type FacultyFilter = 'all' | 'Computing' | 'Engineering' | 'Business' | 'Archite
 
 export default function SessionsScreen() {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const { dashboard, loading, fetchDashboard } = useStudentStore();
 
@@ -140,7 +144,7 @@ export default function SessionsScreen() {
   return (
     <View style={styles.screen}>
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>My Bookings</Text>
           <View style={styles.brandRow}>

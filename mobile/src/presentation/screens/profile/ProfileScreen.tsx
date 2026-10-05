@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -20,6 +21,8 @@ import { useStudentStore } from '../../../domain/stores/studentStore';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { logout } = useAuthStore();
   const { profile, fetchProfile, updateProfile, addSubject, removeSubject } = useUserStore();
   const { dashboard } = useStudentStore();
@@ -125,7 +128,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>My Profile</Text>
           <View style={styles.brandRow}>

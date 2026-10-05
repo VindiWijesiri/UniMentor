@@ -70,11 +70,14 @@ export default function TutorDashboardScreen({ navigation }: any) {
     setAssessmentTitle('');
   };
 
-  return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A2342" />
-      {/* 1. Header with Dark Navy Background */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+    const statusBarHeight =
+      Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
+
+    return (
+      <View style={styles.root}>
+        <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+        {/* 1. Header with Dark Navy Background */}
+        <View style={[styles.headerContainer, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Tutor Dashboard</Text>
           <View style={styles.brandRow}>

@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -91,6 +92,8 @@ const QUICK_PRAISES: QuickPraise[] = [
 
 export default function WriteReviewScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { mentor, existingReview: initialExistingReview } = route.params;
   const { user } = useAuthStore();
 
@@ -308,7 +311,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeftRow}>
             {navigation.canGoBack?.() ? (
