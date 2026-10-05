@@ -12,6 +12,7 @@ import {
   getPlans,
   joinDiscussion,
   logPresence,
+  logFocus,
   postChatPod,
   progressActivity,
   submitAssessment,
@@ -78,6 +79,7 @@ router.post('/discussions/:id/join', ...studentOnly, joinDiscussion);
 router.get('/chat-pod', ...studentOnly, getChatPod);
 router.post('/chat-pod/messages', ...studentOnly, postChatPod);
 router.post('/presence', ...studentOnly, logPresence);
+router.post('/focus', ...studentOnly, logFocus);
 router.patch('/week', ...studentOnly, updateWeeklyGoal);
 router.get('/goals/board', ...studentOnly, getGoalBoard);
 router.get('/goals/:id', ...studentOnly, getGoal);

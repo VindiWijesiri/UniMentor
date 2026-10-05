@@ -1,6 +1,8 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,15 +12,55 @@ import {
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { learningRepository } from '../../../data/repositories/learningRepository';
 import type { LearningDashboard } from '../../../domain/entities/Learning';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import PageHeader from '../../components/PageHeader';
-import { card, ink, live, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
+import { card, ice, ink, live, muted, navy, pageBg, yellow } from './learningTheme';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
+import FocusSession from './FocusSession';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
 type StackNav = NativeStackNavigationProp<AppStackParamList>;
+
+const HOUR_OPTIONS = [0, 1, 2].map((hour) => ({ key: String(hour), label: hour === 1 ? '1 hour' : `${hour} hours` }));
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, minute) => ({
+  key: String(minute),
+  label: minute === 1 ? '1 min' : `${minute} min`,
+}));
+
+function MenuField({ label, value, options, onSelect }: {
+  label: string;
+  value: string;
+  options: { key: string; label: string }[];
+  onSelect: (key: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.menuField}>
+      <Text style={styles.menuLabel}>{label}</Text>
+      <TouchableOpacity style={styles.menu} onPress={() => setOpen(true)}>
+        <Text style={styles.menuValue} numberOfLines={1}>{value}</Text>
+        <MaterialIcons name="arrow-drop-down" size={22} color="#102B5D" />
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setOpen(false)}>
+          <Pressable style={styles.menuSheet} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.menuSheetTitle}>{label}</Text>
+            <ScrollView style={styles.menuList}>
+              {options.map((option) => (
+                <TouchableOpacity key={option.key} style={styles.menuOption} onPress={() => { onSelect(option.key); setOpen(false); }}>
+                  <Text style={[styles.menuOptionText, option.label === value && styles.menuOptionOn]}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
 
 function formatWhen(value?: string) {
   if (!value) return '';
@@ -36,6 +78,11 @@ export default function LearningDashboardScreen({ navigation }: Props) {
   const [data, setData] = useState<LearningDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [goalId, setGoalId] = useState('');
+  const [studyArea, setStudyArea] = useState('');
+  const [focusHours, setFocusHours] = useState(0);
+  const [focusMins, setFocusMins] = useState(25);
+  const [focusOn, setFocusOn] = useState(false);
   const lastLoad = useRef(0);
   const dataRef = useRef<LearningDashboard | null>(null);
   dataRef.current = data;
@@ -65,7 +112,27 @@ export default function LearningDashboardScreen({ navigation }: Props) {
 
   const week = data?.weeklyStudy;
   const maxHours = Math.max(4, ...(week?.days.map((day) => day.hours) ?? [1]));
+  const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+  const todayHours = week?.days[todayIndex]?.hours ?? 0;
   const activity = data?.continueActivity;
+  const focusGoals = (data?.todayGoals ?? []).map((goal) => ({
+    id: goal._id,
+    title: goal.moduleCode ? `${goal.moduleCode} · ${goal.title}` : goal.title,
+    code: goal.moduleCode || 'Goal',
+    areas: goal.areas?.length ? goal.areas : ['Whole goal'],
+  }));
+  const selectedGoal = focusGoals.find((goal) => goal.id === goalId) ?? focusGoals[0];
+  const areaOptions = selectedGoal?.areas ?? ['Whole goal'];
+  const focusMinutes = focusHours * 60 + focusMins;
+
+  useEffect(() => {
+    const first = data?.todayGoals?.[0]?._id;
+    if (!goalId && first) setGoalId(first);
+  }, [goalId, data]);
+
+  useEffect(() => {
+    if (!areaOptions.includes(studyArea)) setStudyArea(areaOptions[0]);
+  }, [areaOptions, studyArea]);
 
   return (
     <View style={styles.page}>
@@ -82,12 +149,16 @@ export default function LearningDashboardScreen({ navigation }: Props) {
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyTaskTracker')}>
-            <Text style={styles.shortcutIcon}>▣</Text>
+            <MaterialIcons name="calendar-today" size={14} color="#FFF" />
             <Text style={styles.shortcutText}>My Plans</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyMaterials')}>
-            <Text style={styles.shortcutIcon}>▤</Text>
-            <Text style={styles.shortcutText}>Study</Text>
+            <MaterialIcons name="menu-book" size={15} color="#FFF" />
+            <Text style={styles.shortcutText}>Study Materials</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('Assessments')}>
+            <MaterialIcons name="assignment" size={15} color="#FFF" />
+            <Text style={styles.shortcutText}>Assessments</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -105,27 +176,72 @@ export default function LearningDashboardScreen({ navigation }: Props) {
           </View>
         ) : (
           <View style={styles.body}>
-            <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={() => stack?.navigate('StudyTaskTracker')}>
-              <View style={styles.cardHead}>
-                <Text style={styles.cardTitle}>Weekly Study Hours</Text>
-                <Text style={styles.viewAll}>Study plan</Text>
-              </View>
-              <Text style={styles.hoursTotal}>{week?.hoursDone ?? 0} / {week?.hoursGoal ?? 20} hours</Text>
-              <View style={styles.chart}>
-                {(week?.days ?? []).map((day, index) => (
-                  <View key={`${day.day}-${index}`} style={styles.barCol}>
-                    <View style={styles.barTrack}>
-                      <View style={[styles.barFill, { height: `${day.hours ? Math.max(8, (day.hours / maxHours) * 100) : 0}%` }]} />
+            <TouchableOpacity style={[styles.card, styles.todayCard]} activeOpacity={0.9} onPress={() => stack?.navigate('StudyTaskTracker')}>
+              <View style={styles.todayRow}>
+                <View>
+                  <Text style={styles.cardTitle}>Today</Text>
+                  <Text style={styles.todayValue}>{todayHours}h</Text>
+                  <Text style={styles.goalMeta}>{week?.hoursDone ?? 0}h of {week?.hoursGoal ?? 20}h this week</Text>
+                </View>
+                <View style={styles.chart}>
+                  {(week?.days ?? []).map((day, index) => (
+                    <View key={`${day.day}-${index}`} style={styles.barCol}>
+                      <View style={styles.barTrack}>
+                        <View style={[styles.barFill, { height: `${day.hours ? Math.max(8, (day.hours / maxHours) * 100) : 0}%` }]} />
+                      </View>
+                      <Text style={[styles.barLabel, index === todayIndex && styles.barLabelToday]}>{day.day}</Text>
                     </View>
-                    <Text style={styles.barLabel}>{day.day}</Text>
-                  </View>
-                ))}
+                  ))}
+                </View>
               </View>
-              <View style={styles.weekMeta}>
-                <Text style={styles.weekPercent}>{week?.percent ?? 0}% of weekly goal accomplished</Text>
-                <Text style={styles.weekLeft}>{week?.hoursLeft ?? 0}h left</Text>
-              </View>
+              <Text style={styles.weekPercent}>{week?.percent ?? 0}% of the weekly goal</Text>
             </TouchableOpacity>
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Focus</Text>
+              <Text style={styles.goalMeta}>The study area follows the goal you pick. Set any length.</Text>
+              <MenuField
+                label="Goal"
+                value={selectedGoal?.title || 'Choose a goal'}
+                options={focusGoals.map((goal) => ({ key: goal.id, label: goal.title }))}
+                onSelect={(id) => {
+                  setGoalId(id);
+                  const next = focusGoals.find((goal) => goal.id === id);
+                  setStudyArea(next?.areas[0] || 'Whole goal');
+                }}
+              />
+              <MenuField
+                label="Study area"
+                value={studyArea || 'Choose an area'}
+                options={areaOptions.map((area) => ({ key: area, label: area }))}
+                onSelect={setStudyArea}
+              />
+              <View style={styles.timeRow}>
+                <View style={styles.timeField}>
+                  <MenuField
+                    label="Hours"
+                    value={HOUR_OPTIONS.find((item) => item.key === String(focusHours))?.label || '0 hours'}
+                    options={HOUR_OPTIONS}
+                    onSelect={(key) => setFocusHours(Number(key))}
+                  />
+                </View>
+                <View style={styles.timeField}>
+                  <MenuField
+                    label="Minutes"
+                    value={MINUTE_OPTIONS.find((item) => item.key === String(focusMins))?.label || '0 min'}
+                    options={MINUTE_OPTIONS}
+                    onSelect={(key) => setFocusMins(Number(key))}
+                  />
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.focusStart, focusMinutes < 1 && styles.focusStartOff]}
+                disabled={!selectedGoal || focusMinutes < 1}
+                onPress={() => setFocusOn(true)}
+              >
+                <Text style={styles.focusStartText}>Start {focusMinutes} min</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.card}>
               <View style={styles.cardHead}>
@@ -168,6 +284,16 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                     ) : null}
                   </TouchableOpacity>
                   <Text style={styles.goalProgress}>{goal.progress ?? Math.round((goal.current / Math.max(goal.total, 1)) * 100)}%</Text>
+                  <TouchableOpacity
+                    style={styles.focusMini}
+                    onPress={() => {
+                      setGoalId(goal._id);
+                      setStudyArea(goal.areas?.[0] || 'Whole goal');
+                      setFocusOn(true);
+                    }}
+                  >
+                    <Text style={styles.focusMiniText}>Focus</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
             </View>
@@ -294,6 +420,15 @@ export default function LearningDashboardScreen({ navigation }: Props) {
           </View>
         )}
       </ScrollView>
+      <FocusSession
+        visible={focusOn}
+        areas={selectedGoal ? [{ id: selectedGoal.id, title: selectedGoal.title, code: selectedGoal.code }] : []}
+        areaId={selectedGoal?.id || ''}
+        minutes={Math.max(1, focusMinutes)}
+        studyArea={studyArea}
+        onClose={() => setFocusOn(false)}
+        onSaved={() => { lastLoad.current = 0; load(); }}
+      />
     </View>
   );
 }
@@ -318,7 +453,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
   shortcutBar: {
-    backgroundColor: '#102B5D',
+    backgroundColor: ice,
     paddingTop: 2,
     paddingBottom: 14,
     paddingLeft: 12,
@@ -328,18 +463,19 @@ const styles = StyleSheet.create({
   shortcutRow: { flexDirection: 'row', gap: 8, paddingRight: 16 },
   shortcut: {
     borderRadius: 22,
-    backgroundColor: secondaryBlue,
-    paddingVertical: 10,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.9)',
+    paddingVertical: 8,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
-  shortcutActive: { backgroundColor: yellow },
-  shortcutText: { color: navy, fontSize: 11, fontWeight: '800' },
-  shortcutActiveText: { color: navy, fontSize: 11, fontWeight: '900' },
-  shortcutIcon: { color: navy, fontSize: 12 },
+  shortcutActive: { backgroundColor: yellow, borderColor: yellow },
+  shortcutText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+  shortcutActiveText: { color: navy, fontSize: 12, fontWeight: '900' },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: live },
   badge: { backgroundColor: navy, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
   badgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
@@ -350,12 +486,37 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   cardTitle: { color: ink, fontSize: 16, fontWeight: '900' },
+  todayCard: { paddingVertical: 10 },
+  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  todayValue: { color: ink, fontSize: 22, fontWeight: '900', marginTop: 2 },
+  menuField: { marginTop: 8 },
+  menuLabel: { color: muted, fontSize: 11, fontWeight: '800', marginBottom: 4 },
+  menu: {
+    minHeight: 42, borderRadius: 12, borderWidth: 1, borderColor: '#E6EAF2',
+    paddingLeft: 12, paddingRight: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
+  },
+  menuValue: { flex: 1, color: ink, fontWeight: '700' },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(16,43,93,0.35)', justifyContent: 'flex-end' },
+  menuSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: 28 },
+  menuSheetTitle: { color: ink, fontSize: 16, fontWeight: '800', marginBottom: 8 },
+  menuList: { maxHeight: 320 },
+  menuOption: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuOptionText: { color: '#334155', fontSize: 15 },
+  menuOptionOn: { color: '#102B5D', fontWeight: '800' },
+  timeRow: { flexDirection: 'row', gap: 10 },
+  timeField: { flex: 1 },
+  focusStart: { backgroundColor: '#FF8D28', borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 12 },
+  focusStartOff: { opacity: 0.45 },
+  focusStartText: { color: '#102B5D', fontWeight: '800' },
+  focusMini: { marginLeft: 8, backgroundColor: '#102B5D', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 6 },
+  focusMiniText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
   hoursTotal: { color: muted, fontSize: 12, fontWeight: '700' },
-  chart: { height: 92, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 6 },
-  barCol: { alignItems: 'center', width: 28, height: '100%', justifyContent: 'flex-end' },
-  barTrack: { width: 10, height: 70, borderRadius: 6, backgroundColor: '#EEF2F7', justifyContent: 'flex-end', overflow: 'hidden' },
+  chart: { height: 46, flex: 1, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  barCol: { alignItems: 'center', flex: 1, height: '100%', justifyContent: 'flex-end' },
+  barTrack: { width: 8, height: 28, borderRadius: 6, backgroundColor: '#EEF2F7', justifyContent: 'flex-end', overflow: 'hidden' },
   barFill: { width: '100%', backgroundColor: yellow, borderRadius: 6 },
-  barLabel: { color: muted, fontSize: 10, fontWeight: '700', marginTop: 6 },
+  barLabel: { color: muted, fontSize: 10, fontWeight: '700', marginTop: 4 },
+  barLabelToday: { color: ink, fontWeight: '900' },
   weekMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
   weekPercent: { color: ink, fontSize: 12, fontWeight: '700' },
   weekLeft: { color: muted, fontSize: 12, fontWeight: '700' },

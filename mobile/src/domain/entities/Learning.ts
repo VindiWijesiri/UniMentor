@@ -11,6 +11,7 @@ export type LearningGoal = {
   progress?: number;
   priority?: string;
   kind?: 'weekly' | 'module';
+  areas?: string[];
 };
 
 export type LearningActivity = {

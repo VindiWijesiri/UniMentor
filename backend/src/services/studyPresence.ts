@@ -138,6 +138,24 @@ export async function addOpenSeconds(studentId: string, seconds: number, dateKey
   return summary;
 }
 
+export async function logFocusSession(studentId: string, goalId: string, seconds: number, dateKeyValue: string, areaLabel = '') {
+  const goal = await GoalPlan.findOne({ _id: goalId, studentId });
+  if (!goal) return null;
+  const summary = await addOpenSeconds(studentId, seconds, dateKeyValue);
+  if (goal.seedKey !== 'goal-weekly') {
+    const hours = Math.round((seconds / 3600) * 10) / 10;
+    goal.hoursLogged = Math.round(((goal.hoursLogged || 0) + hours) * 10) / 10;
+    const bump = Math.max(1, Math.round(seconds / 60 / 10));
+    goal.progress = Math.min(100, (goal.progress || 0) + bump);
+    const place = areaLabel && areaLabel !== 'Whole goal' ? `${areaLabel} · ` : '';
+    goal.delta = `${place}${goal.hoursLogged}h focused`;
+    if (goal.progress >= 100) goal.completed = true;
+    await goal.save();
+  }
+  const fresh = await GoalPlan.findOne({ _id: goalId, studentId });
+  return { summary, goal: fresh ?? goal };
+}
+
 export async function setWeeklyHoursGoal(studentId: string, hoursGoal: number) {
   const nextGoal = Math.min(60, Math.max(1, Math.round(hoursGoal)));
   const doc = await currentWeek(studentId, new Date());

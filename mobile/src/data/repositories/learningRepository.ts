@@ -28,6 +28,12 @@ export const learningRepository = {
   sendChatPod: async (text: string) => (await apiClient.post<ChatPodMessage>('/learning/chat-pod/messages', { text })).data,
   toggleGoal: async (id: string) => apiClient.patch(`/learning/goals/${id}`),
   logPresence: async (seconds: number, date: string) => apiClient.post('/learning/presence', { seconds, date }),
+  logFocus: async (goalId: string, seconds: number, date: string, area?: string) => (
+    await apiClient.post<{ minutes: number; goalTitle: string; progress: number; hoursDone: number }>(
+      '/learning/focus',
+      { goalId, seconds, date, area },
+    )
+  ).data,
   setWeeklyGoal: async (hoursGoal: number) => apiClient.patch('/learning/week', { hoursGoal }),
   goalBoard: async () => (await apiClient.get<GoalBoard>('/learning/goals/board')).data,
   goal: async (id: string) => (await apiClient.get<GoalPlanView>(`/learning/goals/${id}`)).data,

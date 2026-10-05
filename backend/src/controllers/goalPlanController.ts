@@ -371,6 +371,11 @@ export async function goalSummaries(studentId: string) {
       progress: weekly ? Math.min(100, Math.round(week.percent)) : goal.progress,
       priority: goal.priority,
       kind: weekly ? 'weekly' : 'module',
+      areas: (() => {
+        const topics = asList<{ title?: string }>(goal.topics).map((item) => item.title).filter((title): title is string => Boolean(title));
+        if (topics.length) return topics;
+        return asList<GoalTask>(goal.tasks).map((task) => task.title).filter(Boolean);
+      })(),
     };
   });
 }

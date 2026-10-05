@@ -7,12 +7,14 @@ import type { GoalPlanView } from '../../../domain/entities/GoalPlan';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { AssessmentScreen, KuppiyaBar } from '../assessments/Chrome';
 import { blue, card, ink, line, muted, navy, orange, soft } from '../assessments/theme';
+import FocusSession from '../learning/FocusSession';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'GoalDetail'>;
 
 export default function GoalDetailScreen({ navigation, route }: Props) {
   const [goal, setGoal] = useState<GoalPlanView | null>(null);
   const [loading, setLoading] = useState(true);
+  const [focusOn, setFocusOn] = useState(false);
   const load = useCallback(() => {
     let active = true;
     learningRepository.goal(route.params.goalId)
@@ -48,6 +50,9 @@ export default function GoalDetailScreen({ navigation, route }: Props) {
           <Text style={styles.meta}>{goal.dueLabel}</Text>
         </View>
         <View style={styles.actions}>
+          <TouchableOpacity style={styles.action} onPress={() => setFocusOn(true)}>
+            <Text style={styles.actionText}>Focus</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.action} onPress={() => navigation.navigate('AddGoalAssessment', { goalId: goal._id })}>
             <Text style={styles.actionText}>+ Assessment</Text>
           </TouchableOpacity>
@@ -113,6 +118,15 @@ export default function GoalDetailScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         ) : null}
       </ScrollView>
+      <FocusSession
+        visible={focusOn}
+        areas={[{ id: goal._id, title: goal.title, code: goal.moduleCode }]}
+        areaId={goal._id}
+        minutes={25}
+        chooseTime
+        onClose={() => setFocusOn(false)}
+        onSaved={load}
+      />
     </AssessmentScreen>
   );
 }

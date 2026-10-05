@@ -7,6 +7,7 @@ import type { GoalBoard } from '../../../domain/entities/GoalPlan';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { AssessmentScreen, KuppiyaBar, OrangeButton } from '../assessments/Chrome';
 import { card, ink, line, muted, navy, orange, soft } from '../assessments/theme';
+import FocusSession from '../learning/FocusSession';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'StudyTaskTracker'>;
 
@@ -17,6 +18,7 @@ export default function StudyTaskTrackerScreen({ navigation }: Props) {
   const [composer, setComposer] = useState(false);
   const [title, setTitle] = useState('');
   const [savingGoal, setSavingGoal] = useState(false);
+  const [focusOn, setFocusOn] = useState(false);
   const load = useCallback(() => {
     let active = true;
     learningRepository.goalBoard().then((item) => { if (active) setBoard(item); }).catch(() => {});
@@ -37,7 +39,10 @@ export default function StudyTaskTrackerScreen({ navigation }: Props) {
           <Text style={styles.weekTitle}>{weekly?.title ?? 'Weekly study goal'}</Text>
           <Text style={styles.weekHours}>{board?.hoursDone ?? 0} / {board?.hoursGoal ?? 20} hrs · {Math.min(100, Math.round(board?.percent ?? 0))}%</Text>
           <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, board?.percent ?? 0)}%` }]} /></View>
-          <Text style={styles.weekNote}>Hours are the time UniMentor stays open this week.</Text>
+          <Text style={styles.weekNote}>Hours are the time UniMentor stays open, plus any focus block you finish.</Text>
+          <TouchableOpacity style={styles.start} onPress={() => setFocusOn(true)}>
+            <Text style={styles.startText}>Start a focus block</Text>
+          </TouchableOpacity>
           <View style={styles.targets}>
             {WEEKLY_TARGETS.map((hours) => {
               const selected = (board?.hoursGoal ?? 20) === hours;
@@ -126,6 +131,15 @@ export default function StudyTaskTrackerScreen({ navigation }: Props) {
           }}
         />
       </ScrollView>
+      <FocusSession
+        visible={focusOn}
+        areas={(board?.goals ?? []).map((goal) => ({ id: goal._id, title: goal.title, code: goal.moduleCode }))}
+        areaId={weekly?._id || board?.weeklyGoalId || ''}
+        minutes={25}
+        chooseTime
+        onClose={() => setFocusOn(false)}
+        onSaved={load}
+      />
     </AssessmentScreen>
   );
 }

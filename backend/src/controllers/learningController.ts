@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { AuthRequest } from '../middleware/auth';
 import Session from '../models/Session';
 import User from '../models/User';
@@ -15,7 +16,7 @@ import { PodConversation } from '../models/pod';
 import { LibraryMaterial } from '../models/library';
 import { seedLearningData } from '../services/seedLearningData';
 import { goalSummaries } from './goalPlanController';
-import { addOpenSeconds, setWeeklyHoursGoal, weekSummary } from '../services/studyPresence';
+import { addOpenSeconds, logFocusSession, setWeeklyHoursGoal, weekSummary } from '../services/studyPresence';
 import { seedPodData } from '../services/seedPodData';
 import { seedLibraryData } from '../services/seedLibraryData';
 
@@ -338,6 +339,34 @@ export async function logPresence(req: AuthRequest, res: Response, next: NextFun
     }
     const week = await addOpenSeconds(studentId, seconds, date);
     res.json(week);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function logFocus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const studentId = await readyStudent(req);
+    const seconds = Math.round(Number(req.body.seconds));
+    const goalId = String(req.body.goalId || '');
+    const date = String(req.body.date || '');
+    if (!mongoose.isValidObjectId(goalId) || !Number.isFinite(seconds) || seconds < 30 || seconds > 10800) {
+      res.status(400).json({ message: 'Choose a goal and a focus length.' });
+      return;
+    }
+    const area = String(req.body.area || '').slice(0, 80);
+    const result = await logFocusSession(studentId, goalId, seconds, date, area);
+    if (!result) {
+      res.status(404).json({ message: 'Goal not found.' });
+      return;
+    }
+    const weekly = result.goal.seedKey === 'goal-weekly';
+    res.json({
+      minutes: Math.max(1, Math.round(seconds / 60)),
+      goalTitle: result.goal.title,
+      progress: weekly ? Math.min(100, Math.round(result.summary.percent)) : result.goal.progress,
+      hoursDone: result.summary.hoursDone,
+    });
   } catch (err) {
     next(err);
   }

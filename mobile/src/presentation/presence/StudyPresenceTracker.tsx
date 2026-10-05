@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import { learningRepository } from '../../data/repositories/learningRepository';
 import { useAuthStore } from '../../domain/stores/authStore';
+import { isFocusClockPaused } from './focusClock';
 
 function localDate() {
   const now = new Date();
@@ -19,6 +20,10 @@ export default function StudyPresenceTracker() {
     let timer: ReturnType<typeof setInterval> | undefined;
 
     const flush = () => {
+      if (isFocusClockPaused()) {
+        started = Date.now();
+        return;
+      }
       const seconds = Math.round((Date.now() - started) / 1000);
       started = Date.now();
       if (seconds < 5) return;
