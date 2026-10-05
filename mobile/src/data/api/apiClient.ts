@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../../domain/stores/authStore';
 
-// Hotspot IP address
-const BASE_URL = 'http://172.20.10.3:5000/api';
+// Phone cannot use localhost. Set EXPO_PUBLIC_API_URL in mobile/.env to this PC's Wi-Fi IPv4.
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.8.104:5000/api';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
