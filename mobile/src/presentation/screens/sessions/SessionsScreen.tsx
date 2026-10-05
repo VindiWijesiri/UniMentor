@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,11 +14,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { bookedTutorsRepository, BookedTutorItem } from '../../../data/repositories/bookedTutorsRepository';
 import { Ionicons } from '@expo/vector-icons';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
@@ -34,6 +35,7 @@ export default function SessionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState<FacultyFilter>('all');
+  const [bookedTutors, setBookedTutors] = useState<BookedTutorItem[]>([]);
 
   useEffect(() => {
     if (!dashboard) {
@@ -41,15 +43,74 @@ export default function SessionsScreen() {
     }
   }, [dashboard, fetchDashboard]);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchDashboard();
-    setRefreshing(false);
-  };
-
   const enrolledModules = useMemo(() => {
     return dashboard?.enrolledModules || [];
   }, [dashboard]);
+
+  // Load booked tutors from repository & sync with enrolled modules
+  const loadBookedTutors = useCallback(async () => {
+    try {
+      const items = await bookedTutorsRepository.getBookedTutors();
+
+      // Ensure any tutor already assigned in enrolledModules is included
+      const currentIds = new Set(items.map((b) => (b.mentor.id || b.mentor.name).toLowerCase()));
+      let hasNew = false;
+
+      for (const m of enrolledModules) {
+        if (m.mentor && m.mentor.name) {
+          const key = (m.mentor.id || m.mentor.name).toLowerCase();
+          if (!currentIds.has(key)) {
+            currentIds.add(key);
+            const newItem: BookedTutorItem = {
+              id: `module-assigned-${m.mentor.id || m.mentor.name}`,
+              mentor: {
+                id: m.mentor.id || m.mentor.name,
+                name: m.mentor.name,
+                roleTitle: m.mentor.roleTitle || 'Senior Peer Mentor',
+                avatar: m.mentor.avatar,
+                rating: m.mentor.rating || 4.9,
+                reviewCount: m.mentor.reviewCount || 25,
+                hourlyRate: m.mentor.hourlyRate || 1800,
+                subjects: [m.name],
+              },
+              moduleCode: m.code,
+              moduleName: m.name,
+              nextSession: m.nextSession || 'Weekly session scheduled',
+              studyMode: '1-on-1',
+              bookedAt: new Date().toISOString(),
+            };
+            await bookedTutorsRepository.addBookedTutor(newItem);
+            hasNew = true;
+          }
+        }
+      }
+
+      const refreshed = hasNew ? await bookedTutorsRepository.getBookedTutors() : items;
+      setBookedTutors(refreshed);
+    } catch (e) {
+      console.warn('Failed to load booked tutors:', e);
+    }
+  }, [enrolledModules]);
+
+  useEffect(() => {
+    loadBookedTutors();
+    const unsubscribe = bookedTutorsRepository.subscribe((updated) => {
+      setBookedTutors(updated);
+    });
+    return unsubscribe;
+  }, [loadBookedTutors]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBookedTutors();
+    }, [loadBookedTutors])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchDashboard(), loadBookedTutors()]);
+    setRefreshing(false);
+  };
 
   // Filtered modules
   const filteredModules = useMemo(() => {
@@ -95,53 +156,7 @@ export default function SessionsScreen() {
     return Math.round(sum / enrolledModules.length);
   }, [enrolledModules]);
 
-  // Distinct list of booked tutors
-  const bookedTutors = useMemo(() => {
-    const list: Array<{
-      mentor: EnrolledMentor;
-      moduleCode: string;
-      moduleName: string;
-      nextSession?: string;
-    }> = [];
-
-    const seenIds = new Set<string>();
-
-    enrolledModules.forEach((m) => {
-      if (m.mentor && m.mentor.name) {
-        const id = m.mentor.id || m.mentor.name;
-        if (!seenIds.has(id)) {
-          seenIds.add(id);
-          list.push({
-            mentor: m.mentor,
-            moduleCode: m.code,
-            moduleName: m.name,
-            nextSession: m.nextSession,
-          });
-        }
-      }
-    });
-
-    if (!seenIds.has('mentor-alex')) {
-      list.push({
-        mentor: {
-          id: 'mentor-alex',
-          name: 'Alex Ferreira',
-          roleTitle: 'Database Systems Tutor',
-          avatar: undefined,
-          rating: 4.9,
-          reviewCount: 48,
-          hourlyRate: 2500,
-        },
-        moduleCode: 'IT2020',
-        moduleName: 'Database Systems',
-        nextSession: 'Friday, 19 Sep 2025 • 4:00 PM',
-      });
-    }
-
-    return list;
-  }, [enrolledModules]);
-
-  const handleViewTutorProfile = (mentor: EnrolledMentor) => {
+  const handleViewTutorProfile = (mentor: EnrolledMentor | BookedTutorItem['mentor']) => {
     const mentorEntity = {
       _id: mentor.id || 'mentor-default',
       name: mentor.name,
@@ -159,7 +174,7 @@ export default function SessionsScreen() {
     });
   };
 
-  const handleOpenChat = (mentor: EnrolledMentor) => {
+  const handleOpenChat = (mentor: EnrolledMentor | BookedTutorItem['mentor']) => {
     const mentorEntity = {
       _id: mentor.id || 'mentor-default',
       name: mentor.name,
@@ -342,16 +357,21 @@ export default function SessionsScreen() {
               )}
             </View>
 
-            {/* SECTION 2: REGISTERED MODULES & SESSIONS */}
+            {/* SECTION 2: REGISTERED MODULES */}
             <View style={styles.sectionHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                 <View style={styles.sectionHeaderIconWrap}>
                   <Ionicons name="book-outline" size={15} color="#061E47" />
                 </View>
                 <View>
-                  <Text style={styles.bookedTutorsBarTitle}>Registered Modules & Sessions</Text>
+                  <Text style={styles.bookedTutorsBarTitle}>Registered Modules</Text>
                   <Text style={styles.bookedTutorsBarSub}>Track progress & course milestones</Text>
                 </View>
+              </View>
+              <View style={styles.bookedTutorsCountBadge}>
+                <Text style={styles.bookedTutorsCountBadgeText}>
+                  {enrolledModules.length} Modules
+                </Text>
               </View>
             </View>
 

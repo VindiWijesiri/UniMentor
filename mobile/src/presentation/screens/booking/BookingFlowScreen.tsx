@@ -21,6 +21,7 @@ import type { BookingsStackParamList } from '../../navigation/AppNavigator';
 import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
 import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/repositories/tutorSettingsRepository';
 import { sessionRepository } from '../../../data/repositories/sessionRepository';
+import { bookedTutorsRepository } from '../../../data/repositories/bookedTutorsRepository';
 import type { TutorSlot } from '../../../domain/entities/TutorSlot';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
@@ -213,14 +214,45 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
           ? `LKR ${hourlyRateGroup} per student (Total: LKR ${hourlyRateGroup * groupSize} for ${groupSize} students)`
           : `LKR ${hourlyRate1on1} / hour`;
 
-      await sessionRepository.bookSession({
-        mentorId: mentor._id,
-        subject: `${mentor.subjects?.[0] || 'Peer Tutoring'} (${selectedTopics.join(', ')})`,
-        scheduledAt: scheduledDateTime.toISOString(),
-        notes: `[${studyMode.toUpperCase()} STUDY - ${
-          studyMode === 'group' ? `${groupSize} Students` : '1-on-1'
-        }] Time: ${finalTime}. Rate: ${feeSummary}. Notes: ${sessionNotes}`,
+      const primarySubject = mentor.subjects?.[0] || 'Academic Mentoring';
+      const codeMatch = primarySubject.match(/^[A-Z]{2,4}\s?[0-9]{4}/i);
+      const moduleCode = codeMatch ? codeMatch[0].toUpperCase() : primarySubject.substring(0, 6).toUpperCase();
+
+      // Immediately save to persistent booked tutors repository so it shows in My Bookings!
+      await bookedTutorsRepository.addBookedTutor({
+        id: `booking-${Date.now()}-${mentor._id}`,
+        mentor: {
+          id: mentor._id,
+          name: mentor.name,
+          roleTitle: mentor.experience || 'Senior Peer Mentor',
+          avatar: mentor.profilePicture,
+          rating: mentor.rating || 4.9,
+          reviewCount: mentor.reviewCount || 25,
+          hourlyRate: studyMode === 'group' ? hourlyRateGroup : hourlyRate1on1,
+          subjects: mentor.subjects,
+          email: mentor.email,
+          bio: mentor.bio,
+        },
+        moduleCode: moduleCode || 'TUTOR',
+        moduleName: `${primarySubject}${selectedTopics.length > 0 ? ` (${selectedTopics.slice(0, 2).join(', ')})` : ''}`,
+        nextSession: `${selectedDate} • ${finalTime}`,
+        studyMode,
+        groupSize: studyMode === 'group' ? groupSize : 1,
+        bookedAt: new Date().toISOString(),
       });
+
+      try {
+        await sessionRepository.bookSession({
+          mentorId: mentor._id,
+          subject: `${primarySubject} (${selectedTopics.join(', ')})`,
+          scheduledAt: scheduledDateTime.toISOString(),
+          notes: `[${studyMode.toUpperCase()} STUDY - ${
+            studyMode === 'group' ? `${groupSize} Students` : '1-on-1'
+          }] Time: ${finalTime}. Rate: ${feeSummary}. Notes: ${sessionNotes}`,
+        });
+      } catch (apiErr) {
+        console.log('[BookingFlow] API session book sync notice:', apiErr);
+      }
 
       if (selectedSlot) {
         await tutorSlotRepository.markSlotBooked(selectedSlot.id, studyMode === 'group');

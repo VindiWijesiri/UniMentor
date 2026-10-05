@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ import { useAuthStore } from '../../../domain/stores/authStore';
 import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
+import { bookedTutorsRepository, BookedTutorItem } from '../../../data/repositories/bookedTutorsRepository';
 import { Ionicons } from '@expo/vector-icons';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
@@ -81,6 +83,31 @@ export default function StudentDashboardScreen({ navigation }: Props) {
   } = useStudentStore();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [bookedPods, setBookedPods] = useState<BookedTutorItem[]>([]);
+  const [activePodSession, setActivePodSession] = useState<BookedTutorItem | null>(null);
+
+  const loadBookedPods = useCallback(async () => {
+    try {
+      const items = await bookedTutorsRepository.getBookedTutors();
+      setBookedPods(items);
+    } catch (e) {
+      console.warn('Failed to load booked pods:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBookedPods();
+    const unsub = bookedTutorsRepository.subscribe((updated) => {
+      setBookedPods(updated);
+    });
+    return unsub;
+  }, [loadBookedPods]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBookedPods();
+    }, [loadBookedPods])
+  );
 
   // Modals state
   const [showLiveRoom, setShowLiveRoom] = useState(false);
@@ -181,7 +208,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchDashboard();
+    await Promise.all([fetchDashboard(), loadBookedPods()]);
     setRefreshing(false);
   };
 
@@ -544,7 +571,12 @@ export default function StudentDashboardScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.launchpadCardWhite}
             activeOpacity={0.85}
-            onPress={() => setShowLiveRoom(true)}
+            onPress={() => {
+              if (bookedPods.length > 0 && !activePodSession) {
+                setActivePodSession(bookedPods[0]);
+              }
+              setShowLiveRoom(true);
+            }}
           >
             <Ionicons name="videocam" size={24} color="#0D4F9E" />
             <Text style={styles.launchpadWhiteLabel}>Join session</Text>
@@ -606,7 +638,12 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.joinRoomButton}
               activeOpacity={0.85}
-              onPress={() => setShowLiveRoom(true)}
+              onPress={() => {
+                if (bookedPods.length > 0 && !activePodSession) {
+                  setActivePodSession(bookedPods[0]);
+                }
+                setShowLiveRoom(true);
+              }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
@@ -644,80 +681,155 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.bookingsCardsScroll}
           >
-            {/* Card 1: Group Booking */}
-            <View style={styles.bookingCard}>
-              <View style={styles.bookingCardTop}>
-                <View style={styles.groupBadge}>
-                  <Ionicons name="people" size={12} color="#059669" />
-                  <Text style={styles.groupBadgeText}>Group Session (3 Students)</Text>
-                </View>
-                <View style={styles.statusConfirmedBadge}>
-                  <Text style={styles.statusConfirmedText}>Confirmed</Text>
-                </View>
-              </View>
-              <Text style={styles.bookingCardTitle}>Database Systems: Indexing & B+ Trees</Text>
-              <Text style={styles.bookingCardTutor}>with Alex Ferreira • Database Systems Tutor</Text>
+            {bookedPods.length > 0 ? (
+              bookedPods.map((item) => {
+                const isGroup = item.studyMode === 'group';
+                const studentsCount = item.groupSize || 3;
+                const rate = item.mentor.hourlyRate || (isGroup ? 1200 : 2500);
 
-              {/* High-Contrast Clear Price Badge */}
-              <View style={styles.bookingCardPriceRow}>
-                <View style={styles.groupPriceTagBadge}>
-                  <Ionicons name="pricetag" size={12} color="#065F46" />
-                  <Text style={styles.groupPriceTagMain}>LKR 1,200</Text>
-                  <Text style={styles.groupPriceTagSub}>/ student</Text>
-                </View>
-                <Text style={styles.groupTotalSummaryText}>Total: LKR 3,600 (3 Students)</Text>
-              </View>
+                return (
+                  <View key={item.id} style={styles.bookingCard}>
+                    {/* Top Badges */}
+                    <View style={styles.bookingCardTop}>
+                      {isGroup ? (
+                        <View style={styles.groupBadge}>
+                          <Ionicons name="people" size={12} color="#059669" />
+                          <Text style={styles.groupBadgeText}>Group Study Pod ({studentsCount} Students)</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.oneOnOneBadge}>
+                          <Ionicons name="person" size={12} color="#1D4ED8" />
+                          <Text style={styles.oneOnOneBadgeText}>1-on-1 Mentoring</Text>
+                        </View>
+                      )}
+                      <View style={styles.statusConfirmedBadge}>
+                        <View style={styles.statusConfirmedDot} />
+                        <Text style={styles.statusConfirmedText}>Confirmed</Text>
+                      </View>
+                    </View>
 
-              <View style={styles.bookingCardTimeRow}>
-                <Ionicons name="time-outline" size={13} color="#D97706" />
-                <Text style={styles.bookingCardTimeText}>Friday, 19 Sep 2025 • 4:00 PM - 5:00 PM</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.joinPodBtn}
-                onPress={() => setShowLiveRoom(true)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="videocam-outline" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.joinPodBtnText}>Join Study Pod</Text>
-              </TouchableOpacity>
-            </View>
+                    {/* Title */}
+                    <Text style={styles.bookingCardTitle} numberOfLines={2}>
+                      {item.moduleCode ? `${item.moduleCode}: ` : ''}{item.moduleName}
+                    </Text>
 
-            {/* Card 2: 1-on-1 Booking */}
-            <View style={styles.bookingCard}>
-              <View style={styles.bookingCardTop}>
-                <View style={styles.oneOnOneBadge}>
-                  <Ionicons name="person" size={12} color="#1D4ED8" />
-                  <Text style={styles.oneOnOneBadgeText}>1-on-1 Mentoring</Text>
-                </View>
-                <View style={styles.statusConfirmedBadge}>
-                  <Text style={styles.statusConfirmedText}>Confirmed</Text>
-                </View>
-              </View>
-              <Text style={styles.bookingCardTitle}>Data Structures: Dynamic Programming</Text>
-              <Text style={styles.bookingCardTutor}>with Shenal Perera • Senior Peer Tutor</Text>
+                    {/* Tutor info */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 }}>
+                      <TutorAvatar
+                        name={item.mentor.name}
+                        imageUrl={item.mentor.avatar}
+                        size={30}
+                        borderRadius={10}
+                        showOnlineDot
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.bookingCardTutor} numberOfLines={1}>
+                          with {item.mentor.name}
+                        </Text>
+                        <Text style={{ fontSize: 10.5, color: '#64748B' }} numberOfLines={1}>
+                          {item.mentor.roleTitle || 'Senior Peer Mentor'}
+                        </Text>
+                      </View>
+                    </View>
 
-              {/* High-Contrast Clear Price Badge */}
-              <View style={styles.bookingCardPriceRow}>
-                <View style={styles.oneOnOnePriceTagBadge}>
-                  <Ionicons name="pricetag" size={12} color="#1E40AF" />
-                  <Text style={styles.oneOnOnePriceTagMain}>LKR 2,500</Text>
-                  <Text style={styles.oneOnOnePriceTagSub}>/ hour</Text>
-                </View>
-                <Text style={styles.oneOnOneSummaryText}>Individual 1-on-1 Session</Text>
-              </View>
+                    {/* High-Contrast Clear Price Badge */}
+                    <View style={styles.bookingCardPriceRow}>
+                      {isGroup ? (
+                        <>
+                          <View style={styles.groupPriceTagBadge}>
+                            <Ionicons name="pricetag" size={12} color="#065F46" />
+                            <Text style={styles.groupPriceTagMain}>LKR {rate.toLocaleString()}</Text>
+                            <Text style={styles.groupPriceTagSub}>/ student</Text>
+                          </View>
+                          <Text style={styles.groupTotalSummaryText}>
+                            Total: LKR {(rate * studentsCount).toLocaleString()} ({studentsCount} Students)
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.oneOnOnePriceTagBadge}>
+                            <Ionicons name="pricetag" size={12} color="#1E40AF" />
+                            <Text style={styles.oneOnOnePriceTagMain}>LKR {rate.toLocaleString()}</Text>
+                            <Text style={styles.oneOnOnePriceTagSub}>/ hour</Text>
+                          </View>
+                          <Text style={styles.oneOnOneSummaryText}>Individual 1-on-1 Session</Text>
+                        </>
+                      )}
+                    </View>
 
-              <View style={styles.bookingCardTimeRow}>
-                <Ionicons name="time-outline" size={13} color="#D97706" />
-                <Text style={styles.bookingCardTimeText}>Monday, 22 Sep 2025 • 10:30 AM - 11:30 AM</Text>
+                    {/* Time Row */}
+                    <View style={styles.bookingCardTimeRow}>
+                      <Ionicons name="time-outline" size={13} color="#D97706" />
+                      <Text style={styles.bookingCardTimeText}>{item.nextSession}</Text>
+                    </View>
+
+                    {/* Action Buttons Row */}
+                    <View style={styles.bookingCardActionsRow}>
+                      <TouchableOpacity
+                        style={isGroup ? styles.joinPodBtn : styles.joinSessionBtn}
+                        onPress={() => {
+                          setActivePodSession(item);
+                          setShowLiveRoom(true);
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="videocam" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+                        <Text style={styles.joinPodBtnText}>
+                          {isGroup ? 'Join Study Pod' : 'Join Session'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.podChatBtn}
+                        onPress={() => {
+                          const mentorEntity = {
+                            _id: item.mentor.id || 'mentor-default',
+                            name: item.mentor.name,
+                            email: item.mentor.email || `${item.mentor.name.toLowerCase().replace(/\s+/g, '.')}@unimentor.lk`,
+                            bio: item.mentor.bio || 'Peer Mentor',
+                            subjects: item.mentor.subjects || [item.moduleName],
+                            rating: item.mentor.rating || 4.9,
+                            reviewCount: item.mentor.reviewCount || 25,
+                            profilePicture: item.mentor.avatar,
+                            role: 'mentor' as const,
+                          };
+                          navigation.getParent<NativeStackNavigationProp<AppStackParamList>>()?.navigate('Chat', {
+                            mentor: mentorEntity,
+                          });
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="chatbubbles-outline" size={14} color="#061E47" style={{ marginRight: 4 }} />
+                        <Text style={styles.podChatBtnText}>Chat</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* View in My Bookings Link */}
+                    <TouchableOpacity
+                      style={styles.viewBookingDetailsBtn}
+                      onPress={() => (navigation as any).navigate('Bookings', { screen: 'SessionsList' })}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.viewBookingDetailsText}>View in My Bookings →</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.emptyPodsCard}>
+                <Ionicons name="calendar-outline" size={32} color="#94A3B8" style={{ marginBottom: 8 }} />
+                <Text style={styles.emptyPodsTitle}>No Upcoming Sessions or Pods</Text>
+                <Text style={styles.emptyPodsSub}>
+                  Book a 1-on-1 session or collaborative study pod with verified university mentors.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyPodsBookBtn}
+                  onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor' })}
+                >
+                  <Text style={styles.emptyPodsBookBtnText}>Find a Tutor & Book Session →</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.viewBookingDetailsBtn}
-                onPress={() => (navigation as any).navigate('Bookings', { screen: 'SessionsList' })}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.viewBookingDetailsText}>View in My Bookings →</Text>
-              </TouchableOpacity>
-            </View>
+            )}
           </ScrollView>
         </View>
 
@@ -1358,13 +1470,19 @@ export default function StudentDashboardScreen({ navigation }: Props) {
       <Modal visible={showLiveRoom} animationType="slide" transparent={false} onRequestClose={() => setShowLiveRoom(false)}>
         <View style={[styles.modalScreen, { paddingTop: insets.top }]}>
           <View style={styles.roomHeader}>
-            <View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
               <View style={styles.livePill}>
                 <View style={styles.greenPulseDot} />
-                <Text style={styles.livePillText}>LIVE SESSION ROOM</Text>
+                <Text style={styles.livePillText}>
+                  {activePodSession?.studyMode === 'group' ? 'LIVE STUDY POD' : 'LIVE 1-ON-1 SESSION'}
+                </Text>
               </View>
-              <Text style={styles.roomTitle}>IT2040: Graph Traversals</Text>
-              <Text style={styles.roomSubtitle}>Host: Tharushi Perera (Senior Peer Mentor) • 24 Active</Text>
+              <Text style={styles.roomTitle} numberOfLines={1}>
+                {activePodSession?.moduleName || 'IT2040: Graph Traversals'}
+              </Text>
+              <Text style={styles.roomSubtitle} numberOfLines={1}>
+                Host: {activePodSession?.mentor.name || 'Tharushi Perera'} ({activePodSession?.mentor.roleTitle || 'Senior Peer Mentor'}) • {activePodSession?.studyMode === 'group' ? `${activePodSession.groupSize || 3} Pod Members` : '1-on-1 Mentoring'}
+              </Text>
             </View>
 
             <TouchableOpacity style={styles.leaveRoomBtn} onPress={() => setShowLiveRoom(false)}>
@@ -1374,14 +1492,33 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
           {/* Main Stage / Video Canvas Simulation */}
           <View style={styles.videoStage}>
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80' }}
-              style={styles.stageHostVideo}
-            />
+            {activePodSession?.mentor.avatar ? (
+              <Image
+                source={{ uri: activePodSession.mentor.avatar }}
+                style={styles.stageHostVideo}
+              />
+            ) : (
+              <View style={[styles.stageHostVideo, { backgroundColor: '#0A2540', alignItems: 'center', justifyContent: 'center' }]}>
+                <TutorAvatar
+                  name={activePodSession?.mentor.name || 'Peer Mentor'}
+                  size={88}
+                  borderRadius={44}
+                  showOnlineDot
+                />
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', marginTop: 12 }}>
+                  {activePodSession?.mentor.name || 'Peer Mentor'}
+                </Text>
+                <Text style={{ color: '#94A3B8', fontSize: 11.5, marginTop: 3 }}>
+                  Live Video Feed Connected
+                </Text>
+              </View>
+            )}
             <View style={styles.stageOverlay}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Ionicons name="mic" size={14} color="#FFFFFF" />
-                <Text style={styles.stageHostTag}>Tharushi Perera (Presenting Breadth-First Search)</Text>
+                <Text style={styles.stageHostTag}>
+                  {activePodSession?.mentor.name || 'Peer Mentor'} (Lead Host)
+                </Text>
               </View>
             </View>
 
@@ -1414,7 +1551,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
             <TouchableOpacity
               style={styles.controlBtn}
-              onPress={() => Alert.alert('Hand Raised', 'Mentor Tharushi Perera has been notified you have a question.')}
+              onPress={() => Alert.alert('Hand Raised ✋', `Mentor ${activePodSession?.mentor.name || 'Peer Mentor'} has been notified that you have a question.`)}
             >
               <Ionicons name="hand-right" size={20} color="#FFFFFF" />
               <Text style={styles.controlBtnLabel}>Raise Hand</Text>
@@ -1422,7 +1559,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
             <TouchableOpacity
               style={styles.controlBtn}
-              onPress={() => Alert.alert('Session Material', 'Graph Traversals Cheatsheet & Code Samples downloaded to your UniMentor Library.')}
+              onPress={() => Alert.alert('Session Material 📄', `${activePodSession?.moduleName || 'Study Session'} Cheatsheet & Code Samples downloaded to your UniMentor Library.`)}
             >
               <Ionicons name="document-text" size={20} color="#FFFFFF" />
               <Text style={styles.controlBtnLabel}>Notes</Text>
@@ -1681,9 +1818,93 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <View style={styles.sheetHandle} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Ionicons name="people" size={22} color="#0D4F9E" />
-              <Text style={styles.sheetHeading}>Study Pods ({podsList.length} Active)</Text>
+              <Text style={styles.sheetHeading}>
+                Study Pods ({bookedPods.filter((p) => p.studyMode === 'group').length + podsList.length} Active)
+              </Text>
             </View>
             <Text style={styles.sheetSubheading}>Peer revision groups for collaborative problem solving.</Text>
+
+            {/* Booked Mentor Study Pods Section */}
+            {bookedPods.filter((p) => p.studyMode === 'group').length > 0 && (
+              <View style={{ marginBottom: 14 }}>
+                <Text style={styles.podSectionHeader}>Your Booked Study Pods</Text>
+                {bookedPods
+                  .filter((p) => p.studyMode === 'group')
+                  .map((pod) => (
+                    <View key={`booked-${pod.id}`} style={styles.bookedPodCard}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <View style={styles.groupBadge}>
+                          <Ionicons name="people" size={11} color="#059669" />
+                          <Text style={styles.groupBadgeText}>
+                            Group Pod ({pod.groupSize || 3} Students)
+                          </Text>
+                        </View>
+                        <View style={styles.statusConfirmedBadge}>
+                          <View style={styles.statusConfirmedDot} />
+                          <Text style={styles.statusConfirmedText}>Confirmed</Text>
+                        </View>
+                      </View>
+
+                      <Text style={styles.bookedPodTitle} numberOfLines={1}>
+                        {pod.moduleCode ? `${pod.moduleCode}: ` : ''}{pod.moduleName}
+                      </Text>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 4 }}>
+                        <TutorAvatar
+                          name={pod.mentor.name}
+                          imageUrl={pod.mentor.avatar}
+                          size={24}
+                          borderRadius={8}
+                        />
+                        <Text style={styles.bookedPodMentorName}>with {pod.mentor.name}</Text>
+                        <Text style={styles.bookedPodSchedule}>• {pod.nextSession}</Text>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                        <TouchableOpacity
+                          style={[styles.podJoinBtn, { flex: 1 }]}
+                          onPress={() => {
+                            setActivePodSession(pod);
+                            setShowPodsModal(false);
+                            setShowLiveRoom(true);
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name="videocam" size={14} color="#FFFFFF" />
+                            <Text style={styles.podJoinText}>Join Pod Room</Text>
+                          </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.bookedPodChatBtn}
+                          onPress={() => {
+                            setShowPodsModal(false);
+                            const mentorEntity = {
+                              _id: pod.mentor.id || 'mentor-default',
+                              name: pod.mentor.name,
+                              email: pod.mentor.email || `${pod.mentor.name.toLowerCase().replace(/\s+/g, '.')}@unimentor.lk`,
+                              bio: pod.mentor.bio || 'Peer Mentor',
+                              subjects: pod.mentor.subjects || [pod.moduleName],
+                              rating: pod.mentor.rating || 4.9,
+                              reviewCount: pod.mentor.reviewCount || 25,
+                              profilePicture: pod.mentor.avatar,
+                              role: 'mentor' as const,
+                            };
+                            navigation.getParent<NativeStackNavigationProp<AppStackParamList>>()?.navigate('Chat', {
+                              mentor: mentorEntity,
+                            });
+                          }}
+                        >
+                          <Ionicons name="chatbubbles-outline" size={14} color="#061E47" />
+                          <Text style={styles.bookedPodChatText}>Chat</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+              </View>
+            )}
+
+            <Text style={styles.podSectionHeader}>Community Revision Pods</Text>
 
             {/* Create Pod Form */}
             <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
@@ -1704,7 +1925,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             </View>
 
             {/* Pods List */}
-            <ScrollView style={{ maxHeight: 240 }}>
+            <ScrollView style={{ maxHeight: 200 }}>
               {podsList.map((pod) => (
                 <View key={pod.id} style={styles.podCard}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1717,6 +1938,20 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                   <TouchableOpacity
                     style={styles.podJoinBtn}
                     onPress={() => {
+                      setActivePodSession({
+                        id: pod.id,
+                        mentor: {
+                          id: 'peer-lead',
+                          name: 'Peer Study Lead',
+                          roleTitle: 'Pod Host',
+                        },
+                        moduleCode: pod.module,
+                        moduleName: pod.name,
+                        nextSession: pod.schedule,
+                        studyMode: 'group',
+                        groupSize: pod.peers,
+                        bookedAt: new Date().toISOString(),
+                      });
                       setShowPodsModal(false);
                       setShowLiveRoom(true);
                     }}
@@ -2365,6 +2600,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statusConfirmedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
   },
   statusConfirmedText: {
     color: '#475569',
@@ -2393,7 +2637,14 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
   },
+  bookingCardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   joinPodBtn: {
+    flex: 1,
     backgroundColor: '#0D4F9E',
     borderRadius: 12,
     paddingVertical: 9,
@@ -2406,18 +2657,126 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  joinSessionBtn: {
+    flex: 1,
+    backgroundColor: '#1D4ED8',
+    borderRadius: 12,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  podChatBtn: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  podChatBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   viewBookingDetailsBtn: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
-    paddingVertical: 9,
+    paddingVertical: 8,
     alignItems: 'center',
   },
   viewBookingDetailsText: {
     color: '#0D4F9E',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  emptyPodsCard: {
+    width: 300,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderStyle: 'dashed',
+  },
+  emptyPodsTitle: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  emptyPodsSub: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 17,
+    marginBottom: 14,
+  },
+  emptyPodsBookBtn: {
+    backgroundColor: '#061E47',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  emptyPodsBookBtnText: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
+  },
+  podSectionHeader: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 8,
+    marginTop: 4,
+    letterSpacing: -0.2,
+  },
+  bookedPodCard: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  bookedPodTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  bookedPodMentorName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0369A1',
+  },
+  bookedPodSchedule: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  bookedPodChatBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  bookedPodChatText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#061E47',
   },
 
   /* Booking Card Price Row */

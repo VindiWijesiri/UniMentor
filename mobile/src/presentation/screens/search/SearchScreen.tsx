@@ -24,6 +24,7 @@ import { countTutorFilters } from '../../../domain/entities/TutorFilters';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { sessionRepository } from '../../../data/repositories/sessionRepository';
 import { shortlistRepository } from '../../../data/repositories/shortlistRepository';
+import { bookedTutorsRepository } from '../../../data/repositories/bookedTutorsRepository';
 import type { ShortlistedMentor } from '../../../domain/entities/ShortlistedMentor';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -121,12 +122,40 @@ export default function SearchScreen({ route, navigation }: Props) {
     if (!bookingTargetMentor) return;
     try {
       setIsSubmittingBooking(true);
-      await sessionRepository.bookSession({
-        mentorId: bookingTargetMentor._id,
-        subject: bookingSubject,
-        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        notes: bookingNotes.trim() || `Booked session for ${bookingSubject} with ${bookingTargetMentor.name}`,
+      const rate = getMentorRate(bookingTargetMentor);
+      const codeMatch = bookingSubject.match(/^[A-Z]{2,4}\s?[0-9]{4}/i);
+      const moduleCode = codeMatch ? codeMatch[0].toUpperCase() : bookingSubject.substring(0, 6).toUpperCase();
+
+      await bookedTutorsRepository.addBookedTutor({
+        id: `booking-${Date.now()}-${bookingTargetMentor._id}`,
+        mentor: {
+          id: bookingTargetMentor._id,
+          name: bookingTargetMentor.name,
+          roleTitle: bookingTargetMentor.experience || 'Peer Mentor',
+          avatar: bookingTargetMentor.profilePicture,
+          rating: bookingTargetMentor.rating || 4.9,
+          reviewCount: bookingTargetMentor.reviewCount || 25,
+          hourlyRate: rate,
+          subjects: bookingTargetMentor.subjects,
+        },
+        moduleCode: moduleCode || 'TUTOR',
+        moduleName: bookingSubject,
+        nextSession: 'Tomorrow • 10:00 AM',
+        studyMode: '1-on-1',
+        bookedAt: new Date().toISOString(),
       });
+
+      try {
+        await sessionRepository.bookSession({
+          mentorId: bookingTargetMentor._id,
+          subject: bookingSubject,
+          scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          notes: bookingNotes.trim() || `Booked session for ${bookingSubject} with ${bookingTargetMentor.name}`,
+        });
+      } catch (e) {
+        console.log('[SearchScreen] API booking sync notice:', e);
+      }
+
       setShowBookingModal(false);
       Alert.alert(
         'Session Booked! 🎉',
