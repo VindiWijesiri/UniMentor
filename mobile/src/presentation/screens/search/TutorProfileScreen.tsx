@@ -18,10 +18,12 @@ type ProfileMentor = Mentor & {
   guidance?: string;
 };
 
-function SectionHeading({ icon, title }: { icon: string; title: string }) {
+function SectionHeading({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
   return (
     <View style={styles.sectionHeading}>
-      <View style={styles.sectionIcon}><Text style={styles.sectionIconText}>{icon}</Text></View>
+      <View style={styles.sectionIcon}>
+        <Ionicons name={icon} size={15} color="#061E47" />
+      </View>
       <Text style={styles.sectionTitle}>{title}</Text>
     </View>
   );
@@ -157,7 +159,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               <View style={styles.onlineDot} />
             </View>
             <View style={styles.profileCopy}>
-              <View style={styles.verifiedBadge}><Text style={styles.verifiedText}>✓ VERIFIED TUTOR</Text></View>
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={13} color="#D97706" style={{ marginRight: 3 }} />
+                <Text style={styles.verifiedText}>VERIFIED TUTOR</Text>
+              </View>
               <Text style={styles.name} numberOfLines={1}>{mentor.name}</Text>
               <Text style={styles.experience} numberOfLines={1}>{mentor.experience ?? 'Senior student tutor'}</Text>
             </View>
@@ -181,7 +186,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               onPress={() => currentRole === 'student' && navigation.navigate('WriteReview', { mentor })}
               activeOpacity={currentRole === 'student' ? 0.75 : 1}
             >
-              <Text style={styles.heroStatValue}><Text style={styles.star}>★</Text> {avgRating}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="star" size={14} color="#F59E0B" style={{ marginRight: 3 }} />
+                <Text style={styles.heroStatValue}>{avgRating}</Text>
+              </View>
               <Text style={styles.heroStatLabel}>
                 {totalReviews} {totalReviews === 1 ? 'Review' : 'Reviews'} {currentRole === 'student' ? '• +Rate' : ''}
               </Text>
@@ -201,7 +209,9 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
 
         <View style={styles.bodyWrap}>
           <View style={styles.availabilityCard}>
-            <View style={styles.calendarBox}><Text style={styles.calendarIcon}>✓</Text></View>
+            <View style={styles.calendarBox}>
+              <Ionicons name="calendar-outline" size={18} color="#061E47" />
+            </View>
             <View style={styles.availabilityCopy}>
               <Text style={styles.availabilityLabel}>NEXT AVAILABLE</Text>
               <Text style={styles.availabilityValue}>{mentor.availability ?? 'Schedule available'}</Text>
@@ -210,12 +220,12 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
           </View>
 
           <View style={styles.card}>
-            <SectionHeading icon="i" title="About tutor" />
+            <SectionHeading icon="information-circle-outline" title="About tutor" />
             <Text style={styles.bodyText}>{mentor.bio || 'Friendly academic support with clear, step-by-step explanations.'}</Text>
           </View>
 
           <View style={styles.card}>
-            <SectionHeading icon="M" title="Modules" />
+            <SectionHeading icon="book-outline" title="Modules" />
             <View style={styles.tags}>
               {mentor.subjects.map((subject, index) => (
                 <View key={subject} style={[styles.tag, index === 0 && styles.primaryTag]}>
@@ -227,11 +237,13 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
           </View>
 
           <View style={styles.supportCard}>
-            <SectionHeading icon="✓" title="Tutor support" />
+            <SectionHeading icon="checkmark-done-outline" title="Tutor support" />
             <View style={styles.supportRow}>
               {['Concepts', 'Assignments', 'Exams'].map((item) => (
                 <View key={item} style={styles.supportItem}>
-                  <View style={styles.supportCheck}><Text style={styles.supportCheckText}>✓</Text></View>
+                  <View style={styles.supportCheck}>
+                    <Ionicons name="checkmark" size={12} color="#16A34A" />
+                  </View>
                   <Text style={styles.supportText}>{item}</Text>
                 </View>
               ))}
@@ -243,7 +255,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             <View style={styles.reviewsHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={[styles.sectionIcon, { backgroundColor: '#FEF3C7' }]}>
-                  <Text style={[styles.sectionIconText, { color: '#D97706' }]}>★</Text>
+                  <Ionicons name="star" size={15} color="#D97706" />
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>Student Reviews</Text>
@@ -270,15 +282,13 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                 <Text style={styles.ratingBigNumber}>{avgRating}</Text>
                 <View style={styles.starsRow}>
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Text
+                    <Ionicons
                       key={s}
-                      style={[
-                        styles.starIcon,
-                        s <= Math.round(Number(avgRating) || 0) ? styles.starFilled : styles.starEmpty,
-                      ]}
-                    >
-                      ★
-                    </Text>
+                      name="star"
+                      size={15}
+                      color={s <= Math.round(Number(avgRating) || 0) ? '#F59E0B' : '#E2E8F0'}
+                      style={{ marginRight: 2 }}
+                    />
                   ))}
                 </View>
                 <Text style={styles.ratingTotalText}>Based on {totalReviews} reviews</Text>
@@ -367,15 +377,13 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                         </View>
                         <View style={styles.reviewStarsRow}>
                           {[1, 2, 3, 4, 5].map((s) => (
-                            <Text
+                            <Ionicons
                               key={s}
-                              style={[
-                                styles.reviewStar,
-                                s <= rev.rating ? styles.starFilled : styles.starEmpty,
-                              ]}
-                            >
-                              ★
-                            </Text>
+                              name="star"
+                              size={13}
+                              color={s <= rev.rating ? '#F59E0B' : '#E2E8F0'}
+                              style={{ marginHorizontal: 0.5 }}
+                            />
                           ))}
                         </View>
                       </View>

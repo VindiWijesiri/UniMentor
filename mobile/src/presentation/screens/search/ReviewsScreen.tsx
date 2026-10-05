@@ -129,7 +129,7 @@ export default function ReviewsScreen({ navigation }: Props) {
 
       // 4. Show success notification AFTER review is updated and visible on review page
       setTimeout(() => {
-        Alert.alert('Review Updated! ⭐', 'Your review has been updated successfully.');
+        Alert.alert('Review Updated', 'Your review has been updated successfully.');
       }, 350);
     } catch (err: any) {
       Alert.alert('Update Failed', err?.message || 'Could not update review.');

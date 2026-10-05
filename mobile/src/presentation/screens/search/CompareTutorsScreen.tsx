@@ -43,7 +43,7 @@ function DetailRow({
   columnWidth,
 }: {
   label: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   values: React.ReactNode[];
   tall?: boolean;
   selectedIndex: number;
@@ -54,7 +54,9 @@ function DetailRow({
   return (
     <View style={[styles.detailRow, tall && styles.detailRowTall, alternate && styles.alternateRow]}>
       <View style={[styles.labelCell, alternate && styles.alternateLabelCell]}>
-        <View style={styles.rowIconBox}><Text style={styles.rowIcon}>{icon}</Text></View>
+        <View style={styles.rowIconBox}>
+          <Ionicons name={icon} size={12} color="#0B2754" />
+        </View>
         <Text style={styles.rowLabel}>{label}</Text>
       </View>
       {values.map((value, index) => (
@@ -144,7 +146,9 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
           {loading && <ActivityIndicator color="#F59E0B" size="small" />}
         </View>
         <View style={styles.infoBanner}>
-          <View style={styles.infoIcon}><Text style={styles.infoIconText}>★</Text></View>
+          <View style={styles.infoIcon}>
+            <Ionicons name="sparkles" size={14} color="#D97706" />
+          </View>
           <Text style={styles.infoText}>Best Match is calculated from student ratings and review count.</Text>
         </View>
 
@@ -173,32 +177,50 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
                     onPress={() => setSelectedId(mentor._id)}
                     activeOpacity={0.82}
                   >
-                    {isBest && <View style={styles.bestBadge}><Text style={styles.bestBadgeText}>★ BEST MATCH</Text></View>}
+                    {isBest && (
+                      <View style={styles.bestBadge}>
+                        <Ionicons name="star" size={10} color="#061E47" style={{ marginRight: 2 }} />
+                        <Text style={styles.bestBadgeText}>BEST MATCH</Text>
+                      </View>
+                    )}
                     <View style={[styles.avatar, selected && styles.avatarSelected]}><Text style={styles.avatarText}>{mentor.name.charAt(0)}</Text></View>
                     <Text style={styles.mentorName} numberOfLines={2}>{mentor.name}</Text>
                     <View style={[styles.selectPill, selected && styles.selectPillActive]}>
-                      <Text style={[styles.selectPillText, selected && styles.selectPillTextActive]}>{selected ? '✓ Selected' : 'Select'}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {selected && <Ionicons name="checkmark" size={11} color="#FFFFFF" style={{ marginRight: 2 }} />}
+                        <Text style={[styles.selectPillText, selected && styles.selectPillTextActive]}>
+                          {selected ? 'Selected' : 'Select'}
+                        </Text>
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <DetailRow label="Rating" icon="★" columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
+            <DetailRow label="Rating" icon="star" columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
               const summary = reviewSummary(mentor, reviews[mentor._id] ?? []);
-              return <><Text style={styles.ratingValue}>★ {summary.rating ? summary.rating.toFixed(1) : 'New'}</Text><Text style={styles.muted}>({summary.count} reviews)</Text></>;
+              return (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="star" size={12} color="#F59E0B" style={{ marginRight: 2 }} />
+                    <Text style={styles.ratingValue}>{summary.rating ? summary.rating.toFixed(1) : 'New'}</Text>
+                  </View>
+                  <Text style={styles.muted}>({summary.count} reviews)</Text>
+                </>
+              );
             })} />
-            <DetailRow label="Positive" icon="%" alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
+            <DetailRow label="Positive" icon="thumbs-up" alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
               const tutorReviews = reviews[mentor._id] ?? [];
               const percentage = tutorReviews.length
                 ? Math.round((tutorReviews.filter(({ rating }) => rating >= 4).length / tutorReviews.length) * 100)
                 : 0;
               return <><Text style={styles.positiveValue}>{tutorReviews.length ? `${percentage}%` : '—'}</Text><Text style={styles.muted}>4–5 star reviews</Text></>;
             })} />
-            <DetailRow label="Price" icon="₨" columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.priceValue}>LKR {getMentorRate(mentor).toLocaleString()}<Text style={styles.priceUnit}>{`\n`}/ hour</Text></Text>)} />
-            <DetailRow label="Experience" icon="E" alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.valueText}>{mentor.experience ?? 'Not provided'}</Text>)} />
-            <DetailRow label="Modules" icon="M" tall columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.valueText}>{mentor.subjects.slice(0, 3).join('\n')}</Text>)} />
-            <DetailRow label="Latest Review" icon="R" tall alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
+            <DetailRow label="Price" icon="cash-outline" columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.priceValue}>LKR {getMentorRate(mentor).toLocaleString()}<Text style={styles.priceUnit}>{`\n`}/ hour</Text></Text>)} />
+            <DetailRow label="Experience" icon="briefcase-outline" alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.valueText}>{mentor.experience ?? 'Not provided'}</Text>)} />
+            <DetailRow label="Modules" icon="book-outline" tall columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.valueText}>{mentor.subjects.slice(0, 3).join('\n')}</Text>)} />
+            <DetailRow label="Latest Review" icon="chatbubble-ellipses-outline" tall alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
               const latest = reviews[mentor._id]?.[0];
               return <Text style={latest ? styles.reviewText : styles.muted}>{latest ? `“${latest.comment}”` : 'No written reviews yet'}</Text>;
             })} />

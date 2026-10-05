@@ -15,7 +15,13 @@ type Props = {
 };
 type FieldKey = 'faculty' | 'department' | 'programme' | 'academicYear' | 'semester'
   | 'module' | 'topic';
-type FieldConfig = { key: FieldKey; label: string; placeholder: string; icon: string; tone: string };
+type FieldConfig = {
+  key: FieldKey;
+  label: string;
+  placeholder: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  tone: string;
+};
 type DepartmentConfig = { programmes: string[]; modules: string[] };
 type AcademicCatalog = Record<string, Record<string, DepartmentConfig>>;
 
@@ -125,13 +131,13 @@ const semesters = ['Semester 1', 'Semester 2'];
 const topics = ['Assignment support', 'Exam preparation', 'Practical help', 'Project guidance'];
 
 const academicFields: FieldConfig[] = [
-  { key: 'faculty', label: 'Faculty', placeholder: 'Select faculty', icon: '▥', tone: '#FEF3C7' },
-  { key: 'department', label: 'Department', placeholder: 'Select department', icon: '●', tone: '#FFFDF0' },
-  { key: 'programme', label: 'Degree Programme', placeholder: 'Select programme', icon: '◆', tone: '#FEF3C7' },
-  { key: 'academicYear', label: 'Academic Year', placeholder: 'Select academic year', icon: '▣', tone: '#FFFDF0' },
-  { key: 'semester', label: 'Semester', placeholder: 'Select semester', icon: '▤', tone: '#FEF3C7' },
-  { key: 'module', label: 'Module', placeholder: 'Select module', icon: '▦', tone: '#FFFDF0' },
-  { key: 'topic', label: 'Topic', placeholder: 'Select topic', icon: '◎', tone: '#FEF3C7' },
+  { key: 'faculty', label: 'Faculty', placeholder: 'Select faculty', icon: 'business-outline', tone: '#FEF3C7' },
+  { key: 'department', label: 'Department', placeholder: 'Select department', icon: 'git-branch-outline', tone: '#FFFDF0' },
+  { key: 'programme', label: 'Degree Programme', placeholder: 'Select programme', icon: 'school-outline', tone: '#FEF3C7' },
+  { key: 'academicYear', label: 'Academic Year', placeholder: 'Select academic year', icon: 'calendar-outline', tone: '#FFFDF0' },
+  { key: 'semester', label: 'Semester', placeholder: 'Select semester', icon: 'layers-outline', tone: '#FEF3C7' },
+  { key: 'module', label: 'Module', placeholder: 'Select module', icon: 'book-outline', tone: '#FFFDF0' },
+  { key: 'topic', label: 'Topic', placeholder: 'Select topic', icon: 'bulb-outline', tone: '#FEF3C7' },
 ];
 
 function SelectField({
@@ -157,7 +163,7 @@ function SelectField({
       disabled={disabled}
     >
       <View style={[styles.fieldIcon, { backgroundColor: field.tone }]}>
-        <Text style={styles.fieldIconText}>{field.icon}</Text>
+        <Ionicons name={field.icon} size={18} color="#061E47" />
       </View>
       <View style={styles.fieldTextWrap}>
         <Text style={styles.fieldLabel} numberOfLines={1}>
@@ -168,9 +174,9 @@ function SelectField({
         </Text>
       </View>
       {value ? (
-        <Text style={styles.fieldCheck}>✓</Text>
+        <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
       ) : (
-        <Text style={styles.chevron}>⌄</Text>
+        <Ionicons name="chevron-down" size={16} color="#94A3B8" />
       )}
     </TouchableOpacity>
   );
@@ -309,8 +315,8 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.heroSubtitle}>Tell us what you need help with and we'll match you with the right tutor.</Text>
             </View>
             <View style={styles.heroArt}>
-              <Text style={styles.cap}>▰</Text>
-              <Text style={styles.books}>▤</Text>
+              <Ionicons name="school" size={42} color="#F59E0B" />
+              <Ionicons name="book" size={28} color="#FFFFFF" style={{ marginTop: 2 }} />
               <View style={styles.goalBubble}><Text style={styles.goalText}>Your Goals{`\n`}Our Support</Text></View>
             </View>
           </View>
@@ -333,7 +339,9 @@ export default function HomeScreen({ navigation }: Props) {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeadingRow}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#FFF4D8' }]}><Text style={styles.alertIcon}>!</Text></View>
+              <View style={[styles.sectionIcon, { backgroundColor: '#FFF4D8' }]}>
+                <Ionicons name="layers" size={16} color="#D97706" />
+              </View>
               <View style={styles.sectionHeadingCopy}>
                 <Text style={styles.sectionTitle}>Select Your Academic Structure</Text>
                 <Text style={styles.sectionSubtitle}>Choose the details that best match your studies.</Text>
@@ -357,12 +365,20 @@ export default function HomeScreen({ navigation }: Props) {
 
           <View style={styles.popularCard}>
             <View style={styles.popularHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#FFF4D8' }]}><Text style={styles.star}>★</Text></View>
+              <View style={[styles.sectionIcon, { backgroundColor: '#FFF4D8' }]}>
+                <Ionicons name="star" size={15} color="#F59E0B" />
+              </View>
               <View style={styles.sectionHeadingCopy}>
                 <Text style={styles.sectionTitle}>Popular Modules</Text>
                 <Text style={styles.sectionSubtitle}>Explore commonly requested modules</Text>
               </View>
-              <Text style={styles.seeAll}>See All →</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Search')}
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+              >
+                <Text style={styles.seeAll}>See All</Text>
+                <Ionicons name="arrow-forward" size={13} color="#0B2754" style={{ marginLeft: 3 }} />
+              </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
               {popularModules.length > 0 ? popularModules.map((module, index) => (
@@ -381,10 +397,16 @@ export default function HomeScreen({ navigation }: Props) {
 
           {/* Validation Status Indicator */}
           <View style={styles.validationRow}>
+            <Ionicons
+              name={isFormComplete ? 'checkmark-circle' : 'alert-circle'}
+              size={16}
+              color={isFormComplete ? '#16A34A' : '#D97706'}
+              style={{ marginRight: 6 }}
+            />
             <Text style={[styles.validationText, isFormComplete ? styles.validationTextComplete : styles.validationTextPending]}>
               {isFormComplete
-                ? '✓ All fields selected! Ready to find your mentor.'
-                : `⚠️ Please select all fields (${academicFields.length - missingFields.length}/${academicFields.length} selected)`}
+                ? 'All fields selected! Ready to find your mentor.'
+                : `Please select all fields (${academicFields.length - missingFields.length}/${academicFields.length} selected)`}
             </Text>
           </View>
 
@@ -393,9 +415,17 @@ export default function HomeScreen({ navigation }: Props) {
             onPress={handleContinue}
             activeOpacity={isFormComplete ? 0.85 : 0.65}
           >
-            <Text style={[styles.continueText, !isFormComplete && styles.continueTextDisabled]}>
-              {isFormComplete ? 'Continue  →' : `Complete All Fields (${academicFields.length - missingFields.length}/${academicFields.length})  →`}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[styles.continueText, !isFormComplete && styles.continueTextDisabled]}>
+                {isFormComplete ? 'Continue' : `Complete All Fields (${academicFields.length - missingFields.length}/${academicFields.length})`}
+              </Text>
+              <Ionicons
+                name="arrow-forward"
+                size={16}
+                color={!isFormComplete ? '#94A3B8' : '#0B2754'}
+                style={{ marginLeft: 6 }}
+              />
+            </View>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -408,7 +438,9 @@ export default function HomeScreen({ navigation }: Props) {
             {(selectedField ? fieldOptions[selectedField] : []).map((option) => (
               <TouchableOpacity key={option} style={styles.optionRow} onPress={() => selectOption(option)}>
                 <Text style={styles.optionText}>{option}</Text>
-                {selectedField && values[selectedField] === option && <Text style={styles.check}>✓</Text>}
+                {selectedField && values[selectedField] === option && (
+                  <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+                )}
               </TouchableOpacity>
             ))}
           </Pressable>

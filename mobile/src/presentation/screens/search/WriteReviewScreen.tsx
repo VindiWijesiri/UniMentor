@@ -28,7 +28,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'WriteReview'>;
 
 interface RatingOption {
   label: string;
-  emoji: string;
+  icon: keyof typeof Ionicons.glyphMap;
   badgeBg: string;
   badgeBorder: string;
   textColor: string;
@@ -37,35 +37,35 @@ interface RatingOption {
 const RATING_DETAILS: Record<number, RatingOption> = {
   1: {
     label: '1.0 • Poor Experience',
-    emoji: '⚠️',
+    icon: 'alert-circle',
     badgeBg: '#FEF2F2',
     badgeBorder: '#FECACA',
     textColor: '#DC2626',
   },
   2: {
     label: '2.0 • Needs Improvement',
-    emoji: '😕',
+    icon: 'sad-outline',
     badgeBg: '#FFF7ED',
     badgeBorder: '#FED7AA',
     textColor: '#EA580C',
   },
   3: {
     label: '3.0 • Satisfactory Session',
-    emoji: '🙂',
+    icon: 'happy-outline',
     badgeBg: '#F0FDF4',
     badgeBorder: '#BBF7D0',
     textColor: '#16A34A',
   },
   4: {
     label: '4.0 • Very Good & Helpful',
-    emoji: '😃',
+    icon: 'thumbs-up',
     badgeBg: '#EFF6FF',
     badgeBorder: '#BFDBFE',
     textColor: '#2563EB',
   },
   5: {
     label: '5.0 • Outstanding Session!',
-    emoji: '⭐',
+    icon: 'star',
     badgeBg: '#FFFBEB',
     badgeBorder: '#FDE68A',
     textColor: '#D97706',
@@ -74,18 +74,19 @@ const RATING_DETAILS: Record<number, RatingOption> = {
 
 interface QuickPraise {
   id: string;
+  icon: keyof typeof Ionicons.glyphMap;
   text: string;
   sentence: string;
 }
 
 const QUICK_PRAISES: QuickPraise[] = [
-  { id: 'clear', text: '💡 Clear concepts', sentence: 'Explains complex concepts very clearly and simply.' },
-  { id: 'exam', text: '🎯 Great exam prep', sentence: 'Gave targeted exam tips and practice problems.' },
-  { id: 'patient', text: '🤝 Very patient', sentence: 'Extremely patient with questions and never rushed.' },
-  { id: 'punctual', text: '⏱️ Always on time', sentence: 'Well prepared and started promptly on time.' },
-  { id: 'notes', text: '📚 Helpful notes', sentence: 'Provided clear summaries and high quality study notes.' },
-  { id: 'motivating', text: '🔥 Inspiring', sentence: 'Very motivating and boosted my confidence in this subject.' },
-  { id: 'friendly', text: '✨ Friendly atmosphere', sentence: 'Welcoming, approachable, and encouraging teaching style.' },
+  { id: 'clear', icon: 'bulb-outline', text: 'Clear concepts', sentence: 'Explains complex concepts very clearly and simply.' },
+  { id: 'exam', icon: 'flag-outline', text: 'Great exam prep', sentence: 'Gave targeted exam tips and practice problems.' },
+  { id: 'patient', icon: 'heart-outline', text: 'Very patient', sentence: 'Extremely patient with questions and never rushed.' },
+  { id: 'punctual', icon: 'time-outline', text: 'Always on time', sentence: 'Well prepared and started promptly on time.' },
+  { id: 'notes', icon: 'book-outline', text: 'Helpful notes', sentence: 'Provided clear summaries and high quality study notes.' },
+  { id: 'motivating', icon: 'flame-outline', text: 'Inspiring', sentence: 'Very motivating and boosted my confidence in this subject.' },
+  { id: 'friendly', icon: 'sparkles-outline', text: 'Friendly atmosphere', sentence: 'Welcoming, approachable, and encouraging teaching style.' },
 ];
 
 export default function WriteReviewScreen({ route, navigation }: Props) {
@@ -348,7 +349,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                 </View>
               )}
               <View style={styles.verifiedDot}>
-                <Text style={styles.verifiedCheck}>✓</Text>
+                <Ionicons name="checkmark" size={10} color="#FFFFFF" />
               </View>
             </View>
 
@@ -365,8 +366,9 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                   </View>
                 ) : (
                   <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={11} color="#D97706" style={{ marginRight: 3 }} />
                     <Text style={styles.ratingBadgeText}>
-                      ★ {mentor.rating ? mentor.rating.toFixed(1) : '5.0'}
+                      {mentor.rating ? mentor.rating.toFixed(1) : '5.0'}
                     </Text>
                   </View>
                 )}
@@ -392,7 +394,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
 
             {isEditing && !isEditingActive && (
               <View style={styles.previousReviewBanner}>
-                <Text style={styles.previousReviewBannerIcon}>📋</Text>
+                <Ionicons name="document-text-outline" size={22} color="#0D4F9E" style={{ marginRight: 10, marginTop: 1 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.previousReviewBannerTitle}>Previous Review Submitted</Text>
                   <Text style={styles.previousReviewBannerSub}>
@@ -455,7 +457,11 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                     >
-                      <Text style={[styles.starGlyph, isFilled && styles.starGlyphFilled]}>★</Text>
+                      <Ionicons
+                        name={isFilled ? 'star' : 'star-outline'}
+                        size={36}
+                        color={isFilled ? '#F59E0B' : '#CBD5E1'}
+                      />
                     </TouchableOpacity>
                   );
                 })}
@@ -471,7 +477,12 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                   },
                 ]}
               >
-                <Text style={styles.moodEmoji}>{activeRating.emoji}</Text>
+                <Ionicons
+                  name={activeRating.icon}
+                  size={16}
+                  color={activeRating.textColor}
+                  style={{ marginRight: 6 }}
+                />
                 <Text style={[styles.moodLabel, { color: activeRating.textColor }]}>
                   {activeRating.label}
                 </Text>
@@ -503,11 +514,19 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                       }}
                       activeOpacity={0.75}
                     >
-                      <Text
-                        style={[styles.praiseChipText, isSelected && styles.praiseChipTextSelected]}
-                      >
-                        {isSelected ? `✓ ${praise.text}` : praise.text}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons
+                          name={isSelected ? 'checkmark-circle' : praise.icon}
+                          size={13}
+                          color={isSelected ? '#061E47' : '#64748B'}
+                          style={{ marginRight: 5 }}
+                        />
+                        <Text
+                          style={[styles.praiseChipText, isSelected && styles.praiseChipTextSelected]}
+                        >
+                          {praise.text}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}

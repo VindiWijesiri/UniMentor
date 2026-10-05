@@ -619,7 +619,7 @@ export default function SearchScreen({ route, navigation }: Props) {
                   activeOpacity={0.84}
                 >
                   <Text style={styles.compareButtonText}>Compare Tutors</Text>
-                  <Text style={styles.compareArrow}>→</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
                 </TouchableOpacity>
               </View>
             )}
@@ -681,8 +681,13 @@ export default function SearchScreen({ route, navigation }: Props) {
                     style={[styles.priorityOption, active && styles.priorityOptionActive]}
                     onPress={() => setSelectedPriority(p)}
                   >
+                    <Ionicons
+                      name={p === 'Top Choice' ? 'trophy' : p === 'Considering' ? 'bookmark' : 'shield-checkmark'}
+                      size={13}
+                      color={active ? '#FFFFFF' : '#0B2754'}
+                      style={{ marginRight: 4 }}
+                    />
                     <Text style={[styles.priorityOptionText, active && styles.priorityOptionTextActive]}>
-                      {p === 'Top Choice' ? '🥇 ' : p === 'Considering' ? '🥈 ' : '🥉 '}
                       {p}
                     </Text>
                   </TouchableOpacity>
@@ -736,7 +741,7 @@ export default function SearchScreen({ route, navigation }: Props) {
             activeOpacity={0.84}
           >
             <Text style={styles.floatingCompareText}>Compare Tutors</Text>
-            <Text style={styles.floatingCompareArrow}>→</Text>
+            <Ionicons name="arrow-forward" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
           </TouchableOpacity>
         </View>
       )}
