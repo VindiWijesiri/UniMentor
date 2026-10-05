@@ -118,6 +118,9 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
             <TouchableOpacity style={styles.libraryChip} onPress={() => stack?.navigate('StudyMaterials')}>
               <Text style={styles.libraryChipText}>Materials Library</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.libraryChip} onPress={() => stack?.navigate('TutorAssessmentHub')}>
+              <Text style={styles.libraryChipText}>Assessment Hub</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.storeChip} onPress={() => stack?.navigate('StoreMaterial')}>
               <Text style={styles.podChipText}>Store material</Text>
             </TouchableOpacity>

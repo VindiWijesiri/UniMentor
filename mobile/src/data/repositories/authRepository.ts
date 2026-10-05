@@ -10,7 +10,7 @@ interface RegisterInput {
   name: string;
   email: string;
   password: string;
-  role: 'student' | 'mentor';
+  role: 'student' | 'mentor' | 'admin';
 }
 
 export const authRepository = {

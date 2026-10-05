@@ -10,6 +10,7 @@ import {
   StudyPlan,
   StudyWeek,
 } from '../models/learning';
+import { memoizeSeed } from './seedCache';
 
 async function ensureTutor() {
   const email = 'tharushi.perera@unimentor.test';
@@ -27,11 +28,11 @@ async function ensureTutor() {
   });
 }
 
-export async function seedLearningData(studentId: string): Promise<void> {
+async function seedLearningDataOnce(studentId: string): Promise<void> {
   try {
-  const tutor = await ensureTutor();
-  const alreadySeeded = await StudyWeek.findOne({ studentId, seedKey: 'weekly-v1' });
+  const alreadySeeded = await StudyWeek.exists({ studentId, seedKey: 'weekly-v1' });
   if (alreadySeeded) return;
+  const tutor = await ensureTutor();
 
   await StudyWeek.create({
     studentId,
@@ -283,3 +284,5 @@ export async function seedLearningData(studentId: string): Promise<void> {
     if ((error as { code?: number }).code !== 11000) throw error;
   }
 }
+
+export const seedLearningData = memoizeSeed(seedLearningDataOnce);

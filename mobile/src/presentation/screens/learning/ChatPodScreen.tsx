@@ -1,6 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,12 +13,27 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { podRepository } from '../../../data/repositories/podRepository';
-import type { PodConversation } from '../../../domain/entities/Pod';
+import type { PodConversation, PodInboxFilter, PodInboxFilterKey } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
-import { ink, muted, navy, pageBg, yellow } from './learningTheme';
+import StackFooterBar from '../../navigation/StackFooterBar';
+import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ChatPod'>;
-type Filter = 'all' | 'groups' | 'tutors' | 'mentors';
+
+function FilterIcon({ name, active }: { name: PodInboxFilter['icon']; active: boolean }) {
+  const color = active ? '#FFF' : navy;
+  if (name === 'all') return null;
+  if (name === 'groups') {
+    return (
+      <View style={styles.peopleIcon}>
+        <View style={[styles.personHead, { borderColor: color, left: 0 }]} />
+        <View style={[styles.personHead, { borderColor: color, left: 5 }]} />
+      </View>
+    );
+  }
+  if (name === 'tutors') return <Text style={[styles.chipIcon, active && styles.chipIconOn]}>⚙</Text>;
+  return <Text style={[styles.chipIcon, active && styles.chipIconOn]}>👤</Text>;
+}
 
 const STACK_COLORS = ['#0B1F4C', '#F5C400', '#2F6FED', '#F97316', '#0F766E'];
 
@@ -41,60 +58,87 @@ function StackedAvatars({ initialsList }: { initialsList: string[] }) {
 
 export default function ChatPodScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<PodInboxFilterKey>('all');
   const [items, setItems] = useState<PodConversation[]>([]);
+  const [filters, setFilters] = useState<PodInboxFilter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [composer, setComposer] = useState(false);
+  const itemsRef = useRef<PodConversation[]>([]);
+  itemsRef.current = items;
 
-  const load = useCallback(() => {
+  const load = useCallback((silent = false) => {
     let active = true;
-    setLoading(true);
-    podRepository.list(filter)
+    if (!silent || itemsRef.current.length === 0) setLoading(true);
+    podRepository.inbox()
       .then((data) => {
         if (!active) return;
-        setItems(data);
+        setItems(data.items);
+        setFilters(data.filters);
         setError('');
+        const available = new Set(data.filters.map((item) => item.key));
+        setFilter((current) => (available.has(current) ? current : 'all'));
       })
       .catch(() => { if (active) setError('Could not load Chat Pod.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [filter]);
+  }, []);
 
-  useFocusEffect(useCallback(() => load(), [load]));
+  useFocusEffect(useCallback(() => load(true), [load]));
+
+  const visible = useMemo(() => {
+    if (filter === 'groups') return items.filter((item) => item.category === 'squad' || item.category === 'circle');
+    if (filter === 'tutors') return items.filter((item) => item.category === 'tutor');
+    if (filter === 'peers') return items.filter((item) => item.category === 'mentor' || item.category === 'kuppiya');
+    return items;
+  }, [filter, items]);
 
   return (
     <View style={styles.page}>
       <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
         <View style={styles.heroTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>‹</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.backCircle} onPress={() => navigation.goBack()}>
+            <Text style={styles.back}>‹</Text>
+          </TouchableOpacity>
           <Text style={styles.heroTitle}>Chat POD</Text>
-          <Text style={styles.brand}>UniMentor</Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
+      </View>
+
+      <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-          {([
-            ['all', 'All'],
-            ['groups', 'Study Groups'],
-            ['tutors', 'Tutors'],
-            ['mentors', 'Mentors'],
-          ] as const).map(([key, label]) => (
-            <TouchableOpacity key={key} style={[styles.chip, filter === key && styles.chipOn]} onPress={() => setFilter(key)}>
-              <Text style={[styles.chipText, filter === key && styles.chipTextOn]}>{label}</Text>
-            </TouchableOpacity>
-          ))}
+          {filters.map((item) => {
+            const active = filter === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.chip, active && styles.chipOn]}
+                onPress={() => setFilter(item.key)}
+              >
+                <FilterIcon name={item.icon} active={active} />
+                <Text style={[styles.chipText, active && styles.chipTextOn]}>{item.label}</Text>
+                <Text style={[styles.chipCount, active && styles.chipTextOn]}>{item.count}</Text>
+                {item.dot && !active ? <View style={styles.chipDot} /> : null}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
-      {loading ? (
+      {loading && items.length === 0 ? (
         <View style={styles.state}><ActivityIndicator color={navy} /><Text style={styles.stateText}>Loading conversations...</Text></View>
-      ) : error ? (
+      ) : error && items.length === 0 ? (
         <View style={styles.state}>
           <Text style={styles.stateTitle}>{error}</Text>
           <TouchableOpacity style={styles.retry} onPress={() => load()}><Text style={styles.retryText}>Retry</Text></TouchableOpacity>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {items.length === 0 && <Text style={styles.empty}>No conversations in this filter yet.</Text>}
-          {items.map((item) => {
+          {visible.length === 0 && <Text style={styles.empty}>No conversations in this filter yet.</Text>}
+          {visible.map((item) => {
             const group = item.type === 'group' || item.category === 'squad' || item.category === 'circle';
             return (
               <TouchableOpacity
@@ -144,29 +188,151 @@ export default function ChatPodScreen({ navigation }: Props) {
         </ScrollView>
       )}
 
-      <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Text style={styles.lost}>Did you lose contact?</Text>
-        <TouchableOpacity style={styles.newChat} onPress={() => navigation.navigate('CreateSquad')}>
-          <Text style={styles.newChatText}>+ New Chat</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={styles.newChat} onPress={() => setComposer(true)} activeOpacity={0.9}>
+        <Text style={styles.newChatIcon}>💬</Text>
+        <Text style={styles.newChatText}>New Chat</Text>
+      </TouchableOpacity>
+
+      <Modal visible={composer} transparent animationType="fade" onRequestClose={() => setComposer(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setComposer(false)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <Text style={styles.sheetTitle}>New Chat</Text>
+            <Text style={styles.sheetSub}>Start a hub or message someone in UniMentor.</Text>
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => {
+                setComposer(false);
+                navigation.navigate('CreateSquad');
+              }}
+            >
+              <View style={styles.optionIcon}><Text style={styles.optionGlyph}>▣</Text></View>
+              <View style={styles.optionCopy}>
+                <Text style={styles.optionTitle}>Create HUB</Text>
+                <Text style={styles.optionMeta}>Open a study squad and invite peers or tutors</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => {
+                setComposer(false);
+                navigation.navigate('FindFriend');
+              }}
+            >
+              <View style={[styles.optionIcon, styles.optionIconGold]}><Text style={styles.optionGlyph}>👤</Text></View>
+              <View style={styles.optionCopy}>
+                <Text style={styles.optionTitle}>Chat with friend</Text>
+                <Text style={styles.optionMeta}>Search by name or user ID and start a DM</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancel} onPress={() => setComposer(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <StackFooterBar navigation={navigation} active="Learning" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
+  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 16 },
   heroTop: { flexDirection: 'row', alignItems: 'center' },
-  back: { color: '#FFF', fontSize: 30, marginRight: 8 },
-  heroTitle: { flex: 1, color: '#FFF', fontSize: 22, fontWeight: '900' },
-  brand: { color: yellow, fontSize: 13, fontWeight: '800' },
-  filters: { gap: 8, marginTop: 12 },
-  chip: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 7 },
-  chipOn: { backgroundColor: yellow, borderColor: yellow },
-  chipText: { color: '#E7EEF8', fontSize: 12, fontWeight: '800' },
-  chipTextOn: { color: navy },
-  list: { padding: 14, paddingBottom: 24 },
+  backCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  back: { color: '#FFF', fontSize: 26, marginTop: -2 },
+  heroTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: '800' },
+  brandRow: { flexDirection: 'row', alignItems: 'center' },
+  brandUni: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  brandMentor: { color: '#F5A623', fontSize: 16, fontWeight: '800' },
+  filterBar: { backgroundColor: ice, paddingVertical: 12, paddingLeft: 12 },
+  filters: { gap: 8, paddingRight: 16, alignItems: 'center' },
+  chip: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: secondaryBlue,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  chipOn: { backgroundColor: navy },
+  chipIcon: { color: navy, fontSize: 12 },
+  chipIconOn: { color: '#FFF' },
+  chipText: { color: navy, fontSize: 13, fontWeight: '800' },
+  chipCount: { color: navy, fontSize: 13, fontWeight: '800' },
+  chipTextOn: { color: '#FFF' },
+  chipDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: yellow },
+  peopleIcon: { width: 16, height: 12, marginRight: 1, position: 'relative' },
+  personHead: {
+    position: 'absolute',
+    top: 1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.4,
+  },
+  list: { padding: 14, paddingBottom: 100 },
+  newChat: {
+    position: 'absolute',
+    right: 16,
+    bottom: 86,
+    backgroundColor: yellow,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  newChatIcon: { fontSize: 14 },
+  newChatText: { color: navy, fontWeight: '900', fontSize: 14 },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(6,27,74,0.45)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 24,
+  },
+  sheetTitle: { color: ink, fontSize: 20, fontWeight: '900' },
+  sheetSub: { color: muted, fontSize: 13, marginTop: 4, marginBottom: 14 },
+  option: {
+    backgroundColor: pageBg,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E6EAF2',
+  },
+  optionIcon: {
+    width: 44, height: 44, borderRadius: 14, backgroundColor: navy,
+    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  },
+  optionIconGold: { backgroundColor: yellow },
+  optionGlyph: { fontSize: 16 },
+  optionCopy: { flex: 1 },
+  optionTitle: { color: ink, fontWeight: '900', fontSize: 15 },
+  optionMeta: { color: muted, fontSize: 12, marginTop: 3 },
+  cancel: { alignItems: 'center', paddingVertical: 10 },
+  cancelText: { color: muted, fontWeight: '800' },
   card: {
     backgroundColor: '#FFF',
     borderRadius: 20,
@@ -201,10 +367,6 @@ const styles = StyleSheet.create({
   actionText: { color: '#B91C1C', fontSize: 10, fontWeight: '900' },
   unread: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: yellow, alignItems: 'center', justifyContent: 'center', marginLeft: 6, marginTop: 4 },
   unreadText: { color: navy, fontSize: 10, fontWeight: '900' },
-  bottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#E6EAF2' },
-  lost: { color: muted, fontSize: 12 },
-  newChat: { backgroundColor: yellow, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10 },
-  newChatText: { color: navy, fontWeight: '900' },
   state: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   stateText: { color: muted, marginTop: 8 },
   stateTitle: { color: ink, fontWeight: '800' },

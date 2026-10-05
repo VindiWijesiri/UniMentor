@@ -4,7 +4,7 @@
   "description": "UniMentor REST API — Node.js / Express / MongoDB",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "ts-node-dev --respawn --transpile-only --exit-child --debounce 800 src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "init-db": "ts-node --transpile-only src/scripts/initAtlas.ts"

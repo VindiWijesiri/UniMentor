@@ -30,11 +30,21 @@ function timeAgo(date: Date): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+function unreadCount(conversation: { unreadCounts?: Map<string, number> | Record<string, number> }, userId: string) {
+  const counts = conversation.unreadCounts;
+  if (counts instanceof Map) return counts.get(userId) ?? 0;
+  return (counts as Record<string, number> | undefined)?.[userId] ?? 0;
+}
+
+function clock(date?: Date) {
+  if (!date) return '';
+  return new Date(date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 async function readyStudent(req: AuthRequest): Promise<string> {
   const studentId = String(req.userId);
   if (req.userRole === 'student') {
-    await seedLearningData(studentId);
-    await seedPodData(studentId);
+    await Promise.all([seedLearningData(studentId), seedPodData(studentId)]);
     await seedLibraryData(studentId);
   }
   return studentId;
@@ -46,20 +56,37 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
     const user = await User.findById(studentId);
 
     const [week, goals, activity, sessions, discussions, assessments, materials, podConversations] = await Promise.all([
-      StudyWeek.findOne({ studentId }),
-      StudyGoal.find({ studentId }).sort({ createdAt: 1 }),
-      LearningActivity.findOne({ studentId }).sort({ updatedAt: -1 }),
-      Session.find({ studentId }).populate('mentorId', 'name').sort({ scheduledAt: 1 }),
-      Discussion.find({ studentId }).sort({ createdAt: -1 }),
-      Assessment.find({ studentId }).sort({ scheduledAt: 1, dueDate: 1 }),
-      LibraryMaterial.find({ $or: [{ owner: studentId }, { savedBy: studentId }] }).sort({ createdAt: -1 }).limit(6),
-      PodConversation.find({ participants: studentId }),
+      StudyWeek.findOne({ studentId }).lean(),
+      StudyGoal.find({ studentId }).sort({ createdAt: 1 }).limit(8).lean(),
+      LearningActivity.findOne({ studentId }).sort({ updatedAt: -1 }).lean(),
+      Session.find({ studentId }).populate('mentorId', 'name').sort({ scheduledAt: 1 }).limit(6).lean(),
+      Discussion.find({ studentId }).sort({ createdAt: -1 }).limit(6).lean(),
+      Assessment.find({ studentId }).sort({ scheduledAt: 1, dueDate: 1 }).limit(6).lean(),
+      LibraryMaterial.find({ $or: [{ owner: studentId }, { savedBy: studentId }] })
+        .select('title kind moduleName moduleCode source createdAt')
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .lean(),
+      PodConversation.find({ participants: studentId })
+        .select('type category title lastMessageText lastSenderName lastMessageAt unreadCounts participants meta seedKey')
+        .sort({ lastMessageAt: -1 })
+        .lean(),
     ]);
-    const unreadChat = podConversations.reduce((sum, item) => {
-      const counts = item.unreadCounts;
-      const value = counts instanceof Map ? counts.get(studentId) : (counts as unknown as Record<string, number> | undefined)?.[studentId];
-      return sum + (value ?? 0);
-    }, 0);
+    const unreadChat = podConversations.reduce((sum, item) => sum + unreadCount(item, studentId), 0);
+    const featured = podConversations.filter((item) => item.seedKey === 'pod-dsa-squad' || item.category === 'kuppiya').slice(0, 2);
+    const podItems = (featured.length ? featured : podConversations.slice(0, 2)).map((item) => ({
+      _id: item._id,
+      type: item.type,
+      category: item.category,
+      title: item.title,
+      lastMessageText: item.lastMessageText,
+      lastSenderName: item.lastSenderName,
+      lastMessageAt: item.lastMessageAt,
+      timeLabel: item.type === 'group' ? clock(item.lastMessageAt) : timeAgo(item.lastMessageAt),
+      unreadCount: unreadCount(item, studentId),
+      participantCount: item.participants?.length ?? 0,
+      meta: item.meta ?? {},
+    }));
 
     const days = week?.days ?? [];
     const done = hoursDone(days);
@@ -152,6 +179,11 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
         sourceType: item.source === 'group' ? 'group' : 'session',
         uploadedAt: item.createdAt,
       })),
+      podFeed: {
+        total: podConversations.length,
+        unread: unreadChat,
+        items: podItems,
+      },
     });
   } catch (err) {
     next(err);

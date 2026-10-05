@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodPerson } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
-import { ink, muted, navy, pageBg, yellow } from './learningTheme';
+import StackFooterBar from '../../navigation/StackFooterBar';
+import { ice, ink, muted, navy, pageBg, yellow } from './learningTheme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateSquad'>;
 
@@ -61,27 +62,46 @@ export default function CreateSquadScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.hero, { paddingTop: insets.top + 10 }]}>
         <View style={styles.heroTop}>
-          <TouchableOpacity onPress={() => (step === 'invite' ? setStep('details') : navigation.goBack())}>
+          <TouchableOpacity
+            style={styles.backHit}
+            onPress={() => (step === 'invite' ? setStep('details') : navigation.goBack())}
+            hitSlop={8}
+          >
             <Text style={styles.back}>‹</Text>
           </TouchableOpacity>
-          <Text style={styles.heroTitle}>{step === 'details' ? 'Create Study Squad' : 'Invite & Study Setup'}</Text>
-          <Text style={styles.brand}>UniMentor</Text>
+          <Text style={styles.heroTitle} numberOfLines={1}>
+            {step === 'details' ? 'Create Study Squad' : 'Invite & Study Setup'}
+          </Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
-        <View style={styles.tabs}>
-          <TouchableOpacity onPress={() => setStep('details')}>
-            <Text style={[styles.tab, step === 'details' && styles.tabOn]}>
-              {step === 'invite' ? '✓  ' : ''}{step === 'invite' ? 'Group Details' : 'Squad Details'}
+      </View>
+
+      <View style={styles.stepper}>
+          <TouchableOpacity style={styles.step} onPress={() => setStep('details')} activeOpacity={0.85}>
+            <View style={styles.dotOn}>
+              {step === 'invite'
+                ? <Text style={styles.dotCheck}>✓</Text>
+                : <Text style={styles.dotNum}>1</Text>}
+            </View>
+            <Text style={styles.stepOn}>
+              {step === 'invite' ? 'Group Details' : 'Squad Details'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setStep('invite')}>
-            <Text style={[styles.tab, step === 'invite' && styles.tabOn]}>
+          <View style={[styles.rail, step === 'invite' && styles.railOn]} />
+          <TouchableOpacity style={styles.step} onPress={() => setStep('invite')} activeOpacity={0.85}>
+            <View style={step === 'invite' ? styles.dotOn : styles.dotOff}>
+              <Text style={step === 'invite' ? styles.dotNum : styles.dotNumOff}>2</Text>
+            </View>
+            <Text style={step === 'invite' ? styles.stepOn : styles.stepOff}>
               {step === 'invite' ? 'Peers & Tutors' : 'Peers & Mentors'}
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
 
       <ScrollView contentContainerStyle={styles.body}>
         {step === 'details' ? (
@@ -154,6 +174,7 @@ export default function CreateSquadScreen({ navigation }: Props) {
           </>
         )}
       </ScrollView>
+      <StackFooterBar navigation={navigation} active="Learning" />
     </View>
   );
 }
@@ -162,12 +183,36 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
   hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
   heroTop: { flexDirection: 'row', alignItems: 'center' },
-  back: { color: '#FFF', fontSize: 30, marginRight: 8 },
-  heroTitle: { flex: 1, color: '#FFF', fontSize: 18, fontWeight: '900' },
-  brand: { color: yellow, fontSize: 12, fontWeight: '800' },
-  tabs: { flexDirection: 'row', gap: 16, marginTop: 12 },
-  tab: { color: '#9BB0D0', fontWeight: '800' },
-  tabOn: { color: yellow },
+  backHit: { width: 28, alignItems: 'flex-start', justifyContent: 'center', marginRight: 4 },
+  back: { color: '#FFF', fontSize: 32, lineHeight: 32, fontWeight: '300', marginTop: -2 },
+  heroTitle: { flex: 1, color: '#FFF', fontSize: 20, fontWeight: '800' },
+  brandRow: { flexDirection: 'row', marginLeft: 8 },
+  brandUni: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  brandMentor: { color: '#F5A623', fontSize: 16, fontWeight: '800' },
+  stepper: {
+    backgroundColor: ice,
+    minHeight: 48,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  step: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rail: { flex: 1, height: 2, backgroundColor: '#8EA0C2', marginHorizontal: 10, borderRadius: 1 },
+  railOn: { backgroundColor: yellow },
+  dotOn: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: yellow,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dotOff: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: ice,
+    borderWidth: 1.5, borderColor: '#C4D4EE',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dotNum: { color: navy, fontSize: 11, fontWeight: '900' },
+  dotNumOff: { color: '#C5D0E4', fontSize: 11, fontWeight: '800' },
+  dotCheck: { color: '#FFF', fontSize: 12, fontWeight: '900', marginTop: -1 },
+  stepOn: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+  stepOff: { color: '#9BB0D0', fontSize: 12, fontWeight: '700' },
   body: { padding: 16, paddingBottom: 40 },
   iconBox: { backgroundColor: '#FFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6EAF2', padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
   iconGlyph: { fontSize: 28 },

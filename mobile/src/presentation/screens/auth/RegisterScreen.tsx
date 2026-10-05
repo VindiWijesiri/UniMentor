@@ -19,7 +19,7 @@ export default function RegisterScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'mentor'>('student');
+  const [role, setRole] = useState<'student' | 'mentor' | 'admin'>('student');
   const [loading, setLoading] = useState(false);
   const { setUser, setToken } = useAuthStore();
 
@@ -85,14 +85,18 @@ export default function RegisterScreen({ navigation }: Props) {
 
         <Text style={styles.label}>I am a:</Text>
         <View style={styles.roleRow}>
-          {(['student', 'mentor'] as const).map((r) => (
+          {([
+            ['student', 'Student'],
+            ['mentor', 'Tutor'],
+            ['admin', 'Admin / LIC'],
+          ] as const).map(([r, label]) => (
             <TouchableOpacity
               key={r}
               style={[styles.roleBtn, role === r && styles.roleBtnActive]}
               onPress={() => setRole(r)}
             >
               <Text style={[styles.roleBtnText, role === r && styles.roleBtnTextActive]}>
-                {r === 'student' ? '🎓 Student' : '👨‍🏫 Mentor'}
+                {label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -149,7 +153,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.surface,
   },
-  roleRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   roleBtn: {
     flex: 1, padding: 14, borderRadius: 10,
     borderWidth: 1.5, borderColor: colors.border,

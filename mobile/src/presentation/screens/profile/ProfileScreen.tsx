@@ -20,7 +20,7 @@ export default function ProfileScreen({ navigation }: Props) {
       <View style={styles.card}>
         <Text style={styles.name}>{user?.name}</Text>
         <Text style={styles.email}>{user?.email}</Text>
-        <Text style={styles.role}>{user?.role === 'mentor' ? 'Tutor' : user?.role}</Text>
+        <Text style={styles.role}>{user?.role === 'mentor' ? 'Tutor' : user?.role === 'admin' ? 'Admin / LIC' : 'Student'}</Text>
       </View>
       {isStudent && (
         <TouchableOpacity style={styles.reviewBtn} onPress={openReviews}>

@@ -1,9 +1,24 @@
 import User from '../models/User';
 import { PodConversation } from '../models/pod';
 import { LibraryMaterial } from '../models/library';
+import { memoizeSeed } from './seedCache';
 
-export async function seedLibraryData(userId: string): Promise<void> {
+const LIBRARY_KEYS = ['lib-bfs-video', 'lib-avl-pdf', 'lib-dijkstra-audio', 'lib-dp-quiz', 'lib-graph-code', 'lib-bayes-pdf'];
+
+async function seedLibraryDataOnce(userId: string): Promise<void> {
   try {
+    const existing = await LibraryMaterial.findOne({ seedKey: 'lib-bfs-video' }).select('savedBy');
+    if (existing) {
+      const alreadySaved = existing.savedBy.some((id) => String(id) === userId);
+      if (!alreadySaved) {
+        await LibraryMaterial.updateMany(
+          { seedKey: { $in: LIBRARY_KEYS } },
+          { $addToSet: { savedBy: userId } },
+        );
+      }
+      return;
+    }
+
     const owner = await User.findById(userId);
     if (!owner) return;
     const tutor = await User.findOne({ email: 'tharushi.perera@unimentor.test' });
@@ -12,14 +27,14 @@ export async function seedLibraryData(userId: string): Promise<void> {
     const circle = await PodConversation.findOne({ seedKey: 'pod-stats-circle' });
     const ownerId = tutor?._id ?? owner._id;
 
-    const existing = await LibraryMaterial.findOne({ seedKey: 'lib-bfs-video' });
-    if (existing) {
-      await LibraryMaterial.updateMany(
-        { seedKey: { $in: ['lib-bfs-video', 'lib-avl-pdf', 'lib-dijkstra-audio', 'lib-dp-quiz', 'lib-graph-code', 'lib-bayes-pdf'] } },
-        { $addToSet: { savedBy: userId } },
-      );
-      return;
-    }
+    const fromLabels: Record<string, string> = {
+      'lib-bfs-video': 'FROM: LIVE KUPPIYA • THARUSHI (TUTOR)',
+      'lib-avl-pdf': 'FROM: DSA REVISION SQUAD (STUDY GROUP)',
+      'lib-dijkstra-audio': 'FROM: POD SESSION • THARUSHI',
+      'lib-dp-quiz': 'FROM: PROF. KUMARA • LESSON 3',
+      'lib-graph-code': 'FROM: COMPLETE DSA MASTERY PACK',
+      'lib-bayes-pdf': 'FROM: STATS CIRCLE (STUDY GROUP)',
+    };
 
     await LibraryMaterial.insertMany([
       {
@@ -28,6 +43,7 @@ export async function seedLibraryData(userId: string): Promise<void> {
         source: 'live',
         title: 'Graph Traversal (BFS & DFS) Full Recording & Timecodes',
         subtitle: 'Includes real past paper walk-throughs, adjacency matrix vs list tradeoffs, and recursion stack.',
+        fromLabel: fromLabels['lib-bfs-video'],
         description: 'Auto-synced with Tharushi’s Kuppiya & Flash Records.',
         body: 'Timecode 0:00 Intro · 4:20 BFS queue · 12:10 DFS recursion · 21:40 visited-set pitfalls · 33:00 past-paper Q4.',
         moduleCode: 'IT2040',
@@ -46,6 +62,7 @@ export async function seedLibraryData(userId: string): Promise<void> {
         source: 'group',
         title: 'Binary Trees & AVL Balancing Master Cheatsheet',
         subtitle: 'Hand-annotated step-by-step LL/RR/LR/RL rotation algorithms with 12 solved exam edge-cases.',
+        fromLabel: fromLabels['lib-avl-pdf'],
         description: 'Saved to device · Shared by Kasun.',
         body: 'AVL rotations: LL rotate right, RR rotate left, LR rotate left-child then right, RL rotate right-child then left. Keep balance factor in {-1,0,1}.',
         moduleCode: 'IT2040',
@@ -64,6 +81,7 @@ export async function seedLibraryData(userId: string): Promise<void> {
         source: 'session',
         title: 'Dijkstra Shortest Path: Intuition & Priority Queue Logic',
         subtitle: 'Voice walkthrough of decrease-key vs lazy Dijkstra and why BFS fails with weights.',
+        fromLabel: fromLabels['lib-dijkstra-audio'],
         description: 'Curated explanation from a tutor session.',
         body: 'Use a min-heap. Relax edges. Never re-process a finalized node. Uniform weights collapse to BFS.',
         moduleCode: 'IT2040',
@@ -81,6 +99,7 @@ export async function seedLibraryData(userId: string): Promise<void> {
         source: 'session',
         title: 'DP Memoization & Tabulation Midterm Practice Quiz',
         subtitle: '20 mixed questions on overlapping subproblems, state design, and grid paths.',
+        fromLabel: fromLabels['lib-dp-quiz'],
         description: 'Best Score: 17/20 (85%). Completed 2 days ago.',
         body: 'Review wrong answers after submit. Tabulation fills bottom-up; memoization caches recursion.',
         moduleCode: 'IT2040',
@@ -103,6 +122,7 @@ export async function seedLibraryData(userId: string): Promise<void> {
         source: 'library',
         title: 'Graph Algorithms Starter Boilerplate & Tested Test-Cases',
         subtitle: 'Includes input/output file handlers, adjacency-list templates, and JUnit tests for exam practice.',
+        fromLabel: fromLabels['lib-graph-code'],
         description: 'COMET · Added 8h · OFFLINE ready.',
         body: 'Starter templates for BFS, DFS, and Dijkstra with sample tests.',
         moduleCode: 'IT2040',
@@ -131,6 +151,7 @@ export async function seedLibraryData(userId: string): Promise<void> {
         source: 'group',
         title: 'Probability Distributions & Bayes Theorem Formula Summary',
         subtitle: 'Curated by 3rd year Dean’s list mentors for rapid revision before the upcoming mock exam.',
+        fromLabel: fromLabels['lib-bayes-pdf'],
         description: 'Added yesterday.',
         body: 'Bayes: P(A|B) = P(B|A)P(A) / P(B). Keep the law of total probability in the denominator. Binomial, Poisson, and Normal CDFs included.',
         moduleCode: 'MA2010',
@@ -147,3 +168,5 @@ export async function seedLibraryData(userId: string): Promise<void> {
     if ((error as { code?: number }).code !== 11000) throw error;
   }
 }
+
+export const seedLibraryData = memoizeSeed(seedLibraryDataOnce);

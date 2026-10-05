@@ -29,19 +29,27 @@ import TutorToolsScreen from '../screens/learning/TutorToolsScreen';
 import ChatPodScreen from '../screens/learning/ChatPodScreen';
 import PodThreadScreen from '../screens/learning/PodThreadScreen';
 import CreateSquadScreen from '../screens/learning/CreateSquadScreen';
+import FindFriendScreen from '../screens/learning/FindFriendScreen';
 import StudyPlansScreen from '../screens/learning/StudyPlansScreen';
 import StudyMaterialsScreen from '../screens/learning/StudyMaterialsScreen';
 import StudyMaterialDetailScreen from '../screens/learning/StudyMaterialDetailScreen';
 import StoreMaterialScreen from '../screens/learning/StoreMaterialScreen';
-import AssessmentsScreen from '../screens/learning/AssessmentsScreen';
+import StudentAssessmentDashboardScreen from '../screens/assessments/StudentAssessmentDashboardScreen';
+import ImprovementHistoryScreen from '../screens/assessments/ImprovementHistoryScreen';
+import TakeAssessmentScreen from '../screens/assessments/TakeAssessmentScreen';
+import AssessmentResultScreen from '../screens/assessments/AssessmentResultScreen';
+import TutorAssessmentHubScreen from '../screens/assessments/TutorAssessmentHubScreen';
+import CreateAssessmentScreen from '../screens/assessments/CreateAssessmentScreen';
+import TutorSubmissionsScreen from '../screens/assessments/TutorSubmissionsScreen';
+import AdminPortalScreen, { AdminHomeScreen } from '../screens/assessments/AdminPortalScreen';
 import AssessmentDetailScreen from '../screens/learning/AssessmentDetailScreen';
 import LearningActivityScreen from '../screens/learning/LearningActivityScreen';
 import DiscussionsScreen from '../screens/learning/DiscussionsScreen';
 import LiveSessionScreen from '../screens/learning/LiveSessionScreen';
+import type { AssessmentKind } from '../../domain/entities/AssessmentWork';
 import { useAuthStore } from '../../domain/stores/authStore';
 import { colors } from '../../shared/theme';
 import FooterTabBar from './FooterTabBar';
-import { isStudentRole } from './tabConfig';
 
 export type SearchParams = {
   initialQuery?: string;
@@ -73,11 +81,18 @@ export type AppStackParamList = {
   ChatPod: undefined;
   PodThread: { conversationId: string };
   CreateSquad: undefined;
+  FindFriend: undefined;
   StudyPlans: undefined;
   StudyMaterials: { conversationId?: string } | undefined;
   StudyMaterialDetail: { id: string };
   StoreMaterial: { conversationId?: string } | undefined;
   Assessments: undefined;
+  AssessmentHistory: undefined;
+  TakeAssessment: { paperId: string; preview?: boolean };
+  AssessmentResult: { paperId: string };
+  TutorAssessmentHub: undefined;
+  CreateAssessment: { kind: AssessmentKind };
+  TutorSubmissions: { paperId: string };
   AssessmentDetail: { id: string };
   LearningActivity: { id?: string };
   Discussions: undefined;
@@ -110,11 +125,13 @@ function LogoTitle() {
 
 function MainTabs() {
   const role = useAuthStore((state) => state.user?.role);
-  const student = isStudentRole(role);
+  const student = role === 'student';
+  const admin = role === 'admin';
 
   return (
     <Tab.Navigator
       key={role ?? 'student'}
+      initialRouteName={admin ? 'Learning' : 'Home'}
       tabBar={(props) => <FooterTabBar {...props} />}
       screenOptions={{
         headerTitle: () => <LogoTitle />,
@@ -125,13 +142,13 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={student ? HomeScreen : MentorHomeScreen}
+        component={student ? HomeScreen : admin ? AdminHomeScreen : MentorHomeScreen}
         options={{ headerShown: false }}
       />
       <Tab.Screen name="Sessions" component={SessionsScreen} />
       <Tab.Screen
         name="Learning"
-        component={student ? LearningDashboardScreen : TutorLearningDashboardScreen}
+        component={student ? LearningDashboardScreen : admin ? AdminPortalScreen : TutorLearningDashboardScreen}
         options={{ headerShown: false }}
       />
       <Tab.Screen name="Alerts" component={AlertsScreen} options={{ headerShown: false }} />
@@ -141,7 +158,9 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  const student = isStudentRole(useAuthStore((state) => state.user?.role));
+  const role = useAuthStore((state) => state.user?.role);
+  const student = role === 'student';
+  const mentor = role === 'mentor';
 
   return (
     <Stack.Navigator
@@ -163,26 +182,34 @@ export default function AppNavigator() {
           <Stack.Screen name="CompareTutors" component={CompareTutorsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="RecommendedTutor" component={RecommendedTutorScreen} options={{ headerShown: false }} />
           <Stack.Screen name="StudyPlans" component={StudyPlansScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Assessments" component={AssessmentsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Assessments" component={StudentAssessmentDashboardScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="AssessmentHistory" component={ImprovementHistoryScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TakeAssessment" component={TakeAssessmentScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="AssessmentResult" component={AssessmentResultScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AssessmentDetail" component={AssessmentDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="LearningActivity" component={LearningActivityScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Discussions" component={DiscussionsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="LiveSession" component={LiveSessionScreen} options={{ headerShown: false }} />
         </>
       )}
-      {!student && (
+      {mentor && (
         <>
           <Stack.Screen name="TutorInbox" component={ChatInboxScreen} options={{ headerShown: false }} />
           <Stack.Screen name="GradeSubmission" component={GradeSubmissionScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TutorStudent" component={TutorStudentScreen} options={{ headerShown: false }} />
           <Stack.Screen name="PackDispatcher" component={PackDispatcherScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TutorTools" component={TutorToolsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TutorAssessmentHub" component={TutorAssessmentHubScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="CreateAssessment" component={CreateAssessmentScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TutorSubmissions" component={TutorSubmissionsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TakeAssessment" component={TakeAssessmentScreen} options={{ headerShown: false }} />
         </>
       )}
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ChatPod" component={ChatPodScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PodThread" component={PodThreadScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CreateSquad" component={CreateSquadScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="FindFriend" component={FindFriendScreen} options={{ headerShown: false }} />
       <Stack.Screen name="StudyMaterials" component={StudyMaterialsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="StudyMaterialDetail" component={StudyMaterialDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="StoreMaterial" component={StoreMaterialScreen} options={{ headerShown: false }} />

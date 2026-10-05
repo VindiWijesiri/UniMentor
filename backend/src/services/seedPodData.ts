@@ -1,6 +1,7 @@
 import User from '../models/User';
 import ChatMessage from '../models/ChatMessage';
 import { PodConversation, PodMessage } from '../models/pod';
+import { memoizeSeed } from './seedCache';
 
 const TUTOR_EMAIL = 'tharushi.perera@unimentor.test';
 const KASUN_EMAIL = 'kasun.jayawardena@unimentor.test';
@@ -31,8 +32,25 @@ async function addParticipant(conversationId: unknown, userId: string) {
   );
 }
 
-export async function seedPodData(userId: string): Promise<void> {
+async function seedPodDataOnce(userId: string): Promise<void> {
   try {
+  const sharedCount = await PodConversation.countDocuments({
+    seedKey: { $in: ['pod-dsa-squad', 'pod-stats-circle', 'pod-flash-kuppiya'] },
+    participants: userId,
+  });
+  if (sharedCount >= 3) {
+    const user = await User.findById(userId).select('role');
+    if (!user || user.role !== 'student') return;
+    const hasTutorThread = await PodConversation.exists({
+      $or: [
+        { seedKey: `pod-tutor-${userId}` },
+        { seedKey: 'pod-tutor-tharushi-kasun', participants: userId },
+        { category: 'tutor', participants: userId },
+      ],
+    });
+    if (hasTutorThread) return;
+  }
+
   const [tharushi, kasun, sanduni, kavindi, current] = await Promise.all([
     ensureUser('Tharushi Perera', TUTOR_EMAIL, 'mentor', { bio: 'DSA lead tutor', rating: 4.9, reviewCount: 28 }),
     ensureUser('Kasun Jayawardena', KASUN_EMAIL, 'student'),
@@ -289,3 +307,5 @@ export async function seedPodData(userId: string): Promise<void> {
     if ((error as { code?: number }).code !== 11000) throw error;
   }
 }
+
+export const seedPodData = memoizeSeed(seedPodDataOnce);

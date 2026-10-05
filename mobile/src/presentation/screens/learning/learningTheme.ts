@@ -5,3 +5,5 @@ export const muted = '#8A97AB';
 export const card = '#FFFFFF';
 export const ink = '#0B1F4C';
 export const live = '#16A34A';
+export const ice = '#31528E';
+export const secondaryBlue = '#C4D4EE';

@@ -8,7 +8,7 @@ export const colors = {
   border: '#E5E7EB',
   error: '#EF4444',
   white: '#FFFFFF',
-  footerActive: '#F5A623',
+  footerActive: '#FF8D28',
   footerInactive: '#C3CAD6',
   footerBorder: '#EEF2F6',
 };

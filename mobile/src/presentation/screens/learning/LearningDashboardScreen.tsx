@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -15,7 +15,7 @@ import { learningRepository } from '../../../data/repositories/learningRepositor
 import type { LearningDashboard } from '../../../domain/entities/Learning';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
-import { card, ink, live, muted, navy, pageBg, yellow } from './learningTheme';
+import { card, ice, ink, live, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
@@ -39,19 +39,24 @@ export default function LearningDashboardScreen({ navigation }: Props) {
   const [data, setData] = useState<LearningDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const lastLoad = useRef(0);
+  const dataRef = useRef<LearningDashboard | null>(null);
+  dataRef.current = data;
 
   const load = useCallback(() => {
     let active = true;
-    setLoading(true);
+    if (dataRef.current && Date.now() - lastLoad.current < 20000) return () => { active = false; };
+    if (!dataRef.current) setLoading(true);
     learningRepository.getDashboard()
       .then((dashboard) => {
         if (active) {
           setData(dashboard);
           setError('');
+          lastLoad.current = Date.now();
         }
       })
       .catch(() => {
-        if (active) setError('Could not load your learning dashboard.');
+        if (active && !dataRef.current) setError('Could not load your learning dashboard.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -84,7 +89,9 @@ export default function LearningDashboardScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
           </View>
+        </View>
 
+        <View style={styles.shortcutBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutRow}>
             <TouchableOpacity style={[styles.shortcut, styles.shortcutActive]} onPress={() => stack?.navigate('ChatPod')}>
               <View style={styles.liveDot} />
@@ -113,7 +120,13 @@ export default function LearningDashboardScreen({ navigation }: Props) {
         {loading && !data ? (
           <View style={styles.state}><ActivityIndicator color={navy} /><Text style={styles.stateText}>Loading dashboard...</Text></View>
         ) : error && !data ? (
-          <View style={styles.state}><Text style={styles.stateTitle}>{error}</Text></View>
+          <View style={styles.state}>
+            <Text style={styles.stateTitle}>{error}</Text>
+            <Text style={styles.stateText}>Check that the API is running, then try again.</Text>
+            <TouchableOpacity style={styles.yellowBtn} onPress={load}>
+              <Text style={styles.yellowBtnText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <View style={styles.body}>
             <View style={styles.card}>
@@ -225,6 +238,7 @@ export default function LearningDashboardScreen({ navigation }: Props) {
             </View>
 
             <RecentDiscussionsCard
+              feed={data?.podFeed}
               onOpenPod={() => stack?.navigate('ChatPod')}
               onOpenConversation={(conversation) => stack?.navigate('PodThread', { conversationId: conversation._id })}
             />
@@ -232,8 +246,11 @@ export default function LearningDashboardScreen({ navigation }: Props) {
             <View style={styles.card}>
               <View style={styles.cardHead}>
                 <Text style={styles.cardTitle}>Upcoming Assessments</Text>
-                <Text style={styles.dueSoon}>{data?.assessments.dueSoon ?? 0} Due Soon</Text>
+                <TouchableOpacity onPress={() => stack?.navigate('Assessments')}>
+                  <Text style={styles.viewAll}>Assessment centre</Text>
+                </TouchableOpacity>
               </View>
+              <Text style={styles.dueSoon}>{data?.assessments.dueSoon ?? 0} due soon on your plan</Text>
               {(data?.assessments.items ?? []).map((item) => (
                 <View key={item._id} style={styles.assessmentBlock}>
                   <Text style={styles.upcomingLabel}>{item.type === 'exam' ? 'MOCK EXAMINATION' : 'ASSIGNMENT'}</Text>
@@ -246,7 +263,7 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                   </Text>
                   <TouchableOpacity
                     style={item.type === 'assignment' ? styles.yellowBtn : styles.ghostBtn}
-                    onPress={() => stack?.navigate('AssessmentDetail', { id: item._id })}
+                    onPress={() => stack?.navigate('Assessments')}
                   >
                     <Text style={item.type === 'assignment' ? styles.yellowBtnText : styles.ghostBtnText}>
                       {item.type === 'assignment' ? 'Submit Work' : 'View Assessment Details'}
@@ -289,7 +306,7 @@ export default function LearningDashboardScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
   scroll: { paddingBottom: 24 },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 18 },
+  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   portal: { color: yellow, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
   heroTitle: { color: '#FFF', fontSize: 26, fontWeight: '900', marginTop: 4 },
@@ -304,22 +321,22 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: '#4C74B4', alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
-  shortcutRow: { flexDirection: 'row', gap: 8, marginTop: 16, paddingRight: 4 },
+  shortcutBar: { backgroundColor: ice, paddingVertical: 12, paddingLeft: 12 },
+  shortcutRow: { flexDirection: 'row', gap: 8, paddingRight: 16 },
   shortcut: {
     borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: secondaryBlue,
     paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
-  shortcutActive: { backgroundColor: yellow, borderColor: yellow },
-  shortcutText: { color: '#E7EEF8', fontSize: 11, fontWeight: '800' },
+  shortcutActive: { backgroundColor: yellow },
+  shortcutText: { color: navy, fontSize: 11, fontWeight: '800' },
   shortcutActiveText: { color: navy, fontSize: 11, fontWeight: '900' },
-  shortcutIcon: { color: '#E7EEF8', fontSize: 12 },
+  shortcutIcon: { color: navy, fontSize: 12 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: live },
   badge: { backgroundColor: navy, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
   badgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },

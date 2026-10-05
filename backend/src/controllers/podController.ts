@@ -23,17 +23,30 @@ function initials(name: string) {
   return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 }
 
-function unreadMap(conversation: InstanceType<typeof PodConversation>) {
+type ConversationView = {
+  _id: unknown;
+  type: string;
+  category: string;
+  title: string;
+  lastMessageText?: string;
+  lastSenderName?: string;
+  lastMessageAt?: Date;
+  unreadCounts?: Map<string, number> | Record<string, number>;
+  participants?: unknown[];
+  meta?: Record<string, unknown>;
+};
+
+function unreadMap(conversation: ConversationView) {
   const counts = conversation.unreadCounts;
   if (counts instanceof Map) return counts;
   return new Map(Object.entries((counts ?? {}) as Record<string, number>));
 }
 
-function unreadFor(conversation: InstanceType<typeof PodConversation>, userId: string) {
+function unreadFor(conversation: ConversationView, userId: string) {
   return unreadMap(conversation).get(userId) ?? 0;
 }
 
-function serializeConversation(conversation: InstanceType<typeof PodConversation>, userId: string) {
+function serializeConversation(conversation: ConversationView, userId: string) {
   return {
     _id: conversation._id,
     type: conversation.type,
@@ -44,7 +57,7 @@ function serializeConversation(conversation: InstanceType<typeof PodConversation
     lastMessageAt: conversation.lastMessageAt,
     timeLabel: conversation.type === 'group' ? clock(conversation.lastMessageAt) : timeAgo(conversation.lastMessageAt),
     unreadCount: unreadFor(conversation, userId),
-    participantCount: conversation.participants.length,
+    participantCount: conversation.participants?.length ?? 0,
     meta: conversation.meta ?? {},
   };
 }
@@ -64,14 +77,34 @@ export async function listPodConversations(req: AuthRequest, res: Response, next
   try {
     const userId = await ready(req);
     const filter = String(req.query.filter ?? 'all');
-    const conversations = await PodConversation.find({ participants: userId }).sort({ lastMessageAt: -1 });
-    const visible = conversations.filter((item) => {
-      if (filter === 'groups') return item.category === 'squad' || item.category === 'circle';
-      if (filter === 'tutors') return item.category === 'tutor' || item.category === 'kuppiya';
-      if (filter === 'mentors') return item.category === 'mentor';
-      return true;
+    const conversations = await PodConversation.find({ participants: userId })
+      .select('type category title lastMessageText lastSenderName lastMessageAt unreadCounts participants meta')
+      .sort({ lastMessageAt: -1 })
+      .lean();
+    const items = conversations.map((item) => serializeConversation(item, userId));
+    const counts = { all: items.length, groups: 0, tutors: 0, peers: 0 };
+    const dots = { groups: false, tutors: false, peers: false };
+    items.forEach((item) => {
+      const key = item.category === 'squad' || item.category === 'circle'
+        ? 'groups'
+        : item.category === 'tutor' ? 'tutors' : 'peers';
+      counts[key] += 1;
+      if (item.unreadCount > 0) dots[key] = true;
     });
-    res.json(visible.map((item) => serializeConversation(item, userId)));
+    const filters = [
+      { key: 'all', label: 'All', icon: 'all', count: counts.all },
+      { key: 'groups', label: 'Study Groups', icon: 'groups', count: counts.groups, dot: dots.groups },
+      { key: 'tutors', label: 'Tutors', icon: 'tutors', count: counts.tutors, dot: dots.tutors },
+      { key: 'peers', label: 'Peers', icon: 'peers', count: counts.peers, dot: dots.peers },
+    ].filter((item) => item.key === 'all' || item.count > 0);
+    const visible = filter === 'all'
+      ? items
+      : items.filter((item) => {
+        if (filter === 'groups') return item.category === 'squad' || item.category === 'circle';
+        if (filter === 'tutors') return item.category === 'tutor';
+        return item.category === 'mentor' || item.category === 'kuppiya';
+      });
+    res.json({ items: visible, filters });
   } catch (error) {
     next(error);
   }
@@ -80,7 +113,10 @@ export async function listPodConversations(req: AuthRequest, res: Response, next
 export async function getPodFeed(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = await ready(req);
-    const conversations = await PodConversation.find({ participants: userId }).sort({ lastMessageAt: -1 });
+    const conversations = await PodConversation.find({ participants: userId })
+      .select('type category title lastMessageText lastSenderName lastMessageAt unreadCounts participants meta seedKey')
+      .sort({ lastMessageAt: -1 })
+      .lean();
     const featured = conversations.filter((item) => item.seedKey === 'pod-dsa-squad' || item.category === 'kuppiya').slice(0, 2);
     const items = (featured.length ? featured : conversations.slice(0, 2)).map((item) => serializeConversation(item, userId));
     res.json({
@@ -125,16 +161,19 @@ export async function getPodMessages(req: AuthRequest, res: Response, next: Next
       res.status(404).json({ message: 'Conversation not found.' });
       return;
     }
-    const messages = await PodMessage.find({ conversation: conversation._id }).sort({ createdAt: 1 }).limit(400);
-    await PodMessage.updateMany(
-      { conversation: conversation._id, readBy: { $ne: userId } },
-      { $addToSet: { readBy: userId } },
-    );
-    const counts = unreadMap(conversation);
-    counts.set(userId, 0);
-    conversation.unreadCounts = counts;
-    conversation.meta = { ...conversation.meta, isNew: false };
-    await conversation.save();
+    const peek = String(req.query.peek ?? '') === '1';
+    const messages = await PodMessage.find({ conversation: conversation._id }).sort({ createdAt: 1 }).limit(200).lean();
+    if (!peek) {
+      await PodMessage.updateMany(
+        { conversation: conversation._id, readBy: { $ne: userId } },
+        { $addToSet: { readBy: userId } },
+      );
+      const counts = unreadMap(conversation);
+      counts.set(userId, 0);
+      conversation.unreadCounts = counts;
+      conversation.meta = { ...conversation.meta, isNew: false };
+      await conversation.save();
+    }
     res.json(messages);
   } catch (error) {
     next(error);
@@ -288,11 +327,25 @@ export async function createPodSquad(req: AuthRequest, res: Response, next: Next
 export async function listPodPeople(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = await ready(req);
-    const people = await User.find({ _id: { $ne: userId } }).select('name email role rating').limit(20);
+    const q = String(req.query.q ?? '').trim();
+    const filter: Record<string, unknown> = { _id: { $ne: userId } };
+    if (q) {
+      const clauses: Record<string, unknown>[] = [
+        { name: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+        { email: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+      ];
+      if (mongoose.isValidObjectId(q)) clauses.push({ _id: q });
+      if (/^[a-fA-F0-9]{6,24}$/.test(q)) {
+        clauses.push({ $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: q, options: 'i' } } });
+      }
+      filter.$or = clauses;
+    }
+    const people = await User.find(filter).select('name email role rating').limit(40).lean();
     res.json(people.map((user) => ({
       _id: user._id,
       name: user.name,
       email: user.email,
+      userCode: user.email?.split('@')[0] ?? String(user._id).slice(-8),
       role: user.role,
       initials: initials(user.name),
       rating: user.rating ?? 0,
@@ -305,7 +358,7 @@ export async function listPodPeople(req: AuthRequest, res: Response, next: NextF
 export async function getPodUnread(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = await ready(req);
-    const conversations = await PodConversation.find({ participants: userId });
+    const conversations = await PodConversation.find({ participants: userId }).select('unreadCounts').lean();
     res.json({
       unread: conversations.reduce((sum, item) => sum + unreadFor(item, userId), 0),
     });

@@ -45,7 +45,7 @@ export default function PodThreadScreen({ route, navigation }: Props) {
       try {
         const [thread, history] = await Promise.all([
           podRepository.get(route.params.conversationId),
-          podRepository.messages(route.params.conversationId),
+          podRepository.messages(route.params.conversationId, !showLoader),
         ]);
         if (!active) return;
         setConversation(thread);

@@ -7,6 +7,10 @@ export type LibraryMaterial = {
   source: LibrarySource;
   title: string;
   subtitle?: string;
+  fromLabel?: string;
+  preview?: string;
+  ownerName?: string;
+  conversationTitle?: string;
   description?: string;
   moduleCode?: string;
   moduleName?: string;
@@ -30,10 +34,18 @@ export type LibraryMaterial = {
   completed?: boolean;
 };
 
+export type LibraryKindFilter = {
+  key: 'all' | LibraryKind;
+  label: string;
+  icon: 'all' | LibraryKind;
+  count: number;
+};
+
 export type LibraryFeed = {
   saved: number;
   offlineItems: number;
   offlineSize: string;
+  kinds: LibraryKindFilter[];
   items: LibraryMaterial[];
 };
 

@@ -45,8 +45,7 @@ function mapStudent(item: InstanceType<typeof TutorStudent>) {
 async function readyTutor(req: AuthRequest): Promise<string> {
   const tutorId = String(req.userId);
   if (req.userRole === 'mentor') {
-    await seedTutorLearningData(tutorId);
-    await seedPodData(tutorId);
+    await Promise.all([seedTutorLearningData(tutorId), seedPodData(tutorId)]);
     await seedLibraryData(tutorId);
   }
   return tutorId;

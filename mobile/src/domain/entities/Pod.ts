@@ -1,4 +1,13 @@
 export type PodCategory = 'squad' | 'tutor' | 'mentor' | 'kuppiya' | 'circle';
+export type PodInboxFilterKey = 'all' | 'groups' | 'tutors' | 'peers';
+
+export type PodInboxFilter = {
+  key: PodInboxFilterKey;
+  label: string;
+  icon: PodInboxFilterKey;
+  count: number;
+  dot?: boolean;
+};
 export type PodMessageKind = 'text' | 'voice' | 'file' | 'proposal' | 'assessment';
 
 export type PodConversation = {
@@ -56,6 +65,7 @@ export type PodPerson = {
   _id: string;
   name: string;
   email: string;
+  userCode?: string;
   role: 'student' | 'mentor';
   initials: string;
   rating: number;

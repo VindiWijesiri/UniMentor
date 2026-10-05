@@ -1,3 +1,5 @@
+import type { PodFeed } from './Pod';
+
 export type LearningGoal = {
   _id: string;
   title: string;
@@ -106,6 +108,7 @@ export type LearningDashboard = {
   discussions: { total: number; items: LearningDiscussion[] };
   assessments: { dueSoon: number; items: LearningAssessment[] };
   materials: LearningMaterial[];
+  podFeed?: PodFeed;
 };
 
 export type TutorStudentStatus = 'review' | 'graded' | 'atRisk';

@@ -6,22 +6,28 @@ import type { PodConversation, PodFeed } from '../../../domain/entities/Pod';
 import { ink, muted, navy, yellow } from './learningTheme';
 
 type Props = {
+  feed?: PodFeed | null;
   onOpenPod: () => void;
   onOpenConversation: (conversation: PodConversation) => void;
 };
 
-export default function RecentDiscussionsCard({ onOpenPod, onOpenConversation }: Props) {
-  const [feed, setFeed] = useState<PodFeed | null>(null);
+export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversation }: Props) {
+  const [local, setLocal] = useState<PodFeed | null>(feed ?? null);
 
   useFocusEffect(useCallback(() => {
+    if (feed) {
+      setLocal(feed);
+      return;
+    }
     let active = true;
     podRepository.feed()
-      .then((data) => { if (active) setFeed(data); })
+      .then((data) => { if (active) setLocal(data); })
       .catch(() => {});
     return () => { active = false; };
-  }, []));
+  }, [feed]));
 
-  const items = feed?.items ?? [];
+  const items = (feed ?? local)?.items ?? [];
+  const total = (feed ?? local)?.total ?? 0;
 
   return (
     <View style={styles.card}>
@@ -31,7 +37,7 @@ export default function RecentDiscussionsCard({ onOpenPod, onOpenConversation }:
           <View style={styles.dot} />
         </View>
         <TouchableOpacity onPress={onOpenPod}>
-          <Text style={styles.viewAll}>View All ({feed?.total ?? 0})</Text>
+          <Text style={styles.viewAll}>View All ({total})</Text>
         </TouchableOpacity>
       </View>
 

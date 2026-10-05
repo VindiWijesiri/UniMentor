@@ -22,6 +22,7 @@ export interface ILibraryMaterial extends Document {
   source: LibrarySource;
   title: string;
   subtitle?: string;
+  fromLabel?: string;
   description: string;
   body: string;
   moduleCode?: string;
@@ -56,6 +57,7 @@ const materialSchema = new Schema<ILibraryMaterial>({
   source: { type: String, enum: ['group', 'session', 'live', 'library'], default: 'library' },
   title: { type: String, required: true, trim: true },
   subtitle: { type: String, default: '' },
+  fromLabel: { type: String, default: '' },
   description: { type: String, default: '' },
   body: { type: String, default: '' },
   moduleCode: String,
