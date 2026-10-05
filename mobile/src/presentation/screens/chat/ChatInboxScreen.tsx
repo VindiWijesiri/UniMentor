@@ -15,7 +15,7 @@ import { MessageCircle, Search } from 'lucide-react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import PageHeader from '../../components/PageHeader';
+import PageHeader, { PageSubbar } from '../../components/PageHeader';
 import { chatRepository } from '../../../data/repositories/chatRepository';
 import type { ChatConversation } from '../../../domain/entities/ChatMessage';
 import type { Mentor } from '../../../domain/entities/Mentor';
@@ -41,7 +41,6 @@ export default function ChatInboxScreen({ navigation }: Props) {
 
   const fetchInbox = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    else setLoading(true);
 
     try {
       const data = await chatRepository.getInbox();
@@ -130,6 +129,37 @@ export default function ChatInboxScreen({ navigation }: Props) {
   return (
     <View style={styles.page}>
       <PageHeader title={isMentor ? 'Student Inquiries' : 'Messages'} />
+      <PageSubbar>
+        {[
+          { key: 'all' as FilterTab, label: 'All Chats', icon: false },
+          { key: 'unread' as FilterTab, label: 'Unread', icon: false },
+          { key: 'voice' as FilterTab, label: 'Voice Notes', icon: true },
+        ].map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.filterChip, activeFilter === tab.key && styles.filterChipActive]}
+            onPress={() => setActiveFilter(tab.key)}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {tab.icon && (
+                <MaterialCommunityIcons
+                  name="microphone"
+                  size={14}
+                  color={activeFilter === tab.key ? '#FFFFFF' : '#102B5D'}
+                />
+              )}
+              <Text
+                style={[
+                  styles.filterChipText,
+                  activeFilter === tab.key && styles.filterChipTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </PageSubbar>
       <View style={styles.hero}>
         <View style={styles.searchBox}>
           <Search size={16} color="#8997AF" />
@@ -147,39 +177,6 @@ export default function ChatInboxScreen({ navigation }: Props) {
               <Text style={{ color: '#8997AF', paddingHorizontal: 6 }}>✕</Text>
             </TouchableOpacity>
           ) : null}
-        </View>
-
-        {/* Filter Chips */}
-        <View style={styles.filterRow}>
-          {[
-            { key: 'all' as FilterTab, label: 'All Chats', icon: false },
-            { key: 'unread' as FilterTab, label: 'Unread', icon: false },
-            { key: 'voice' as FilterTab, label: 'Voice Notes', icon: true },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.filterChip, activeFilter === tab.key && styles.filterChipActive]}
-              onPress={() => setActiveFilter(tab.key)}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                {tab.icon && (
-                  <MaterialCommunityIcons
-                    name="microphone"
-                    size={14}
-                    color={activeFilter === tab.key ? '#FFFFFF' : '#E2E8F0'}
-                  />
-                )}
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    activeFilter === tab.key && styles.filterChipTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
         </View>
       </View>
 
@@ -355,14 +352,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterChip: {
-    backgroundColor: '#E8EEF6',
+    backgroundColor: '#C4D4EE',
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  filterChipActive: { backgroundColor: yellow },
-  filterChipText: { color: '#102B5D', fontSize: 11, fontWeight: '700' },
-  filterChipTextActive: { color: '#102B5D' },
+  filterChipActive: { backgroundColor: '#102B5D' },
+  filterChipText: { color: '#102B5D', fontSize: 12, fontWeight: '800' },
+  filterChipTextActive: { color: '#FFFFFF' },
 
   listContent: { padding: 14, flexGrow: 1, paddingBottom: 30 },
   card: {

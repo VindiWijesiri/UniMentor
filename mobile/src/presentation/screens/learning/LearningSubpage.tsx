@@ -16,19 +16,19 @@ export default function LearningSubpage({ title, onBack, loading, children }: Pr
   return (
     <View style={styles.page}>
       <PageHeader title={title} onBack={onBack} />
-      {loading ? (
+      {loading && (
         <View style={styles.loading}>
-          <ActivityIndicator color={navy} />
-          <Text style={styles.loadingText}>Loading...</Text>
+          <ActivityIndicator color={navy} size="small" />
         </View>
-      ) : children}
+      )}
+      {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  loading: { alignItems: 'center', paddingTop: 12 },
   loadingText: { color: muted, fontSize: 12 },
   empty: { color: muted, textAlign: 'center', marginTop: 40 },
 });

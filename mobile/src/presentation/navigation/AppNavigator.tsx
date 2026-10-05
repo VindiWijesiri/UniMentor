@@ -157,6 +157,8 @@ function MainTabs() {
         headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
         tabBarHideOnKeyboard: true,
+        lazy: false,
+        freezeOnBlur: true,
       }}
     >
       <Tab.Screen
@@ -191,6 +193,9 @@ export default function AppNavigator() {
         headerShadowVisible: false,
         headerRight: () => <UniMentorWordmark tone="onLight" />,
         contentStyle: { backgroundColor: '#F4F7FB' },
+        animation: 'fade',
+        animationDuration: 160,
+        freezeOnBlur: true,
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />

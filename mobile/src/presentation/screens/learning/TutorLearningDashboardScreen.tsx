@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,7 @@ import type { TutorLearningDashboard, TutorQueueStudent, TutorStudentStatus } fr
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { card, ink, muted, navy, pageBg, yellow } from './learningTheme';
 import { MessageCircle } from 'lucide-react-native';
-import PageHeader from '../../components/PageHeader';
+import PageHeader, { PageSubbar } from '../../components/PageHeader';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
@@ -47,6 +47,7 @@ async function openStudentChat(stack: StackNav | undefined, student: TutorQueueS
 export default function TutorLearningDashboardScreen({ navigation }: Props) {
   const stack = navigation.getParent<StackNav>();
   const [data, setData] = useState<TutorLearningDashboard | null>(null);
+  const dataRef = useRef<TutorLearningDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -54,10 +55,11 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
 
   const load = useCallback(() => {
     let active = true;
-    setLoading(true);
+    if (!dataRef.current) setLoading(true);
     learningRepository.getTutorDashboard()
       .then((dashboard) => {
         if (active) {
+          dataRef.current = dashboard;
           setData(dashboard);
           setError('');
         }
@@ -99,24 +101,22 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
   return (
     <View style={styles.page}>
       <PageHeader title="Learning Management" onBack={() => navigation.navigate('Home')} />
+      <PageSubbar>
+        <TouchableOpacity style={styles.podChip} onPress={() => stack?.navigate('ChatPod')}>
+          <View style={styles.podDot} />
+          <Text style={styles.podChipText}>Chat Pod</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.libraryChip} onPress={() => stack?.navigate('StudyMaterials')}>
+          <Text style={styles.libraryChipText}>Materials Library</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.libraryChip} onPress={() => stack?.navigate('TutorAssessmentHub')}>
+          <Text style={styles.libraryChipText}>Assessment Hub</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.storeChip} onPress={() => stack?.navigate('StoreMaterial')}>
+          <Text style={styles.podChipText}>Store material</Text>
+        </TouchableOpacity>
+      </PageSubbar>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={styles.hero}>
-          <TouchableOpacity style={styles.podChip} onPress={() => stack?.navigate('ChatPod')}>
-            <View style={styles.podDot} />
-            <Text style={styles.podChipText}>Chat Pod</Text>
-          </TouchableOpacity>
-          <View style={styles.chipRow}>
-            <TouchableOpacity style={styles.libraryChip} onPress={() => stack?.navigate('StudyMaterials')}>
-              <Text style={styles.libraryChipText}>Materials Library</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.libraryChip} onPress={() => stack?.navigate('TutorAssessmentHub')}>
-              <Text style={styles.libraryChipText}>Assessment Hub</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.storeChip} onPress={() => stack?.navigate('StoreMaterial')}>
-              <Text style={styles.podChipText}>Store material</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {loading && !data ? (
           <View style={styles.state}><ActivityIndicator color={navy} /><Text style={styles.stateText}>Loading workspace...</Text></View>
@@ -354,8 +354,6 @@ const styles = StyleSheet.create({
   brand: { color: yellow, fontSize: 13, fontWeight: '800' },
   workspace: { color: '#C5D4EB', fontSize: 12, marginTop: 8 },
   podChip: {
-    alignSelf: 'flex-start',
-    marginTop: 10,
     backgroundColor: yellow,
     borderRadius: 16,
     paddingHorizontal: 12,

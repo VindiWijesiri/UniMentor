@@ -17,7 +17,7 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 import { MessageCircle, Settings, User, Zap } from 'lucide-react-native';
-import PageHeader from '../../components/PageHeader';
+import PageHeader, { PageSubbar } from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ChatPod'>;
 
@@ -97,8 +97,7 @@ export default function ChatPodScreen({ navigation }: Props) {
     <View style={styles.page}>
       <PageHeader title="Chat POD" onBack={() => navigation.goBack()} />
 
-      <View style={styles.filterBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+      <PageSubbar>
           {filters.map((item) => {
             const active = filter === item.key;
             return (
@@ -114,8 +113,7 @@ export default function ChatPodScreen({ navigation }: Props) {
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
-      </View>
+      </PageSubbar>
 
       {loading && items.length === 0 ? (
         <View style={styles.state}><ActivityIndicator color={navy} /><Text style={styles.stateText}>Loading conversations...</Text></View>

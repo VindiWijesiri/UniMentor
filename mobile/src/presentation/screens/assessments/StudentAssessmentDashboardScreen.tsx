@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
 import type { AssessmentCard, AssessmentCenter } from '../../../domain/entities/AssessmentWork';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { PageSubbar } from '../../components/PageHeader';
 import { AssessmentScreen, KuppiyaBar, OrangeButton, SearchField } from './Chrome';
 import { blue, card, danger, ink, line, muted, navy, orange, soft } from './theme';
 
@@ -21,7 +22,6 @@ export default function StudentAssessmentDashboardScreen({ navigation }: Props) 
 
   const load = useCallback(() => {
     let active = true;
-    setLoading(true);
     assessmentRepository.center()
       .then((center) => { if (active) { setData(center); setError(''); } })
       .catch(() => { if (active) setError('Could not load assessments.'); })
@@ -50,6 +50,12 @@ export default function StudentAssessmentDashboardScreen({ navigation }: Props) 
   return (
     <AssessmentScreen navigation={navigation}>
       <KuppiyaBar title="Assessments" />
+      <PageSubbar>
+        <FilterChip label={`All (${data?.counts.all ?? 0})`} on={filter === 'all'} onPress={() => setFilter('all')} />
+        <FilterChip label={`Due Soon (${data?.counts.dueSoon ?? 0})`} on={filter === 'dueSoon'} onPress={() => setFilter('dueSoon')} />
+        <FilterChip label={`In Progress (${data?.counts.inProgress ?? 0})`} on={filter === 'inProgress'} onPress={() => setFilter('inProgress')} />
+        <FilterChip label={`Completed (${data?.counts.completed ?? 0})`} on={filter === 'completed'} onPress={() => setFilter('completed')} />
+      </PageSubbar>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.titleRow}>
           <View style={styles.flex}>
@@ -61,12 +67,6 @@ export default function StudentAssessmentDashboardScreen({ navigation }: Props) 
           </TouchableOpacity>
         </View>
         <SearchField value={query} onChangeText={setQuery} placeholder="Search exams, quizzes, case studies..." />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-          <FilterChip label={`All (${data?.counts.all ?? 0})`} on={filter === 'all'} onPress={() => setFilter('all')} />
-          <FilterChip label={`Due Soon (${data?.counts.dueSoon ?? 0})`} on={filter === 'dueSoon'} onPress={() => setFilter('dueSoon')} />
-          <FilterChip label={`In Progress (${data?.counts.inProgress ?? 0})`} on={filter === 'inProgress'} onPress={() => setFilter('inProgress')} />
-          <FilterChip label={`Completed (${data?.counts.completed ?? 0})`} on={filter === 'completed'} onPress={() => setFilter('completed')} />
-        </ScrollView>
 
         {loading && !data ? <ActivityIndicator color={navy} style={styles.loader} /> : null}
         {error && !data ? <Text style={styles.error}>{error}</Text> : null}
@@ -191,9 +191,9 @@ const styles = StyleSheet.create({
   cohort: { color: muted, marginTop: 4 },
   insight: { width: 42, height: 42, borderRadius: 14, backgroundColor: card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: line },
   filters: { gap: 8, paddingVertical: 12 },
-  chip: { backgroundColor: '#E7EDF6', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  chip: { backgroundColor: '#C4D4EE', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 },
   chipOn: { backgroundColor: navy },
-  chipText: { color: blue, fontWeight: '700' },
+  chipText: { color: navy, fontWeight: '800' },
   chipTextOn: { color: '#fff' },
   loader: { marginVertical: 20 },
   error: { color: danger, marginVertical: 12 },

@@ -1,16 +1,16 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import UniMentorWordmark from './UniMentorWordmark';
 
-type Props = {
+type HeaderProps = {
   title: string;
   onBack?: () => void;
   rounded?: boolean;
 };
 
-export default function PageHeader({ title, onBack, rounded = true }: Props) {
+export default function PageHeader({ title, onBack }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const goBack = onBack ?? (() => {
@@ -18,12 +18,31 @@ export default function PageHeader({ title, onBack, rounded = true }: Props) {
   });
 
   return (
-    <View style={[styles.bar, rounded && styles.rounded, { paddingTop: insets.top + 8 }]}>
+    <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
       <TouchableOpacity style={styles.back} onPress={goBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back">
         <Text style={styles.backIcon}>‹</Text>
       </TouchableOpacity>
       <Text style={styles.title} numberOfLines={1}>{title}</Text>
-      <UniMentorWordmark />
+      <UniMentorWordmark size={16} />
+    </View>
+  );
+}
+
+type SubbarProps = {
+  children: React.ReactNode;
+  scroll?: boolean;
+};
+
+export function PageSubbar({ children, scroll = true }: SubbarProps) {
+  return (
+    <View style={styles.subbar}>
+      {scroll ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subRow}>
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={[styles.subRow, styles.subRowFill]}>{children}</View>
+      )}
     </View>
   );
 }
@@ -32,13 +51,10 @@ const styles = StyleSheet.create({
   bar: {
     backgroundColor: '#102B5D',
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  rounded: {
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    minHeight: 56,
   },
   back: {
     width: 36,
@@ -47,8 +63,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
-  backIcon: { color: '#FFFFFF', fontSize: 28, lineHeight: 30, marginTop: -2, fontWeight: '500' },
-  title: { flex: 1, color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginRight: 8 },
+  backIcon: { color: '#FFFFFF', fontSize: 28, lineHeight: 32, marginTop: -2, fontWeight: '400' },
+  title: { flex: 1, color: '#FFFFFF', fontSize: 20, fontWeight: '800', marginRight: 8 },
+  subbar: {
+    backgroundColor: '#31528E',
+    minHeight: 58,
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  subRowFill: { width: '100%' },
 });

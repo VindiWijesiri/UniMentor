@@ -17,7 +17,7 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import MaterialCard from './MaterialCard';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
-import PageHeader from '../../components/PageHeader';
+import PageHeader, { PageSubbar } from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'StudyMaterials'>;
 type KindFilter = 'all' | LibraryKind;
@@ -90,6 +90,22 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
   return (
     <View style={styles.page}>
       <PageHeader title="Learning Materials" onBack={() => navigation.goBack()} />
+      <PageSubbar>
+        {filters.map((item) => {
+          const active = kind === item.key;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              style={[styles.chip, active && styles.chipOn]}
+              onPress={() => setKind(item.key)}
+            >
+              <KindIcon name={item.icon} active={active} />
+              <Text style={[styles.chipText, active && styles.chipTextOn]}>{item.label}</Text>
+              <Text style={[styles.chipCount, active && styles.chipTextOn]}>{item.count}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </PageSubbar>
       <View style={styles.hero}>
         <View style={styles.heroActions}>
           <View style={styles.search}>
@@ -109,25 +125,6 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
             <Text style={styles.addText}>Add</Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      <View style={styles.filterBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          {filters.map((item) => {
-            const active = kind === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                style={[styles.chip, active && styles.chipOn]}
-                onPress={() => setKind(item.key)}
-              >
-                <KindIcon name={item.icon} active={active} />
-                <Text style={[styles.chipText, active && styles.chipTextOn]}>{item.label}</Text>
-                <Text style={[styles.chipCount, active && styles.chipTextOn]}>{item.count}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>

@@ -133,8 +133,6 @@ const styles = StyleSheet.create({
     backgroundColor: navy,
     paddingHorizontal: 16,
     paddingBottom: 18,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
   },
   heroTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   back: {

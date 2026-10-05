@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,8 +14,8 @@ import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodPerson } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
-import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
-import PageHeader from '../../components/PageHeader';
+import { ink, muted, navy, pageBg, yellow } from './learningTheme';
+import PageHeader, { PageSubbar } from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'FindFriend'>;
 
@@ -24,11 +24,15 @@ export default function FindFriendScreen({ navigation }: Props) {
   const [people, setPeople] = useState<PodPerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState('');
+  const seen = useRef(false);
 
   const search = useCallback((value: string) => {
-    setLoading(true);
+    if (!seen.current) setLoading(true);
     podRepository.people(value.trim() || undefined)
-      .then(setPeople)
+      .then((rows) => {
+        seen.current = true;
+        setPeople(rows);
+      })
       .catch(() => setPeople([]))
       .finally(() => setLoading(false));
   }, []);
@@ -54,6 +58,9 @@ export default function FindFriendScreen({ navigation }: Props) {
   return (
     <View style={styles.page}>
       <PageHeader title="Chat with Friend" onBack={() => navigation.goBack()} />
+      <PageSubbar scroll={false}>
+        <Text style={styles.info}>Find anyone in UniMentor by name, email, or user ID.</Text>
+      </PageSubbar>
       <View style={styles.hero}>
         <View style={styles.search}>
           <Text style={styles.searchIcon}>⌕</Text>
@@ -74,11 +81,7 @@ export default function FindFriendScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <View style={styles.infoBar}>
-        <Text style={styles.info}>Find anyone in UniMentor by name, email, or user ID.</Text>
-      </View>
-
-      {loading ? (
+      {loading && people.length === 0 ? (
         <View style={styles.state}><ActivityIndicator color={navy} /></View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -128,8 +131,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: ink, fontSize: 13, paddingVertical: 8 },
   searchBtn: { backgroundColor: yellow, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
   searchBtnText: { color: navy, fontWeight: '900', fontSize: 12 },
-  infoBar: { backgroundColor: ice, paddingHorizontal: 16, paddingVertical: 10 },
-  info: { color: secondaryBlue, fontSize: 12, fontWeight: '700' },
+  info: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   body: { padding: 14, paddingBottom: 24 },
   card: {
     backgroundColor: '#FFF', borderRadius: 20, padding: 13, marginBottom: 10,

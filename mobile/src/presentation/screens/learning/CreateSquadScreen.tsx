@@ -8,7 +8,7 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import { ice, ink, muted, navy, pageBg, yellow } from './learningTheme';
 import { BookOpen } from 'lucide-react-native';
-import PageHeader from '../../components/PageHeader';
+import PageHeader, { PageSubbar } from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateSquad'>;
 
@@ -67,7 +67,7 @@ export default function CreateSquadScreen({ navigation }: Props) {
         onBack={() => (step === 'invite' ? setStep('details') : navigation.goBack())}
       />
 
-      <View style={styles.stepper}>
+      <PageSubbar scroll={false}>
           <TouchableOpacity style={styles.step} onPress={() => setStep('details')} activeOpacity={0.85}>
             <View style={styles.dotOn}>
               {step === 'invite'
@@ -87,7 +87,7 @@ export default function CreateSquadScreen({ navigation }: Props) {
               {step === 'invite' ? 'Peers & Tutors' : 'Peers & Mentors'}
             </Text>
           </TouchableOpacity>
-        </View>
+      </PageSubbar>
 
       <ScrollView contentContainerStyle={styles.body}>
         {step === 'details' ? (

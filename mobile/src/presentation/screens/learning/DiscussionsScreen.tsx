@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,13 +14,15 @@ export default function DiscussionsScreen({ navigation }: Props) {
   const [items, setItems] = useState<PodConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const seen = useRef(false);
 
   const load = useCallback(() => {
     let active = true;
-    setLoading(true);
+    if (!seen.current) setLoading(true);
     podRepository.list('all')
       .then((data) => {
         if (!active) return;
+        seen.current = true;
         setItems(data);
         setError('');
       })

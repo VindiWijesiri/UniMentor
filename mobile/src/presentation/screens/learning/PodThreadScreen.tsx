@@ -19,7 +19,7 @@ import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { FileText, Play, Send, Zap } from 'lucide-react-native';
 import { ink, muted, navy, yellow } from './learningTheme';
-import PageHeader from '../../components/PageHeader';
+import PageHeader, { PageSubbar } from '../../components/PageHeader';
 import ChatMaterialsBar from './ChatMaterialsBar';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PodThread'>;
@@ -108,13 +108,13 @@ export default function PodThreadScreen({ route, navigation }: Props) {
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <PageHeader title={conversation?.title ?? 'Chat Pod'} onBack={() => navigation.goBack()} />
       {group && (
-        <View style={styles.tabs}>
+        <PageSubbar scroll={false}>
           {(['chat', 'notices', 'analytics'] as const).map((key) => (
             <TouchableOpacity key={key} style={[styles.tab, tab === key && styles.tabOn]} onPress={() => setTab(key)}>
               <Text style={[styles.tabText, tab === key && styles.tabTextOn]}>{key[0].toUpperCase() + key.slice(1)}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </PageSubbar>
       )}
 
       {error ? <View style={styles.errorBar}><Text style={styles.errorText}>{error}</Text></View> : null}
@@ -245,11 +245,10 @@ const styles = StyleSheet.create({
   name: { color: '#FFF', fontSize: 17, fontWeight: '900' },
   status: { color: '#C5D4EB', fontSize: 11, marginTop: 2 },
   brand: { color: yellow, fontSize: 12, fontWeight: '800' },
-  tabs: { flexDirection: 'row', backgroundColor: navy, paddingHorizontal: 16, gap: 18, paddingBottom: 10 },
-  tab: { paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabOn: { borderBottomColor: yellow },
-  tabText: { color: '#9BB0D0', fontWeight: '800', fontSize: 13 },
-  tabTextOn: { color: yellow },
+  tab: { borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#C4D4EE' },
+  tabOn: { backgroundColor: navy },
+  tabText: { color: navy, fontWeight: '800', fontSize: 13 },
+  tabTextOn: { color: '#FFFFFF' },
   analytics: { flex: 1, padding: 20 },
   analyticsTitle: { color: ink, fontSize: 18, fontWeight: '900', marginBottom: 10 },
   analyticsMeta: { color: muted, marginBottom: 6, fontWeight: '700' },

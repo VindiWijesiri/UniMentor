@@ -15,7 +15,6 @@ export default function AssessmentsScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    setLoading(true);
     learningRepository.getAssessments()
       .then((data) => { if (active) setItems(data); })
       .catch(() => {})

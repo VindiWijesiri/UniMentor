@@ -15,7 +15,6 @@ export default function StudyPlansScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    setLoading(true);
     learningRepository.getPlans()
       .then((data) => { if (active) setPlans(data); })
       .catch(() => {})

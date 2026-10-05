@@ -17,8 +17,8 @@ import { Play } from 'lucide-react-native';
 import { learningRepository } from '../../../data/repositories/learningRepository';
 import type { LearningDashboard } from '../../../domain/entities/Learning';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
-import PageHeader from '../../components/PageHeader';
-import { card, ice, ink, live, muted, navy, pageBg, yellow } from './learningTheme';
+import PageHeader, { PageSubbar } from '../../components/PageHeader';
+import { card, ink, live, muted, navy, pageBg, yellow } from './learningTheme';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
 import FocusSession from './FocusSession';
 
@@ -137,9 +137,8 @@ export default function LearningDashboardScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <PageHeader title="Learning Dashboard" rounded={false} />
-      <View style={styles.shortcutBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutRow}>
+      <PageHeader title="Learning Dashboard" />
+      <PageSubbar>
           <TouchableOpacity style={[styles.shortcut, styles.shortcutActive]} onPress={() => stack?.navigate('ChatPod')}>
             <View style={styles.liveDot} />
             <Text style={styles.shortcutActiveText}>Chat Pod</Text>
@@ -161,8 +160,7 @@ export default function LearningDashboardScreen({ navigation }: Props) {
             <MaterialIcons name="assignment" size={15} color="#FFF" />
             <Text style={styles.shortcutText}>Assessments</Text>
           </TouchableOpacity>
-        </ScrollView>
-      </View>
+      </PageSubbar>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         {loading && !data ? (
@@ -456,15 +454,6 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: '#4C74B4', alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
-  shortcutBar: {
-    backgroundColor: ice,
-    paddingTop: 2,
-    paddingBottom: 14,
-    paddingLeft: 12,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  shortcutRow: { flexDirection: 'row', gap: 8, paddingRight: 16 },
   shortcut: {
     borderRadius: 22,
     backgroundColor: 'transparent',

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,10 +21,11 @@ export default function TakeAssessmentScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const preview = Boolean(route.params.preview);
+  const loadedId = useRef<string | null>(null);
 
   const load = useCallback(() => {
     let active = true;
-    setLoading(true);
+    if (loadedId.current !== route.params.paperId) setLoading(true);
     assessmentRepository.take(route.params.paperId)
       .then((payload) => {
         if (!active) return;
@@ -32,6 +33,7 @@ export default function TakeAssessmentScreen({ navigation, route }: Props) {
           navigation.replace('AssessmentResult', { paperId: route.params.paperId });
           return;
         }
+        loadedId.current = route.params.paperId;
         setData(payload);
         setAnswers(payload.attempt.answers ?? {});
         setFlagged(payload.attempt.flagged ?? []);
@@ -104,7 +106,12 @@ export default function TakeAssessmentScreen({ navigation, route }: Props) {
   };
 
   if (loading || !data || !question) {
-    return <View style={styles.center}><ActivityIndicator color={navy} /></View>;
+    return (
+      <View style={styles.page}>
+        <TakeHeader course="Assessment" secondsLeft={seconds} onBack={() => navigation.goBack()} />
+        <View style={styles.center}><ActivityIndicator color={navy} /></View>
+      </View>
+    );
   }
 
   const flaggedOn = flagged.includes(question.id);
