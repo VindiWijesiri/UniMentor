@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../../domain/stores/authStore';
 
-// Hotspot IP address
-const BASE_URL = 'http://172.20.10.3:5000/api';
+// Dynamic backend URL from environment or default to local IP / localhost
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.2:5000/api';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -32,7 +32,24 @@ apiClient.interceptors.response.use(
     console.log(`[MOBILE CLIENT RES] ✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url} -> ${dataSummary}`);
     return response;
   },
-  (error) => {
+  async (error) => {
+    // If request failed with network error, attempt fallback between localhost (USB) and Wi-Fi IP
+    if ((error.code === 'ERR_NETWORK' || error.message === 'Network Error') && error.config && !error.config._retriedWithFallback) {
+      const currentBase = error.config.baseURL || BASE_URL;
+      const fallbackBase = currentBase.includes('localhost') || currentBase.includes('127.0.0.1')
+        ? 'http://192.168.1.2:5000/api'
+        : 'http://localhost:5000/api';
+
+      console.log(`[MOBILE CLIENT] 🔄 Network error on ${currentBase}. Retrying with fallback: ${fallbackBase}`);
+      error.config.baseURL = fallbackBase;
+      error.config._retriedWithFallback = true;
+      try {
+        return await axios.request(error.config);
+      } catch (fallbackError: any) {
+        error = fallbackError;
+      }
+    }
+
     console.error(`[MOBILE CLIENT ERR] ❌ Call failed: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url}`, {
       status: error.response?.status,
       errorData: error.response?.data,
@@ -40,15 +57,17 @@ apiClient.interceptors.response.use(
       code: error.code,
     });
 
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
       console.warn('[MOBILE CLIENT] ⚠️ 401 Unauthorized received — clearing session');
       useAuthStore.getState().logout();
     }
 
-    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      error.message = `Cannot reach backend server at ${BASE_URL}.\nEnsure your phone and PC are connected to the same Wi-Fi.`;
+    if (error.response?.data?.message) {
+      error.message = error.response.data.message;
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      error.message = `Cannot reach backend server.\nEnsure backend is running and phone is connected via USB or same Wi-Fi.`;
     } else if (error.message === 'Network Error' && !error.response) {
-      error.message = `Network Error: Cannot connect to ${BASE_URL}.\nVerify your PC's IP address.`;
+      error.message = `Network Error: Cannot connect to backend server.\nEnsure backend is running and phone is connected via USB or same Wi-Fi.`;
     }
 
     return Promise.reject(error);

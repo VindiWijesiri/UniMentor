@@ -33,9 +33,25 @@ app.use((req, res, next) => {
   next();
 });
 
+import mongoose from 'mongoose';
+
 // Health check
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    dbConnected: mongoose.connection.readyState === 1,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Database connectivity check for API routes to prevent Mongoose 10s query hangs
+app.use('/api', (_req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      message: 'Database connection pending. Please whitelist IP 112.134.149.17 or 0.0.0.0/0 in MongoDB Atlas > Network Access.',
+    });
+  }
+  next();
 });
 
 // API routes

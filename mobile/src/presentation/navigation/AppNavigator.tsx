@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, View, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
@@ -69,42 +70,87 @@ function LogoTitle() {
   );
 }
 
+import TutorDashboardScreen from '../screens/home/TutorDashboardScreen';
+import { Ionicons } from '@expo/vector-icons';
+
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   const currentUser = useAuthStore((state) => state.user);
   const isStudent = !currentUser || currentUser.role === 'student';
 
   if (!isStudent) {
-    // When logged in as a mentor, display only their tutor profile and essential mentor tabs
+    // Tutor / Mentor navigation matching the provided UI design
     return (
       <Tab.Navigator
         screenOptions={{
-          headerTitle: () => <LogoTitle />,
-          headerStyle: { backgroundColor: colors.background },
-          headerShadowVisible: false,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textLight,
+          headerShown: false,
+          tabBarActiveTintColor: '#EAA023',
+          tabBarInactiveTintColor: '#64748B',
           tabBarStyle: {
             borderTopWidth: 1,
-            borderTopColor: colors.border,
-            paddingBottom: 8,
-            paddingTop: 4,
-            height: 60,
+            borderTopColor: '#E2E8F0',
+            backgroundColor: '#FFFFFF',
+            height: 56 + Math.max(insets.bottom, 12),
+            paddingBottom: Math.max(insets.bottom, 10),
+            paddingTop: 8,
+            elevation: 12,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.06,
+            shadowRadius: 8,
           },
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 2 },
         }}
       >
+        <Tab.Screen
+          name="Home"
+          component={TutorDashboardScreen}
+          options={{
+            tabBarLabel: 'Home',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            ),
+          }}
+        />
         <Tab.Screen
           name="TutorProfileTab"
           component={TutorProfileScreen}
           options={{
-            tabBarLabel: 'Tutor Profile',
-            headerShown: false,
+            tabBarLabel: 'Bookings',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Search"
+          component={HomeScreen}
+          options={{
+            tabBarLabel: 'Learning',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'book' : 'book-outline'} size={24} color={color} />
+            ),
           }}
         />
         <Tab.Screen
           name="Messages"
           component={ChatInboxScreen}
-          options={{ tabBarLabel: 'Messages' }}
+          options={{
+            tabBarLabel: 'Alerts',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'notifications' : 'notifications-outline'} size={24} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            tabBarLabel: 'Profile',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+            ),
+          }}
         />
       </Tab.Navigator>
     );

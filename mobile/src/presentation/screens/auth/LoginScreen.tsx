@@ -21,6 +21,20 @@ export default function LoginScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const { setUser, setToken } = useAuthStore();
 
+  const enterDemo = (role: 'mentor' | 'student') => {
+    setUser({
+      _id: role === 'mentor' ? 'mentor-demo-1' : 'student-demo-1',
+      name: role === 'mentor' ? 'Tharushi Perera' : 'Student Demo',
+      email: role === 'mentor' ? 'kavindu.perera@unimentor.lk' : 'student@unimentor.dev',
+      role,
+      subjects: ['Data Structures & Algorithms', 'Software Engineering'],
+      rating: 4.9,
+      reviewCount: 120,
+      hourlyRate: 2500,
+    } as any);
+    setToken('demo-token-preview');
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Validation', 'Please enter email and password.');
@@ -32,7 +46,26 @@ export default function LoginScreen({ navigation }: Props) {
       setToken(result.token);
       setUser(result.user);
     } catch (err: any) {
-      Alert.alert('Login Failed', err.message ?? 'Something went wrong.');
+      const isDbPending =
+        err.message?.includes('503') ||
+        err.message?.includes('Database connection pending') ||
+        err.message?.includes('Network Error');
+      if (isDbPending) {
+        const isMentor = email.toLowerCase().includes('mentor') || email.toLowerCase().includes('kavindu');
+        Alert.alert(
+          'Database Pending',
+          'MongoDB Atlas is pending IP whitelist. Would you like to enter in Demo Mode to preview the Dashboard immediately?',
+          [
+            { text: 'Wait for Atlas', style: 'cancel' },
+            {
+              text: 'Enter Demo Mode',
+              onPress: () => enterDemo(isMentor ? 'mentor' : 'student'),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Login Failed', err.message ?? 'Something went wrong.');
+      }
     } finally {
       setLoading(false);
     }
@@ -112,6 +145,13 @@ export default function LoginScreen({ navigation }: Props) {
                 <Text style={[styles.demoBtnText, styles.demoBtnTextMentor]}>⭐ Mentor Account</Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={styles.directPreviewBtn}
+              onPress={() => enterDemo('mentor')}
+            >
+              <Text style={styles.directPreviewText}>⚡ Direct Launch: Tutor Dashboard</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -120,6 +160,22 @@ export default function LoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  directPreviewBtn: {
+    marginTop: 10,
+    backgroundColor: '#0A2342',
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+  },
+  directPreviewText: {
+    color: '#F59E0B',
+    fontWeight: '800',
+    fontSize: 13,
+    letterSpacing: 0.2,
+  },
   container: {
     flexGrow: 1,
     backgroundColor: colors.background,
