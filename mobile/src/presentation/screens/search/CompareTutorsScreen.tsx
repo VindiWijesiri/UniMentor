@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
@@ -117,17 +118,31 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroOrb} />
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}><Text style={styles.backText}>‹</Text></TouchableOpacity>
-        <View style={styles.heroCopy}>
-          <Text style={styles.title}>Compare Tutors</Text>
-          <Text style={styles.subtitle}>Student reviews • Up to 3 tutors</Text>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Compare Tutors</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
-        {loading && <ActivityIndicator color="#F59E0B" />}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) + 88 }}>
+        <View style={styles.subHeaderWrap}>
+          <Text style={styles.belowHeaderSubtitle}>Student reviews • Up to 3 tutors</Text>
+          {loading && <ActivityIndicator color="#F59E0B" size="small" />}
+        </View>
         <View style={styles.infoBanner}>
           <View style={styles.infoIcon}><Text style={styles.infoIconText}>★</Text></View>
           <Text style={styles.infoText}>Best Match is calculated from student ratings and review count.</Text>
@@ -207,7 +222,7 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
             <Text style={styles.selectButtonLabel}>SELECTED TUTOR</Text>
             <Text style={styles.selectButtonText}>{selectedTutor?.name ?? 'Select a tutor'}</Text>
           </View>
-          <Text style={styles.selectArrow}>→</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -221,13 +236,62 @@ const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  hero: { minHeight: 112, backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 15, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
-  heroOrb: { position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: navyCard, right: -80, top: -110, opacity: 0.65 },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  backText: { color: '#FFF', fontSize: 34, lineHeight: 35, marginTop: -3 },
-  heroCopy: { flex: 1, marginLeft: 13 },
-  title: { color: '#FFF', fontSize: 24, fontWeight: '900' },
-  subtitle: { color: '#C5D4EB', fontSize: 11.5, marginTop: 3 },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  subHeaderWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  belowHeaderSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   infoBanner: { margin: 14, marginBottom: 6, minHeight: 54, borderRadius: 15, backgroundColor: '#FFFDF0', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
   infoIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: amber, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
   infoIconText: { color: '#FFF', fontSize: 14 },

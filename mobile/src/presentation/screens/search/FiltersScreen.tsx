@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { TutorFilters } from '../../../domain/entities/TutorFilters';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 
@@ -12,12 +13,12 @@ const sections: Array<{
   key: FilterKey;
   title: string;
   subtitle: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   options: string[];
 }> = [
-  { key: 'experience', title: 'Experience', subtitle: 'Teaching experience', icon: 'E', options: ['1-2 years', '3-5 years', '5+ years'] },
-  { key: 'language', title: 'Language', subtitle: 'Preferred teaching language', icon: 'L', options: ['English', 'Sinhala', 'Tamil'] },
-  { key: 'lessonType', title: 'Lesson Type', subtitle: 'Choose a class type', icon: 'P', options: ['Individual', 'Group'] },
+  { key: 'experience', title: 'Experience', subtitle: 'Teaching experience', icon: 'briefcase-outline', options: ['1-2 years', '3-5 years', '5+ years'] },
+  { key: 'language', title: 'Language', subtitle: 'Preferred teaching language', icon: 'language-outline', options: ['English', 'Sinhala', 'Tamil'] },
+  { key: 'lessonType', title: 'Lesson Type', subtitle: 'Choose a class type', icon: 'people-outline', options: ['Individual', 'Group'] },
 ];
 
 function OptionGroup({
@@ -65,25 +66,35 @@ export default function FiltersScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerOrbLeft} />
-        <View style={styles.headerOrbRight} />
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>Filters</Text>
-          <Text style={styles.subtitle}>Refine your tutor search</Text>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Filters</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <TouchableOpacity style={styles.clearHeaderBtn} onPress={() => setFilters({})} activeOpacity={0.8}>
+              <Text style={styles.clearHeaderText}>Clear</Text>
+            </TouchableOpacity>
+            <View style={styles.brandTextWrap}>
+              <Text style={styles.brandUni}>Uni</Text>
+              <Text style={styles.brandMentor}>Mentor</Text>
+            </View>
+          </View>
         </View>
-        <TouchableOpacity style={styles.clearButton} onPress={() => setFilters({})} activeOpacity={0.8}>
-          <Text style={styles.clearText}>Clear All</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.belowHeaderSubtitle}>Refine your tutor search criteria</Text>
+
         <View style={styles.card}>
           <View style={styles.sectionTop}>
-            <View style={styles.sectionIcon}><Text style={styles.sectionIconText}>₨</Text></View>
+            <View style={styles.sectionIcon}>
+              <Ionicons name="cash-outline" size={18} color="#D97706" />
+            </View>
             <View style={styles.sectionCopy}>
               <Text style={styles.sectionTitle}>Price Range (LKR)</Text>
               <Text style={styles.sectionSubtitle}>Hourly rate</Text>
@@ -100,7 +111,9 @@ export default function FiltersScreen({ route, navigation }: Props) {
 
         <View style={styles.card}>
           <View style={styles.sectionTop}>
-            <View style={styles.sectionIcon}><Text style={styles.sectionIconText}>★</Text></View>
+            <View style={styles.sectionIcon}>
+              <Ionicons name="star" size={18} color="#D97706" />
+            </View>
             <View style={styles.sectionCopy}>
               <Text style={styles.sectionTitle}>Rating</Text>
               <Text style={styles.sectionSubtitle}>Minimum tutor rating</Text>
@@ -116,7 +129,9 @@ export default function FiltersScreen({ route, navigation }: Props) {
         {sections.map((section) => (
           <View style={styles.card} key={section.key}>
             <View style={styles.sectionTop}>
-              <View style={styles.sectionIcon}><Text style={styles.sectionIconText}>{section.icon}</Text></View>
+              <View style={styles.sectionIcon}>
+                <Ionicons name={section.icon} size={18} color="#D97706" />
+              </View>
               <View style={styles.sectionCopy}>
                 <Text style={styles.sectionTitle}>{section.title}</Text>
                 <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
@@ -134,7 +149,7 @@ export default function FiltersScreen({ route, navigation }: Props) {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <TouchableOpacity style={styles.applyButton} onPress={applyFilters} activeOpacity={0.86}>
           <Text style={styles.applyText}>Apply Filters</Text>
-          <Text style={styles.applyArrow}>→</Text>
+          <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </View>
     </View>
@@ -148,20 +163,75 @@ const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  header: { minHeight: 124, backgroundColor: navy, paddingHorizontal: 18, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
-  headerOrbLeft: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: navyCard, left: -78, top: -70, opacity: 0.65 },
-  headerOrbRight: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: navyCard, right: -90, top: -92, opacity: 0.5 },
-  backButton: { width: 43, height: 43, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  backIcon: { color: '#FFF', fontSize: 35, lineHeight: 36, fontWeight: '300', marginTop: -3 },
-  headerCopy: { flex: 1, alignItems: 'center', zIndex: 2 },
-  title: { color: '#FFF', fontSize: 25, fontWeight: '900' },
-  subtitle: { color: '#C9D8F0', fontSize: 11.5, marginTop: 4 },
-  clearButton: { height: 38, borderRadius: 19, backgroundColor: '#FFF', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  clearText: { color: navy, fontSize: 11.5, fontWeight: '900' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  clearHeaderBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  clearHeaderText: {
+    color: '#FBBF24',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  brandTextWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  belowHeaderSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    marginBottom: 10,
+    fontWeight: '500',
+  },
   scrollContent: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 102 },
   card: { backgroundColor: '#FFF', borderRadius: 18, borderWidth: 1, borderColor: '#E2E8F0', padding: 13, marginBottom: 9, shadowColor: '#1D3D66', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   sectionTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  sectionIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF2F8', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
+  sectionIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#FFFDF0', borderWidth: 1, borderColor: '#FDE68A', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
   sectionIconText: { color: navy, fontSize: 17, fontWeight: '900' },
   sectionCopy: { flex: 1 },
   sectionTitle: { color: navy, fontSize: 15, fontWeight: '900' },

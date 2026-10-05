@@ -181,22 +181,19 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#061E47' },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: { fontWeight: '800', color: '#FFFFFF' },
-        headerShadowVisible: false,
+        headerShown: false,
         contentStyle: { backgroundColor: '#F4F7FB' },
       }}
     >
-      <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-      <Stack.Screen name="TutorProfile" component={TutorProfileScreen} options={{ title: 'Tutor Profile' }} />
-      <Stack.Screen name="Filters" component={FiltersScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="WriteReview" component={WriteReviewScreen} options={{ title: 'Write a Review' }} />
-      <Stack.Screen name="Reviews" component={ReviewsScreen} options={{ title: 'Reviews' }} />
-      <Stack.Screen name="CompareTutors" component={CompareTutorsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="RecommendedTutor" component={RecommendedTutorScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="GuidanceWizard" component={HomeScreen} options={{ title: 'Academic Guidance' }} />
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="TutorProfile" component={TutorProfileScreen} />
+      <Stack.Screen name="Filters" component={FiltersScreen} />
+      <Stack.Screen name="WriteReview" component={WriteReviewScreen} />
+      <Stack.Screen name="Reviews" component={ReviewsScreen} />
+      <Stack.Screen name="CompareTutors" component={CompareTutorsScreen} />
+      <Stack.Screen name="RecommendedTutor" component={RecommendedTutorScreen} />
+      <Stack.Screen name="Chat" component={ChatScreen} />
+      <Stack.Screen name="GuidanceWizard" component={HomeScreen} />
     </Stack.Navigator>
   );
 }

@@ -124,45 +124,43 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
-        <View style={styles.headerTop}>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>My Profile</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity style={styles.editHeaderBtn} onPress={openEditModal} activeOpacity={0.8}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="create-outline" size={13} color="#FBBF24" />
-                <Text style={styles.editHeaderBtnText}>Edit</Text>
-              </View>
-            </TouchableOpacity>
-            <View style={styles.brandRow}>
-              <Text style={styles.brandUni}>Uni</Text>
-              <Text style={styles.brandMentor}>Mentor</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Profile Card Summary */}
-        <View style={styles.profileSummaryRow}>
-          <View style={styles.avatarWrap}>
-            <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
-            <View style={styles.onlineDot} />
-          </View>
-
-          <View style={styles.profileCopyWrap}>
-            <View style={styles.roleRow}>
-              <Text style={styles.profileName}>{name}</Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleBadgeText}>{role.toUpperCase()}</Text>
-              </View>
-            </View>
-            <Text style={styles.profileEmail}>{email}</Text>
-            <Text style={styles.academicPillText}>{`${degree} • ${academicYear} ${semester}`}</Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Profile Hero Card */}
+        <View style={styles.profileHeroCard}>
+          <View style={styles.profileSummaryRow}>
+            <View style={styles.avatarWrap}>
+              <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
+              <View style={styles.onlineDot} />
+            </View>
+
+            <View style={styles.profileCopyWrap}>
+              <View style={styles.roleRow}>
+                <Text style={styles.profileName}>{name}</Text>
+                <View style={styles.roleBadge}>
+                  <Text style={styles.roleBadgeText}>{role.toUpperCase()}</Text>
+                </View>
+              </View>
+              <Text style={styles.profileEmail}>{email}</Text>
+              <Text style={styles.academicPillText}>{`${degree} • ${academicYear} ${semester}`}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.editProfileBtn} onPress={openEditModal} activeOpacity={0.8}>
+              <Ionicons name="create-outline" size={13} color="#061E47" />
+              <Text style={styles.editProfileBtnText}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         {/* Academic Stats */}
         <View style={styles.statsCard}>
           <Text style={styles.sectionHeading}>ACADEMIC SUMMARY</Text>
@@ -345,19 +343,16 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F4F7FB' },
-  header: {
+  headerBar: {
     backgroundColor: '#061E47',
     paddingHorizontal: 20,
     paddingBottom: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
   },
-  headerTop: {
+  headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     minHeight: 36,
-    marginBottom: 14,
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -379,16 +374,31 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  editHeaderBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+  profileHeroCard: {
+    backgroundColor: '#061E47',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#061E47',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  editHeaderBtnText: {
-    color: '#FFFFFF',
+  editProfileBtn: {
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginLeft: 8,
+  },
+  editProfileBtnText: {
+    color: '#061E47',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   profileSummaryRow: {
     flexDirection: 'row',

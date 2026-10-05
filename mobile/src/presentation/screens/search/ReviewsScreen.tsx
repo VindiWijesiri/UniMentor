@@ -151,16 +151,31 @@ export default function ReviewsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      {/* Hero Header */}
-      <View style={[styles.hero, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
-        <View style={styles.headerTopBar}>
-          <Text style={styles.headerTitle}>Tutor Reviews</Text>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Tutor Reviews</Text>
+          </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
-        <Text style={styles.subtitle}>
+      </View>
+
+      {/* Sub Header Section Below Header */}
+      <View style={styles.subHeaderContainer}>
+        <Text style={styles.belowHeaderSubtitle}>
           Share learning feedback and manage your submitted tutor reviews
         </Text>
 
@@ -192,7 +207,7 @@ export default function ReviewsScreen({ navigation }: Props) {
 
         {activeTab === 'tutors' && (
           <View style={styles.searchBox}>
-            <Ionicons name="search" size={16} color="#8997AF" style={{ marginRight: 8 }} />
+            <Ionicons name="search" size={17} color="#8997AF" style={{ marginRight: 8 }} />
             <TextInput
               value={query}
               onChangeText={setQuery}
@@ -389,19 +404,28 @@ export default function ReviewsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  hero: {
+  headerBar: {
     backgroundColor: '#061E47',
     paddingHorizontal: 20,
     paddingBottom: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
   },
-  headerTopBar: {
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 36,
-    marginBottom: 4,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -423,44 +447,59 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  subtitle: {
-    color: '#D5E3F6',
-    fontSize: 12.5,
-    marginTop: 2,
-    marginBottom: 12,
+  subHeaderContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  belowHeaderSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    marginBottom: 10,
+    fontWeight: '500',
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 14,
-    padding: 4,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 3,
     marginBottom: 10,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 7,
+    paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 10,
   },
   tabBtnActive: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   tabBtnText: {
-    color: '#CBD5E1',
+    color: '#64748B',
     fontSize: 12,
     fontWeight: '700',
   },
   tabBtnTextActive: {
-    color: '#FFFFFF',
+    color: '#061E47',
+    fontWeight: '800',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    paddingHorizontal: 10,
-    height: 40,
-    marginTop: 4,
+    paddingHorizontal: 12,
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   searchIcon: {
     fontSize: 14,
@@ -468,7 +507,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     color: '#0F172A',
   },
   listContent: {

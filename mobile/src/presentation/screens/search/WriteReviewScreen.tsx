@@ -306,6 +306,28 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Write a Review</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -593,6 +615,49 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#F4F7FB',
+  },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
   },
   scrollContent: {
     paddingHorizontal: 16,

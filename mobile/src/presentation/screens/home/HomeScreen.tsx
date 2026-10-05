@@ -4,9 +4,9 @@ import {
   Modal, Pressable, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../domain/stores/authStore';
+import { Ionicons } from '@expo/vector-icons';
 import type { AppTabParamList } from '../../navigation/AppNavigator';
 
 type Props = {
@@ -278,19 +278,30 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.hero, { paddingTop: navigation.canGoBack?.() ? 12 : insets.top + 14 }]}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}><Text style={styles.brandMarkText}>U</Text></View>
-            <View style={styles.brandCopy}>
-              <Text style={styles.brandName}><Text style={styles.brandStrong}>Uni</Text>Mentor</Text>
-              <Text style={styles.brandTagline}>Learn Better. Go Further.</Text>
-            </View>
-            <TouchableOpacity style={styles.headerIcon}><Text style={styles.bell}>●</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
-              <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
-            </TouchableOpacity>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Academic Guidance</Text>
           </View>
+          <View style={styles.brandRowTop}>
+            <Text style={styles.brandUniTop}>Uni</Text>
+            <Text style={styles.brandMentorTop}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.hero}>
           <View style={styles.heroBody}>
             <View style={styles.heroCopy}>
               <View style={styles.stepPill}><Text style={styles.stepPillText}>Step 1 of 3</Text></View>
@@ -410,7 +421,51 @@ export default function HomeScreen({ navigation }: Props) {
 const navy = '#061E47';
 const blue = '#0B2754';
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F4F7FB' }, scrollContent: { paddingBottom: 110 },
+  page: { flex: 1, backgroundColor: '#F4F7FB' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUniTop: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentorTop: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  scrollContent: { paddingBottom: 110 },
   hero: { backgroundColor: navy, paddingHorizontal: 20, paddingBottom: 44, overflow: 'hidden' },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
   brandMark: { width: 42, height: 34, borderRadius: 10, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },

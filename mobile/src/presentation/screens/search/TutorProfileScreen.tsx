@@ -120,6 +120,28 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Tutor Profile</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 82 }]}
         showsVerticalScrollIndicator={false}
@@ -145,7 +167,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                 onPress={() => useAuthStore.getState().logout()}
                 activeOpacity={0.8}
               >
-                <Text style={styles.heroSignOutText}>Sign Out 🚪</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="log-out-outline" size={14} color="#FFFFFF" />
+                  <Text style={styles.heroSignOutText}>Sign Out</Text>
+                </View>
               </TouchableOpacity>
             )}
           </View>
@@ -284,7 +309,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               </View>
             ) : reviews.length === 0 ? (
               <View style={styles.emptyReviewsBox}>
-                <Text style={styles.emptyReviewsEmoji}>💬</Text>
+                <Ionicons name="chatbubbles-outline" size={44} color="#94A3B8" style={{ marginBottom: 8 }} />
                 <Text style={styles.emptyReviewsTitle}>No reviews yet</Text>
                 <Text style={styles.emptyReviewsSubtitle}>
                   Be the first student to share your learning experience with {mentor.name}!
@@ -401,14 +426,20 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             onPress={() => navigation.navigate('Messages')}
             activeOpacity={0.84}
           >
-            <Text style={styles.mentorTabActionText}>💬 Student Messages</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="chatbubbles-outline" size={17} color="#061E47" />
+              <Text style={styles.mentorTabActionText}>Student Messages</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.mentorTabLogoutBtn}
             onPress={() => useAuthStore.getState().logout()}
             activeOpacity={0.84}
           >
-            <Text style={styles.mentorTabLogoutText}>Sign Out 🚪</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="log-out-outline" size={17} color="#DC2626" />
+              <Text style={styles.mentorTabLogoutText}>Sign Out</Text>
+            </View>
           </TouchableOpacity>
         </View>
       ) : (
@@ -422,16 +453,18 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             }}
             activeOpacity={0.82}
           >
-            <Text style={styles.backArrow}>←</Text>
+            <Ionicons name="chevron-back" size={18} color="#061E47" />
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.chatButton} onPress={openChat} activeOpacity={0.84}>
-            <View style={styles.chatIcon}><Text style={styles.chatIconText}>•••</Text></View>
+            <View style={styles.chatIcon}>
+              <Ionicons name="chatbubble-ellipses" size={16} color="#FFFFFF" />
+            </View>
             <View>
               <Text style={styles.chatButtonLabel}>DIRECT MESSAGE</Text>
               <Text style={styles.chatButtonText}>{chatLabel}</Text>
             </View>
-            <Text style={styles.chatArrow}>→</Text>
+            <Ionicons name="arrow-forward" size={16} color="#FBBF24" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
       )}
@@ -447,6 +480,49 @@ const onlineGreen = '#22C55E';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
   content: { backgroundColor: '#F4F7FB' },
   hero: { backgroundColor: navy, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, overflow: 'hidden' },
   heroOrbLarge: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: navyCard, right: -92, top: -104, opacity: 0.65 },

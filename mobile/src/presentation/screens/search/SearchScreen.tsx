@@ -491,58 +491,14 @@ export default function SearchScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
-        <View style={styles.headerTopBar}>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>Find Your Mentor</Text>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
           </View>
-        </View>
-
-        <Text style={styles.subtitle}>Choose a verified peer tutor for your module</Text>
-
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={16} color="#8492AD" style={{ marginRight: 8 }} />
-          <TextInput
-            style={styles.input}
-            placeholder="Search module, tutor name, or topic..."
-            placeholderTextColor="#8492AD"
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={() => void handleSearch()}
-            returnKeyType="search"
-          />
-          <TouchableOpacity style={styles.searchButton} onPress={() => void handleSearch()}>
-            <Text style={styles.searchButtonText}>Search</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tab Switcher: All Tutors vs My Shortlist */}
-        <View style={styles.tabSwitchRow}>
-          <TouchableOpacity
-            style={[styles.tabSwitchBtn, searchTab === 'browse' && styles.tabSwitchBtnActive]}
-            onPress={() => setSearchTab('browse')}
-          >
-            <Text style={[styles.tabSwitchText, searchTab === 'browse' && styles.tabSwitchTextActive]}>
-              All Tutors ({visibleMentors.length})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabSwitchBtn, searchTab === 'shortlist' && styles.tabSwitchBtnActive]}
-            onPress={() => setSearchTab('shortlist')}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons
-                name="star"
-                size={13}
-                color={searchTab === 'shortlist' ? '#FFFFFF' : '#F59E0B'}
-              />
-              <Text style={[styles.tabSwitchText, searchTab === 'shortlist' && styles.tabSwitchTextActive]}>
-                My Shortlist ({shortlist.length})
-              </Text>
-            </View>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -552,7 +508,58 @@ export default function SearchScreen({ route, navigation }: Props) {
         renderItem={searchTab === 'browse' ? (renderMentor as any) : (renderShortlistCard as any)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.listContent, comparisonIds.length > 0 && styles.listContentWithCompare]}
-        ListHeaderComponent={searchTab === 'browse' ? (
+        ListHeaderComponent={
+          <>
+            <View style={styles.belowHeaderSection}>
+              <Text style={styles.belowHeaderSubtitle}>
+                Choose a verified peer tutor for your university module
+              </Text>
+
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={17} color="#8492AD" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Search module, tutor name, or topic..."
+                  placeholderTextColor="#8492AD"
+                  value={query}
+                  onChangeText={setQuery}
+                  onSubmitEditing={() => void handleSearch()}
+                  returnKeyType="search"
+                />
+                <TouchableOpacity style={styles.searchButton} onPress={() => void handleSearch()}>
+                  <Text style={styles.searchButtonText}>Search</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Tab Switcher: All Tutors vs My Shortlist */}
+              <View style={styles.tabSwitchRow}>
+                <TouchableOpacity
+                  style={[styles.tabSwitchBtn, searchTab === 'browse' && styles.tabSwitchBtnActive]}
+                  onPress={() => setSearchTab('browse')}
+                >
+                  <Text style={[styles.tabSwitchText, searchTab === 'browse' && styles.tabSwitchTextActive]}>
+                    All Tutors ({visibleMentors.length})
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tabSwitchBtn, searchTab === 'shortlist' && styles.tabSwitchBtnActive]}
+                  onPress={() => setSearchTab('shortlist')}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons
+                      name="star"
+                      size={13}
+                      color={searchTab === 'shortlist' ? '#FFFFFF' : '#F59E0B'}
+                    />
+                    <Text style={[styles.tabSwitchText, searchTab === 'shortlist' && styles.tabSwitchTextActive]}>
+                      My Shortlist ({shortlist.length})
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {searchTab === 'browse' ? (
           <>
             <View style={styles.filterHeadingRow}>
               <Text style={styles.browseLabel}>Filter by module</Text>
@@ -625,7 +632,9 @@ export default function SearchScreen({ route, navigation }: Props) {
             </View>
           </View>
         )}
-        ListEmptyComponent={(
+      </>
+    }
+    ListEmptyComponent={(
           <View style={styles.emptyCard}>
             <Ionicons
               name={searchTab === 'browse' ? 'search-outline' : 'star-outline'}
@@ -744,23 +753,16 @@ const onlineGreen = '#22C55E';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  header: {
+  headerBar: {
     backgroundColor: navy,
     paddingHorizontal: 20,
     paddingBottom: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
   },
-  headerTopBar: {
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 36,
-    marginBottom: 4,
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -782,19 +784,36 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  subtitle: {
-    color: '#D5E3F6',
-    fontSize: 12.5,
-    lineHeight: 18,
+  belowHeaderSection: {
+    marginBottom: 14,
+  },
+  belowHeaderSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    marginBottom: 12,
     marginTop: 2,
+    fontWeight: '500',
+  },
+  searchBox: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#FFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#001433',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
     marginBottom: 12,
   },
-  searchBox: { height: 54, borderRadius: 16, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center', paddingLeft: 13, shadowColor: '#001433', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   searchIcon: { color: navy, fontSize: 25, fontWeight: '800', marginRight: 7, marginTop: -3 },
-  input: { flex: 1, color: '#253654', fontSize: 14, paddingVertical: 0 },
-  searchButton: { height: 42, borderRadius: 12, backgroundColor: amber, justifyContent: 'center', paddingHorizontal: 16, marginRight: 6 },
+  input: { flex: 1, color: '#253654', fontSize: 13.5, paddingVertical: 0 },
+  searchButton: { height: 38, borderRadius: 10, backgroundColor: amber, justifyContent: 'center', paddingHorizontal: 16, marginRight: 5 },
   searchButtonText: { color: '#FFF', fontSize: 13, fontWeight: '900' },
-  listContent: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 110 },
+  listContent: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 110 },
   listContentWithCompare: { paddingBottom: 160 },
   filterHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   browseLabel: { color: navy, fontSize: 13, fontWeight: '800' },
@@ -907,26 +926,25 @@ const styles = StyleSheet.create({
   /* Tab Switcher: All Tutors vs My Shortlist */
   tabSwitchRow: {
     flexDirection: 'row',
-    marginTop: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 14,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 12,
     padding: 3,
   },
   tabSwitchBtn: {
     flex: 1,
     paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 10,
   },
   tabSwitchBtnActive: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
     elevation: 2,
   },
   tabSwitchText: {
-    color: '#D5E3F6',
+    color: '#64748B',
     fontSize: 12,
     fontWeight: '700',
   },

@@ -468,8 +468,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#061E47',
     paddingHorizontal: 20,
     paddingBottom: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
   },
   headerRow: {
     flexDirection: 'row',

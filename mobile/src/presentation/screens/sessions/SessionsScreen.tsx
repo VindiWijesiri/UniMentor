@@ -139,85 +139,15 @@ export default function SessionsScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
-        <View style={styles.headerTopRow}>
-          <View style={{ flex: 1, marginRight: 12 }}>
-            <Text style={styles.headerTitle}>My Bookings & Modules</Text>
-            <Text style={styles.headerSubtitle}>
-              Peer tutoring sessions and registered modules
-            </Text>
-          </View>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>My Bookings</Text>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
-
-        {/* Stats Row */}
-        <View style={styles.statsCard}>
-          <View style={styles.statCol}>
-            <Text style={styles.statVal}>{enrolledModules.length}</Text>
-            <Text style={styles.statLbl}>Modules</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statCol}>
-            <Text style={styles.statVal}>{totalCredits}</Text>
-            <Text style={styles.statLbl}>Credits</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statCol}>
-            <Text style={styles.statVal}>{avgProgress}%</Text>
-            <Text style={styles.statLbl}>Avg Progress</Text>
-          </View>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={16} color="#8997AF" style={{ marginRight: 8 }} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search selected modules, codes, or mentors..."
-            placeholderTextColor="#8997AF"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearSearchText}>✕</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Filter Pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          {(['all', 'Computing', 'Engineering', 'Business', 'Architecture'] as FacultyFilter[]).map(
-            (fac) => {
-              const isActive = selectedFaculty === fac;
-              const label = fac === 'all' ? `All (${enrolledModules.length})` : fac;
-              return (
-                <TouchableOpacity
-                  key={fac}
-                  style={[styles.filterChip, isActive && styles.filterChipActive]}
-                  onPress={() => setSelectedFaculty(fac)}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      isActive && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }
-          )}
-        </ScrollView>
       </View>
 
       {/* Modules List */}
@@ -230,6 +160,78 @@ export default function SessionsScreen() {
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#061E47" />
+        }
+        ListHeaderComponent={
+          <View style={styles.belowHeaderSection}>
+            <Text style={styles.belowHeaderSubtitle}>
+              Peer tutoring sessions and registered university modules
+            </Text>
+
+            {/* Stats Row */}
+            <View style={styles.statsCard}>
+              <View style={styles.statCol}>
+                <Text style={styles.statVal}>{enrolledModules.length}</Text>
+                <Text style={styles.statLbl}>Modules</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statCol}>
+                <Text style={styles.statVal}>{totalCredits}</Text>
+                <Text style={styles.statLbl}>Credits</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statCol}>
+                <Text style={styles.statVal}>{avgProgress}%</Text>
+                <Text style={styles.statLbl}>Avg Progress</Text>
+              </View>
+            </View>
+
+            {/* Search Bar */}
+            <View style={styles.searchBox}>
+              <Ionicons name="search" size={17} color="#8997AF" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search selected modules, codes, or mentors..."
+                placeholderTextColor="#8997AF"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={18} color="#8997AF" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Filter Pills */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              {(['all', 'Computing', 'Engineering', 'Business', 'Architecture'] as FacultyFilter[]).map(
+                (fac) => {
+                  const isActive = selectedFaculty === fac;
+                  const label = fac === 'all' ? `All (${enrolledModules.length})` : fac;
+                  return (
+                    <TouchableOpacity
+                      key={fac}
+                      style={[styles.filterChip, isActive && styles.filterChipActive]}
+                      onPress={() => setSelectedFaculty(fac)}
+                    >
+                      <Text
+                        style={[
+                          styles.filterChipText,
+                          isActive && styles.filterChipTextActive,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }
+              )}
+            </ScrollView>
+          </View>
         }
         ListEmptyComponent={
           loading ? (
@@ -394,7 +396,10 @@ export default function SessionsScreen() {
                         onPress={() => handleOpenChat(item.mentor!)}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.chatBtnText}>Chat 💬</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="chatbubbles-outline" size={14} color="#061E47" />
+                          <Text style={styles.chatBtnText}>Chat</Text>
+                        </View>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -435,33 +440,22 @@ const styles = StyleSheet.create({
   },
 
   /* Header */
-  header: {
+  headerBar: {
     backgroundColor: navy,
     paddingHorizontal: 20,
     paddingBottom: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
   },
-  headerTopRow: {
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    minHeight: 36,
   },
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.2,
-  },
-  headerSubtitle: {
-    color: '#D7E6FA',
-    fontSize: 12,
-    marginTop: 2,
   },
   brandRow: {
     flexDirection: 'row',
@@ -477,67 +471,70 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  moduleCountBadge: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+  belowHeaderSection: {
+    marginBottom: 6,
   },
-  moduleCountText: {
-    color: '#FBBF24',
-    fontSize: 11.5,
-    fontWeight: '800',
+  belowHeaderSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    marginBottom: 12,
+    marginTop: 2,
+    fontWeight: '500',
   },
 
-  /* Stats Card in Header */
+  /* Stats Card Below Header */
   statsCard: {
-    backgroundColor: navyLight,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   statCol: {
     alignItems: 'center',
   },
   statVal: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: '#061E47',
+    fontSize: 18,
     fontWeight: '900',
   },
   statLbl: {
-    color: '#93C5FD',
-    fontSize: 10,
+    color: '#64748B',
+    fontSize: 10.5,
     fontWeight: '700',
-    marginTop: 1,
+    marginTop: 2,
     textTransform: 'uppercase',
   },
   statDivider: {
     width: 1,
-    height: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    height: 24,
+    backgroundColor: '#E2E8F0',
   },
 
   /* Search Box */
   searchBox: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    height: 40,
-    marginBottom: 10,
-  },
-  searchIcon: {
-    fontSize: 13,
-    marginRight: 8,
+    height: 44,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
@@ -545,38 +542,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     paddingVertical: 0,
   },
-  clearSearchText: {
-    color: '#8997AF',
-    fontSize: 13,
-    paddingHorizontal: 6,
-    fontWeight: '800',
-  },
 
   /* Filter Row */
   filterRow: {
     gap: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    marginBottom: 6,
   },
   filterChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: '#CBD5E1',
+    marginRight: 6,
   },
   filterChipActive: {
-    backgroundColor: amber,
-    borderColor: amber,
+    backgroundColor: '#061E47',
+    borderColor: '#061E47',
   },
   filterChipText: {
-    color: '#D7E6FA',
-    fontSize: 11.5,
+    color: '#475569',
+    fontSize: 12,
     fontWeight: '700',
   },
   filterChipTextActive: {
     color: '#FFFFFF',
-    fontWeight: '900',
+    fontWeight: '800',
   },
 
   /* FlatList Content */

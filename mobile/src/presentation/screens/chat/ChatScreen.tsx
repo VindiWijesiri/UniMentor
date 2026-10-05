@@ -364,9 +364,9 @@ export default function ChatScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹</Text>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.avatar}>
@@ -906,21 +906,20 @@ const whatsappGreen = '#00A884';
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   header: {
-    minHeight: 88,
     backgroundColor: navy,
-    paddingHorizontal: 13,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
   backButton: {
     width: 36,
-    height: 42,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 4,
+    marginRight: 6,
+    marginLeft: -4,
   },
-  backText: { color: '#FFF', fontSize: 36, lineHeight: 37, marginTop: -3 },
   avatar: {
     width: 44,
     height: 44,

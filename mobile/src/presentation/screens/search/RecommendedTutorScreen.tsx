@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { getMentorRate } from './SearchScreen';
 
@@ -38,21 +39,35 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Recommendation</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) + 92 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.hero}>
           <View style={styles.heroOrbLarge} />
           <View style={styles.heroOrbSmall} />
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backText}>‹</Text>
-            </TouchableOpacity>
-            <View style={styles.headerCopy}>
-              <Text style={styles.headerTitle}>Recommendation</Text>
-              <Text style={styles.headerSubtitle}>Based on student feedback</Text>
-            </View>
+          <View style={styles.stepRow}>
+            <Text style={styles.headerSubtitle}>Based on verified student feedback</Text>
             <View style={styles.stepBadge}><Text style={styles.stepText}>STEP 3</Text></View>
           </View>
 
@@ -153,7 +168,7 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
             <Text style={styles.confirmLabel}>START CHAT WITH</Text>
             <Text style={styles.confirmText}>{mentor.name}</Text>
           </View>
-          <Text style={styles.confirmArrow}>→</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -167,18 +182,57 @@ const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  hero: { minHeight: 244, backgroundColor: navy, paddingHorizontal: 17, paddingBottom: 28, overflow: 'hidden' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  hero: { minHeight: 180, backgroundColor: navy, paddingHorizontal: 17, paddingTop: 16, paddingBottom: 24, overflow: 'hidden' },
   heroOrbLarge: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: navyCard, right: -90, top: -110, opacity: 0.65 },
   heroOrbSmall: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#0D3875', left: -48, bottom: 8, opacity: 0.4 },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(255,255,255,0.23)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  backText: { color: '#FFF', fontSize: 34, lineHeight: 35, marginTop: -3 },
-  headerCopy: { flex: 1, marginLeft: 12 },
-  headerTitle: { color: '#FFF', fontSize: 21, fontWeight: '900' },
-  headerSubtitle: { color: '#BFCFE7', fontSize: 10.5, marginTop: 2 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerSubtitle: { color: '#BFCFE7', fontSize: 12, fontWeight: '500' },
   stepBadge: { borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.2)', paddingHorizontal: 10, paddingVertical: 6 },
   stepText: { color: gold, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.8 },
-  profileCard: { minHeight: 106, borderRadius: 20, backgroundColor: '#FFF', padding: 13, marginTop: 21, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: '#E2E8F0' },
+  profileCard: { minHeight: 106, borderRadius: 20, backgroundColor: '#FFF', padding: 13, marginTop: 14, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: '#E2E8F0' },
   avatar: { width: 72, height: 72, borderRadius: 23, backgroundColor: '#EEF2F8', borderWidth: 2, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center', marginRight: 13 },
   avatarText: { color: navy, fontSize: 29, fontWeight: '900' },
   profileCopy: { flex: 1, minWidth: 0 },
