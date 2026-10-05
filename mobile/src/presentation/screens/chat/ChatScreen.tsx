@@ -337,19 +337,19 @@ export default function ChatScreen({ route, navigation }: Props) {
   };
 
   // Academic Icebreakers
-  const icebreakers = isMentorLoggedIn
+  const icebreakers: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = isMentorLoggedIn
     ? [
-        '📅 Propose Mentoring Session',
-        '💡 Let me know your doubts on the module',
-        '📝 Send me your code / lab sheet',
-        '👍 Well done on completing the exercises!',
+        { icon: 'calendar-outline', text: 'Propose Mentoring Session' },
+        { icon: 'bulb-outline', text: 'Let me know your doubts on the module' },
+        { icon: 'document-text-outline', text: 'Send me your code / lab sheet' },
+        { icon: 'thumbs-up-outline', text: 'Well done on completing the exercises!' },
       ]
     : [
-        '📅 Can we reschedule our session?',
-        '❓ Question on Data Structures recursion',
-        '💻 Review my code implementation',
-        '📚 Do you have past paper model answers?',
-        '⏰ Are you free for a 30m review today?',
+        { icon: 'calendar-outline', text: 'Can we reschedule our session?' },
+        { icon: 'help-circle-outline', text: 'Question on module concepts' },
+        { icon: 'code-slash-outline', text: 'Review my code implementation' },
+        { icon: 'book-outline', text: 'Do you have past paper model answers?' },
+        { icon: 'time-outline', text: 'Are you free for a 30m review today?' },
       ];
 
   const formatCallDuration = (secs: number) => {
@@ -560,7 +560,14 @@ export default function ChatScreen({ route, navigation }: Props) {
                     <Text style={[styles.time, mine && styles.myTime]}>
                       {formatTime(item.createdAt)}
                     </Text>
-                    {mine && <Text style={styles.readMark}>{item.read ? '✓✓' : '✓'}</Text>}
+                    {mine && (
+                      <Ionicons
+                        name={item.read ? 'checkmark-done' : 'checkmark'}
+                        size={14}
+                        color={item.read ? '#60A5FA' : '#94A3B8'}
+                        style={{ marginLeft: 3 }}
+                      />
+                    )}
                   </View>
 
                   {/* Action buttons on my text messages */}
@@ -599,10 +606,13 @@ export default function ChatScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 key={idx}
                 style={styles.icebreakerChip}
-                onPress={() => setDraft(chip)}
+                onPress={() => setDraft(chip.text)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.icebreakerText}>{chip}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name={chip.icon} size={13} color="#061E47" style={{ marginRight: 5 }} />
+                  <Text style={styles.icebreakerText}>{chip.text}</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>

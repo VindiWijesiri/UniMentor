@@ -75,7 +75,10 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
             <View style={styles.avatar}><Text style={styles.avatarText}>{mentor.name.charAt(0).toUpperCase()}</Text></View>
             <View style={styles.profileCopy}>
               <View style={styles.matchBadge}>
-                <Text style={styles.matchBadgeText}>{isBestMatch ? '★ BEST MATCH' : 'YOUR CHOICE'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {isBestMatch && <Ionicons name="star" size={10} color="#061E47" style={{ marginRight: 3 }} />}
+                  <Text style={styles.matchBadgeText}>{isBestMatch ? 'BEST MATCH' : 'YOUR CHOICE'}</Text>
+                </View>
               </View>
               <Text style={styles.mentorName} numberOfLines={1}>{mentor.name}</Text>
               <Text style={styles.mentorMeta}>Compared with {Math.max(comparedCount - 1, 1)} other tutor{comparedCount > 2 ? 's' : ''}</Text>
@@ -90,17 +93,23 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
 
           <View style={styles.scoreGrid}>
             <View style={styles.scoreCard}>
-              <View style={styles.scoreIcon}><Text style={styles.scoreIconText}>★</Text></View>
+              <View style={styles.scoreIcon}>
+                <Ionicons name="star" size={14} color="#D97706" />
+              </View>
               <Text style={styles.scoreValue}>{summary.rating ? summary.rating.toFixed(1) : 'New'}</Text>
               <Text style={styles.scoreLabel}>Student rating</Text>
             </View>
             <View style={styles.scoreCard}>
-              <View style={styles.scoreIcon}><Text style={styles.scoreIconText}>%</Text></View>
+              <View style={styles.scoreIcon}>
+                <Ionicons name="thumbs-up" size={13} color="#D97706" />
+              </View>
               <Text style={styles.scoreValue}>{summary.reviewCount ? `${summary.positive}%` : '—'}</Text>
               <Text style={styles.scoreLabel}>Positive reviews</Text>
             </View>
             <View style={styles.scoreCard}>
-              <View style={styles.scoreIcon}><Text style={styles.scoreIconText}>R</Text></View>
+              <View style={styles.scoreIcon}>
+                <Ionicons name="chatbubbles-outline" size={14} color="#D97706" />
+              </View>
               <Text style={styles.scoreValue}>{summary.reviewCount}</Text>
               <Text style={styles.scoreLabel}>Reviews</Text>
             </View>

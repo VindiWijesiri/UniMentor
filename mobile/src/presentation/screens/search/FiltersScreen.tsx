@@ -41,7 +41,10 @@ function OptionGroup({
             onPress={() => onSelect(option)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.optionText, active && styles.optionTextActive]}>{option}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {active && <Ionicons name="checkmark" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />}
+              <Text style={[styles.optionText, active && styles.optionTextActive]}>{option}</Text>
+            </View>
           </TouchableOpacity>
         );
       })}
