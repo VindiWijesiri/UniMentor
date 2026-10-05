@@ -57,10 +57,7 @@ export default function FiltersScreen({ route, navigation }: Props) {
   };
 
   const applyFilters = () => {
-    navigation.navigate('MainTabs', {
-      screen: 'Search',
-      params: { ...(route.params?.searchParams ?? {}), filters },
-    });
+    navigation.navigate('Search', { ...(route.params?.searchParams ?? {}), filters });
   };
 
   return (

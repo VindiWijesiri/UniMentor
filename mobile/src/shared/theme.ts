@@ -16,4 +16,7 @@ export const colors = {
   warningBorder: '#FDE68A',
   error: '#EF4444',
   white: '#FFFFFF',
+  footerActive: '#FF8D28',
+  footerInactive: '#C3CAD6',
+  footerBorder: '#EEF2F6',
 };

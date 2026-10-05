@@ -1,6 +1,24 @@
 import { Response, NextFunction } from 'express';
 import User, { IEnrolledModule } from '../models/User';
 import { AuthRequest } from '../middleware/auth';
+import { seedLearningData } from '../services/seedLearningData';
+
+function mapMentor(mentor: { _id: unknown; name: string; bio?: string; subjects?: string[]; rating?: number; reviewCount?: number; profilePicture?: string }) {
+  return {
+    id: String(mentor._id),
+    name: mentor.name,
+    roleTitle: 'Peer Mentor',
+    batch: "Batch '24",
+    rating: mentor.rating ?? 4.8,
+    reviewCount: mentor.reviewCount ?? 0,
+    avatar: mentor.profilePicture,
+    isVerified: true,
+    activeStudentsCount: 18,
+    subjects: mentor.subjects ?? [],
+    bio: mentor.bio ?? '',
+    hourlyRate: 2000,
+  };
+}
 
 const DEFAULT_ENROLLED_MODULES: IEnrolledModule[] = [
   {
@@ -135,6 +153,9 @@ export async function updateProfile(req: AuthRequest, res: Response, next: NextF
 
 export async function getStudentDashboard(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
+    if (req.userRole === 'student') {
+      await seedLearningData(String(req.userId));
+    }
     const user = await User.findById(req.userId).select('-password');
     if (!user) {
       res.status(404).json({ message: 'Student account not found.' });

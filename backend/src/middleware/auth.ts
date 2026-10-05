@@ -25,9 +25,9 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   }
 }
 
-export function requireRole(role: string) {
+export function requireRole(...roles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
-    if (req.userRole !== role) {
+    if (!req.userRole || !roles.includes(req.userRole)) {
       res.status(403).json({ message: 'Forbidden — insufficient permissions.' });
       return;
     }
