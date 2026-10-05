@@ -42,8 +42,8 @@ const subjects = [
 function matchesMentor(mentor: MentorCard, value: string): boolean {
   const normalized = value.trim().toLowerCase();
   if (!normalized || normalized === 'all') return true;
-  return [mentor.name, mentor.bio, ...mentor.subjects]
-    .some((item) => item.toLowerCase().includes(normalized));
+  return [mentor.name, mentor.bio || '', ...(mentor.subjects || [])]
+    .some((item) => typeof item === 'string' && item.toLowerCase().includes(normalized));
 }
 
 export function getMentorRate(mentor: { _id?: string; name: string; hourlyRate?: number }): number {

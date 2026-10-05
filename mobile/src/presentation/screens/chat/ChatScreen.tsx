@@ -9,6 +9,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -34,6 +35,8 @@ const formatTime = (date: string) =>
 
 export default function ChatScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { mentor } = route.params;
   const currentUser = useAuthStore((state) => state.user);
   const userId = currentUser?._id;
@@ -364,7 +367,7 @@ export default function ChatScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>

@@ -91,7 +91,7 @@ export default function ReviewsScreen({ navigation }: Props) {
     const value = query.trim().toLowerCase();
     if (!value) return tutors;
     return tutors.filter((tutor) =>
-      [tutor.name, ...tutor.subjects].some((item) => item.toLowerCase().includes(value))
+      [tutor.name || '', ...(tutor.subjects || [])].some((item) => typeof item === 'string' && item.toLowerCase().includes(value))
     );
   }, [query, tutors]);
 
