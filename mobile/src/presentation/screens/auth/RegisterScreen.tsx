@@ -48,7 +48,7 @@ export default function RegisterScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {/* Logo */}
         <View style={styles.logoSection}>
-          <Logo size="medium" showText={true} />
+          <Logo size="medium" />
         </View>
 
         <Text style={styles.heading}>Create Account</Text>
@@ -114,6 +114,13 @@ export default function RegisterScreen({ navigation }: Props) {
             Already have an account? <Text style={styles.linkBold}>Login</Text>
           </Text>
         </TouchableOpacity>
+
+        <View style={styles.campusSection}>
+          <Text style={styles.campusHint}>Representing a university?</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('RegisterCampusIntro')}>
+            <Text style={styles.campusLink}>Register my campus</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -177,4 +184,20 @@ const styles = StyleSheet.create({
   buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   link: { textAlign: 'center', color: colors.textLight, fontSize: 14 },
   linkBold: { color: colors.primary, fontWeight: '700' },
+  campusSection: {
+    marginTop: 28,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    alignItems: 'center',
+  },
+  campusHint: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  campusLink: { color: colors.primary, fontWeight: '800', fontSize: 15 },
 });

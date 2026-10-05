@@ -273,7 +273,7 @@ export async function getTakePaper(req: AuthRequest, res: Response, next: NextFu
       res.status(404).json({ message: 'Assessment not found.' });
       return;
     }
-    const preview = req.userRole === 'mentor' || req.userRole === 'admin';
+    const preview = req.userRole === 'mentor' || req.userRole === 'admin' || req.userRole === 'lic';
     if (!preview && paper.status !== 'published' && paper.status !== 'closed') {
       res.status(403).json({ message: 'This assessment is not open yet.' });
       return;

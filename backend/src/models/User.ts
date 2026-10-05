@@ -40,7 +40,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'student' | 'mentor' | 'admin';
+  role: 'student' | 'mentor' | 'admin' | 'lic';
   profilePicture?: string;
   bio?: string;
   subjects?: string[];
@@ -65,6 +65,7 @@ export interface IUser extends Document {
   languages?: string[];
   teachingMode?: string;
   lessonTypes?: string[];
+  campusId?: mongoose.Types.ObjectId;
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -115,7 +116,7 @@ const userSchema = new Schema<IUser>(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
-    role: { type: String, enum: ['student', 'mentor', 'admin'], required: true },
+    role: { type: String, enum: ['student', 'mentor', 'admin', 'lic'], required: true },
     profilePicture: { type: String },
     bio: { type: String },
     subjects: [{ type: String }],
@@ -140,6 +141,7 @@ const userSchema = new Schema<IUser>(
     languages: [{ type: String, default: 'English' }],
     teachingMode: { type: String, default: 'Online / Hybrid' },
     lessonTypes: [{ type: String, default: 'Individual' }],
+    campusId: { type: Schema.Types.ObjectId, ref: 'Campus' },
   },
   { timestamps: true }
 );

@@ -7,7 +7,7 @@ interface LogoProps {
   showText?: boolean;
 }
 
-export default function Logo({ size = 'medium', showText = true }: LogoProps) {
+export default function Logo({ size = 'medium', showText = false }: LogoProps) {
   const dimensions = {
     small: 48,
     medium: 80,

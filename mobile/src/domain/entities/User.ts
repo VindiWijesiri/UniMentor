@@ -2,7 +2,7 @@ export interface User {
   _id: string;
   name: string;
   email: string;
-  role: 'student' | 'mentor' | 'admin';
+  role: 'student' | 'mentor' | 'admin' | 'lic';
   profilePicture?: string;
   bio?: string;
   subjects?: string[];
@@ -18,5 +18,6 @@ export interface User {
   rating?: number;
   reviewCount?: number;
   hourlyRate?: number;
+  campusId?: string;
   createdAt: string;
 }

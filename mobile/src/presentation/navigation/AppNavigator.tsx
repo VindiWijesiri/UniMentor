@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, View, Text, StyleSheet } from 'react-native';
+import { Image, View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
@@ -116,10 +116,6 @@ function LogoTitle() {
         style={styles.logoImg}
         resizeMode="contain"
       />
-      <View style={styles.textRow}>
-        <Text style={styles.uni}>Uni</Text>
-        <Text style={styles.mentor}>Mentor</Text>
-      </View>
     </View>
   );
 }
@@ -127,12 +123,12 @@ function LogoTitle() {
 function MainTabs() {
   const role = useAuthStore((state) => state.user?.role);
   const student = role === 'student';
-  const admin = role === 'admin';
+  const staff = role === 'admin' || role === 'lic';
 
   return (
     <Tab.Navigator
       key={role ?? 'student'}
-      initialRouteName={admin ? 'Learning' : 'Home'}
+      initialRouteName={staff ? 'Learning' : 'Home'}
       tabBar={(props) => <FooterTabBar {...props} />}
       screenOptions={{
         headerTitle: () => <LogoTitle />,
@@ -143,13 +139,13 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={student ? HomeScreen : admin ? AdminHomeScreen : MentorHomeScreen}
+        component={student ? HomeScreen : staff ? AdminHomeScreen : MentorHomeScreen}
         options={{ headerShown: false }}
       />
       <Tab.Screen name="Sessions" component={SessionsScreen} />
       <Tab.Screen
         name="Learning"
-        component={student ? LearningDashboardScreen : admin ? AdminPortalScreen : TutorLearningDashboardScreen}
+        component={student ? LearningDashboardScreen : staff ? AdminPortalScreen : TutorLearningDashboardScreen}
         options={{ headerShown: false }}
       />
       <Tab.Screen name="Alerts" component={AlertsScreen} options={{ headerShown: false }} />
@@ -220,9 +216,6 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logoImg: { width: 32, height: 32 },
-  textRow: { flexDirection: 'row' },
-  uni: { fontSize: 18, fontWeight: '800', color: colors.primary },
-  mentor: { fontSize: 18, fontWeight: '800', color: colors.secondary },
+  logoRow: { flexDirection: 'row', alignItems: 'center' },
+  logoImg: { width: 36, height: 36 },
 });

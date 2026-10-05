@@ -46,7 +46,7 @@ export default function LoginScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {/* Logo */}
         <View style={styles.logoSection}>
-          <Logo size="large" showText={true} />
+          <Logo size="large" />
           <Text style={styles.tagline}>Connect. Learn. Grow.</Text>
         </View>
 
@@ -110,6 +110,27 @@ export default function LoginScreen({ navigation }: Props) {
                 }}
               >
                 <Text style={[styles.demoBtnText, styles.demoBtnTextMentor]}>⭐ Mentor Account</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.demoButtonsRow}>
+              <TouchableOpacity
+                style={[styles.demoBtn, styles.demoBtnAdmin]}
+                onPress={() => {
+                  setEmail('admin@unimentor.dev');
+                  setPassword('password123');
+                }}
+              >
+                <Text style={[styles.demoBtnText, styles.demoBtnTextAdmin]}>🛡 Admin Account</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.demoBtn, styles.demoBtnLic]}
+                onPress={() => {
+                  setEmail('lic@unimentor.dev');
+                  setPassword('password123');
+                }}
+              >
+                <Text style={[styles.demoBtnText, styles.demoBtnTextLic]}>📋 LIC Account</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -197,6 +218,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     width: '100%',
+    marginBottom: 10,
   },
   demoBtn: {
     flex: 1,
@@ -218,5 +240,19 @@ const styles = StyleSheet.create({
   },
   demoBtnTextMentor: {
     color: '#92400E',
+  },
+  demoBtnAdmin: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+  },
+  demoBtnTextAdmin: {
+    color: '#312E81',
+  },
+  demoBtnLic: {
+    backgroundColor: '#F5F3FF',
+    borderColor: '#DDD6FE',
+  },
+  demoBtnTextLic: {
+    color: '#5B21B6',
   },
 });

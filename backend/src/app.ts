@@ -9,6 +9,7 @@ import chatRoutes from './routes/chatRoutes';
 import learningRoutes from './routes/learningRoutes';
 import podRoutes from './routes/podRoutes';
 import libraryRoutes from './routes/libraryRoutes';
+import campusRoutes from './routes/campusRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -51,6 +52,7 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/learning', learningRoutes);
 app.use('/api/library', libraryRoutes);
 app.use('/api/pod', podRoutes);
+app.use('/api/campuses', campusRoutes);
 
 // Global error handler — must be last
 app.use(errorHandler);

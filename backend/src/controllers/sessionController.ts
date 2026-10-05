@@ -121,7 +121,7 @@ export async function cancelSession(req: AuthRequest, res: Response, next: NextF
       String(session.studentId) === req.userId ||
       String(session.mentorId) === req.userId ||
       req.userRole === 'student' ||
-      req.userRole === 'admin';
+      req.userRole === 'admin' || req.userRole === 'lic';
 
     if (!isOwner) {
       res.status(403).json({ message: 'Not authorised to cancel this session.' });
@@ -160,7 +160,7 @@ export async function updateSession(req: AuthRequest, res: Response, next: NextF
       String(session.studentId) === req.userId ||
       String(session.mentorId) === req.userId ||
       req.userRole === 'student' ||
-      req.userRole === 'admin';
+      req.userRole === 'admin' || req.userRole === 'lic';
 
     if (!isOwner) {
       res.status(403).json({ message: 'Not authorised to update this session.' });
@@ -207,7 +207,7 @@ export async function deleteSession(req: AuthRequest, res: Response, next: NextF
       String(session.studentId) === req.userId ||
       String(session.mentorId) === req.userId ||
       req.userRole === 'student' ||
-      req.userRole === 'admin';
+      req.userRole === 'admin' || req.userRole === 'lic';
 
     if (!isOwner) {
       res.status(403).json({ message: 'Not authorised to delete this session.' });

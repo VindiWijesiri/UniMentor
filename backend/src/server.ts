@@ -4,6 +4,7 @@ dotenv.config();
 import app from './app';
 import { connectDB } from './config/db';
 import { ensureAssessmentCatalog } from './services/seedAssessmentWork';
+import { seedDemoAccounts } from './services/seedDemoAccounts';
 
 const PORT = Number(process.env.PORT) || 5000;
 const HOST = '0.0.0.0';
@@ -11,9 +12,10 @@ const HOST = '0.0.0.0';
 async function bootstrap() {
   await connectDB();
   try {
+    await seedDemoAccounts();
     await ensureAssessmentCatalog();
   } catch (error) {
-    console.error('Assessment catalog seed failed:', error);
+    console.error('Demo account / assessment catalog seed failed:', error);
   }
 
   const server = app.listen(PORT, HOST, () => {

@@ -32,7 +32,7 @@ async function ensureAdmin() {
     name: 'Faculty LIC',
     email: ADMIN_EMAIL,
     password: 'Password123',
-    role: 'admin',
+    role: 'lic',
     bio: 'Campus admin and lecturer-in-charge reviewer.',
   });
 }

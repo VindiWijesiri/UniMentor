@@ -44,8 +44,8 @@ import {
 const router = Router();
 const studentOnly = [authenticate, requireRole('student')];
 const mentorOnly = [authenticate, requireRole('mentor')];
-const adminOnly = [authenticate, requireRole('admin')];
-const takeRoles = [authenticate, requireRole('student', 'mentor', 'admin')];
+const adminOnly = [authenticate, requireRole('admin', 'lic')];
+const takeRoles = [authenticate, requireRole('student', 'mentor', 'admin', 'lic')];
 
 router.get('/dashboard', ...studentOnly, getDashboard);
 router.get('/plans', ...studentOnly, getPlans);
