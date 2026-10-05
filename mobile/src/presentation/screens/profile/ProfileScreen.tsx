@@ -12,13 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useUserStore } from '../../../domain/stores/userStore';
 import { useStudentStore } from '../../../domain/stores/studentStore';
+import PageHeader from '../../components/PageHeader';
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
   const { logout } = useAuthStore();
   const { profile, fetchProfile, updateProfile, addSubject, removeSubject } = useUserStore();
   const { dashboard } = useStudentStore();
@@ -123,14 +122,11 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>My Student Profile</Text>
-          <TouchableOpacity style={styles.editHeaderBtn} onPress={openEditModal}>
-            <Text style={styles.editHeaderBtnText}>✏️ Edit</Text>
-          </TouchableOpacity>
-        </View>
+      <PageHeader title="My Student Profile" />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.editHeaderBtn} onPress={openEditModal}>
+          <Text style={styles.editHeaderBtnText}>✏️ Edit</Text>
+        </TouchableOpacity>
 
         {/* Profile Card Summary */}
         <View style={styles.profileSummaryRow}>
@@ -333,9 +329,10 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F4F7FB' },
   header: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F4F7FB',
     paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   headerTop: {
     flexDirection: 'row',
@@ -347,12 +344,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
+    flex: 1,
+    marginRight: 8,
   },
   editHeaderBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignSelf: 'flex-start',
+    backgroundColor: '#102B5D',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 12,
+    marginBottom: 12,
   },
   editHeaderBtnText: {
     color: '#FFFFFF',
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   profileName: {
-    color: '#FFFFFF',
+    color: '#102B5D',
     fontSize: 18,
     fontWeight: '800',
   },
@@ -415,7 +416,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   academicPillText: {
-    color: '#FBBF24',
+    color: '#B45309',
     fontSize: 11,
     fontWeight: '700',
     marginTop: 3,

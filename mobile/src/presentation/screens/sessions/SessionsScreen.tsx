@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import PageHeader from '../../components/PageHeader';
 
 type FacultyFilter = 'all' | 'Computing' | 'Engineering' | 'Business' | 'Architecture';
 
@@ -138,18 +139,10 @@ export default function SessionsScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerTopRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>My Selected Modules</Text>
-            <Text style={styles.headerSubtitle}>
-              Modules you have selected for academic peer guidance
-            </Text>
-          </View>
-          <View style={styles.moduleCountBadge}>
-            <Text style={styles.moduleCountText}>{enrolledModules.length} Enrolled</Text>
-          </View>
+      <PageHeader title="My Selected Modules" />
+      <View style={styles.header}>
+        <View style={styles.moduleCountBadge}>
+          <Text style={styles.moduleCountText}>{enrolledModules.length} Enrolled</Text>
         </View>
 
         {/* Stats Row */}
@@ -434,15 +427,10 @@ const styles = StyleSheet.create({
 
   /* Header */
   header: {
-    backgroundColor: navy,
+    backgroundColor: '#F4F7FB',
     paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -462,6 +450,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   moduleCountBadge: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
     backgroundColor: 'rgba(245, 158, 11, 0.2)',
     borderWidth: 1,
     borderColor: '#F59E0B',
@@ -542,19 +532,19 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   filterChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#E8EEF6',
     borderRadius: 9,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: '#D5DEEA',
   },
   filterChipActive: {
     backgroundColor: amber,
     borderColor: amber,
   },
   filterChipText: {
-    color: '#D7E6FA',
+    color: '#102B5D',
     fontSize: 11.5,
     fontWeight: '700',
   },

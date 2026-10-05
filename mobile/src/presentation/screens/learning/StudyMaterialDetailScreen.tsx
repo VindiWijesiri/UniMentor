@@ -9,16 +9,15 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import type { LibraryMaterial, QuizResult } from '../../../domain/entities/Library';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { ink, muted, navy, pageBg, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'StudyMaterialDetail'>;
 
 export default function StudyMaterialDetailScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const [item, setItem] = useState<LibraryMaterial | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,18 +79,7 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>‹</Text></TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <View style={styles.titleRow}>
-              <Text style={styles.heroTitle} numberOfLines={1}>{kindLabel}</Text>
-              <View style={styles.libraryPill}><Text style={styles.libraryText}>LIBRARY</Text></View>
-            </View>
-            <Text style={styles.sub} numberOfLines={1}>{item?.moduleCode} · {item?.moduleName}</Text>
-          </View>
-        </View>
-      </View>
+      <PageHeader title={kindLabel} onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={styles.state}><ActivityIndicator color={navy} /></View>

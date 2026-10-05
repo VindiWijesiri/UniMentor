@@ -11,11 +11,25 @@ import {
   getMaterials,
   getPlans,
   joinDiscussion,
+  logPresence,
   postChatPod,
   progressActivity,
   submitAssessment,
   toggleGoal,
+  updateWeeklyGoal,
 } from '../controllers/learningController';
+import {
+  addGoalAssessment,
+  addGoalMilestone,
+  addGoalTask,
+  advanceMilestone,
+  bookGoalTutor,
+  completeGoalTask,
+  getGoal,
+  getGoalBoard,
+  logGoalProgress,
+  updateGoalAssessment,
+} from '../controllers/goalPlanController';
 import {
   assignTutorPack,
   dispatchTutorPack,
@@ -58,6 +72,18 @@ router.get('/discussions', ...studentOnly, getDiscussions);
 router.post('/discussions/:id/join', ...studentOnly, joinDiscussion);
 router.get('/chat-pod', ...studentOnly, getChatPod);
 router.post('/chat-pod/messages', ...studentOnly, postChatPod);
+router.post('/presence', ...studentOnly, logPresence);
+router.patch('/week', ...studentOnly, updateWeeklyGoal);
+router.get('/goals/board', ...studentOnly, getGoalBoard);
+router.get('/goals/:id', ...studentOnly, getGoal);
+router.post('/goals/:id/log', ...studentOnly, logGoalProgress);
+router.post('/goals/:id/assessments', ...studentOnly, addGoalAssessment);
+router.patch('/goals/:id/assessments/:assessmentId', ...studentOnly, updateGoalAssessment);
+router.post('/goals/:id/milestones', ...studentOnly, addGoalMilestone);
+router.post('/goals/:id/milestones/:milestoneId', ...studentOnly, advanceMilestone);
+router.post('/goals/:id/tasks', ...studentOnly, addGoalTask);
+router.patch('/goals/:id/tasks/:taskId', ...studentOnly, completeGoalTask);
+router.post('/goals/:id/book', ...studentOnly, bookGoalTutor);
 router.patch('/goals/:id', ...studentOnly, toggleGoal);
 router.patch('/activities/:id/progress', ...studentOnly, progressActivity);
 router.get('/sessions', ...studentOnly, getLearningSessions);

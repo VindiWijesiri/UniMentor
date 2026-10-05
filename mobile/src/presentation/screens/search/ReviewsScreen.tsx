@@ -24,6 +24,7 @@ import { useReviewStore } from '../../../domain/stores/reviewStore';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import PageHeader from '../../components/PageHeader';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Reviews'>;
 type ActiveTab = 'tutors' | 'my-reviews';
@@ -148,15 +149,8 @@ export default function ReviewsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      {/* Hero Header */}
+      <PageHeader title="Tutor Reviews" onBack={() => navigation.goBack()} />
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>STUDENT FEEDBACK & RATINGS</Text>
-        <Text style={styles.title}>Tutor Reviews</Text>
-        <Text style={styles.subtitle}>
-          Share learning feedback and manage your submitted tutor reviews.
-        </Text>
-
-        {/* Tab Switcher */}
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'tutors' && styles.tabBtnActive]}
@@ -379,11 +373,14 @@ export default function ReviewsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   hero: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F4F7FB',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroCopy: { flex: 1 },
+  backMark: { color: '#FFFFFF', fontSize: 30, fontWeight: '700', marginTop: -6, marginRight: 2 },
   eyebrow: {
     color: '#FBBF24',
     fontSize: 10,
@@ -404,7 +401,7 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#E6EDF6',
     borderRadius: 14,
     padding: 4,
     marginBottom: 10,
@@ -419,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F59E0B',
   },
   tabBtnText: {
-    color: '#CBD5E1',
+    color: '#526681',
     fontSize: 12,
     fontWeight: '700',
   },

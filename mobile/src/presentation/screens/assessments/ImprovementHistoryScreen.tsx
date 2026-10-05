@@ -31,7 +31,7 @@ export default function ImprovementHistoryScreen({ navigation }: Props) {
 
   return (
     <AssessmentScreen navigation={navigation}>
-      <KuppiyaBar />
+      <KuppiyaBar title="History" />
       {loading && !data ? <ActivityIndicator color={navy} style={styles.loader} /> : (
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.kicker}>{data?.semester}</Text>

@@ -23,6 +23,7 @@ import { chatRepository } from '../../../data/repositories/chatRepository';
 import type { ChatMessage } from '../../../domain/entities/ChatMessage';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Chat'>;
 
@@ -363,40 +364,15 @@ export default function ChatScreen({ route, navigation }: Props) {
       style={styles.page}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹</Text>
+      <PageHeader title={mentor.name} onBack={() => navigation.goBack()} />
+      <View style={styles.chatTools}>
+        <TouchableOpacity style={styles.chatTool} onPress={startLiveCall} activeOpacity={0.8}>
+          <Ionicons name="call" size={16} color="#FFFFFF" />
+          <Text style={styles.chatToolText}>Call</Text>
         </TouchableOpacity>
-
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{mentor.name.charAt(0).toUpperCase()}</Text>
-          <View style={styles.onlineDot} />
-        </View>
-
-        <View style={styles.headerCopy}>
-          <Text style={styles.name} numberOfLines={1}>
-            {mentor.name}
-          </Text>
-          <Text style={styles.status}>
-            {isPartnerStudent
-              ? `Student • ${mentor.degreeProgramme || 'Peer Mentee'}`
-              : `Peer Mentor • ${mentor.hourlyRate ? mentor.hourlyRate + ' LKR/hr' : 'Verified Tutor'}`}
-          </Text>
-        </View>
-
-        {/* Live Audio Call Button */}
-        <TouchableOpacity style={styles.callHeaderBtn} onPress={startLiveCall} activeOpacity={0.8}>
-          <Ionicons name="call" size={17} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        {/* Clear Chat Button */}
-        <TouchableOpacity
-          style={styles.clearBtn}
-          onPress={handleClearConversation}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="trash-outline" size={17} color="#FFFFFF" />
+        <TouchableOpacity style={styles.chatTool} onPress={handleClearConversation} activeOpacity={0.8}>
+          <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+          <Text style={styles.chatToolText}>Clear</Text>
         </TouchableOpacity>
       </View>
 
@@ -903,6 +879,24 @@ const whatsappGreen = '#00A884';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
+  chatTools: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#F4F7FB',
+  },
+  chatTool: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#102B5D',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chatToolText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   header: {
     minHeight: 88,
     backgroundColor: navy,

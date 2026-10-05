@@ -11,12 +11,12 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodConversation, PodInboxFilter, PodInboxFilterKey } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ChatPod'>;
 
@@ -57,7 +57,6 @@ function StackedAvatars({ initialsList }: { initialsList: string[] }) {
 }
 
 export default function ChatPodScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<PodInboxFilterKey>('all');
   const [items, setItems] = useState<PodConversation[]>([]);
   const [filters, setFilters] = useState<PodInboxFilter[]>([]);
@@ -95,18 +94,7 @@ export default function ChatPodScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity style={styles.backCircle} onPress={() => navigation.goBack()}>
-            <Text style={styles.back}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroTitle}>Chat POD</Text>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandUni}>Uni</Text>
-            <Text style={styles.brandMentor}>Mentor</Text>
-          </View>
-        </View>
-      </View>
+      <PageHeader title="Chat POD" onBack={() => navigation.goBack()} />
 
       <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>

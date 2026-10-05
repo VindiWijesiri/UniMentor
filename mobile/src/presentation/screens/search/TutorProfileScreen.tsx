@@ -8,6 +8,7 @@ import type { Review } from '../../../domain/entities/Review';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import PageHeader from '../../components/PageHeader';
 
 type Props = any;
 type ProfileMentor = Mentor & {
@@ -119,6 +120,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
+      <PageHeader title="Tutor Profile" onBack={() => navigation.goBack()} />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 82 }]}
         showsVerticalScrollIndicator={false}
@@ -441,7 +443,7 @@ const onlineGreen = '#22C55E';
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   content: { backgroundColor: '#F4F7FB' },
-  hero: { backgroundColor: navy, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, overflow: 'hidden' },
+  hero: { backgroundColor: '#F4F7FB', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   heroOrbLarge: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: navyCard, right: -92, top: -104, opacity: 0.65 },
   heroOrbSmall: { position: 'absolute', width: 74, height: 74, borderRadius: 37, backgroundColor: '#0D3875', left: -38, bottom: 8, opacity: 0.42 },
   profileRow: { flexDirection: 'row', alignItems: 'center', zIndex: 2 },
@@ -452,8 +454,8 @@ const styles = StyleSheet.create({
   profileCopy: { flex: 1, minWidth: 0 },
   verifiedBadge: { alignSelf: 'flex-start', borderRadius: 11, backgroundColor: '#FFFDF0', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 8, paddingVertical: 4, marginBottom: 7 },
   verifiedText: { color: '#D97706', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.7 },
-  name: { color: '#FFF', fontSize: 23, fontWeight: '900', letterSpacing: -0.3 },
-  experience: { color: '#C9D8EF', fontSize: 12, marginTop: 4 },
+  name: { color: navy, fontSize: 23, fontWeight: '900', letterSpacing: -0.3 },
+  experience: { color: '#64748B', fontSize: 12, marginTop: 4 },
   heroSignOutBtn: {
     backgroundColor: 'rgba(254, 226, 226, 0.2)',
     borderWidth: 1,
@@ -465,14 +467,14 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   heroSignOutText: {
-    color: '#FECACA',
+    color: '#DC2626',
     fontSize: 11.5,
     fontWeight: '800',
   },
-  heroStats: { height: 70, marginTop: 22, borderRadius: 17, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', zIndex: 2 },
+  heroStats: { height: 70, marginTop: 16, borderRadius: 17, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', zIndex: 2 },
   heroStat: { flex: 1, alignItems: 'center' },
-  heroStatValue: { color: '#FFF', fontSize: 16, fontWeight: '900' },
-  heroStatLabel: { color: '#AFC3E2', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 4 },
+  heroStatValue: { color: navy, fontSize: 16, fontWeight: '900' },
+  heroStatLabel: { color: '#64748B', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 4 },
   heroDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.18)' },
   star: { color: gold },
   onlineText: { color: onlineGreen },

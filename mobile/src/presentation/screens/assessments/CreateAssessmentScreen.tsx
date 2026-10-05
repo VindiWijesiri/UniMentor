@@ -27,7 +27,7 @@ export default function CreateAssessmentScreen({ navigation, route }: Props) {
 
   return (
     <AssessmentScreen navigation={navigation}>
-      <KuppiyaBar />
+      <KuppiyaBar title="Create Assessment" />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.kicker}>Step 2 of 3 · {KIND_META[kind].label}</Text>
         <Text style={styles.title}>Create {KIND_META[kind].label}</Text>

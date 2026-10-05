@@ -28,7 +28,7 @@ export default function AssessmentResultScreen({ navigation, route }: Props) {
 
   return (
     <AssessmentScreen navigation={navigation}>
-      <KuppiyaBar />
+      <KuppiyaBar title="Result" />
       {loading ? <ActivityIndicator color={navy} style={styles.loader} /> : error || !data ? (
         <Text style={styles.error}>{error || 'No result yet.'}</Text>
       ) : (

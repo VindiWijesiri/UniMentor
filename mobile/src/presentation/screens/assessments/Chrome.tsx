@@ -1,11 +1,11 @@
 import React from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
-import { blue, card, ink, line, muted, navy, orange, page, soft } from './theme';
+import PageHeader from '../../components/PageHeader';
+import { card, ink, line, muted, navy, orange, page } from './theme';
 
 export function AssessmentScreen<T extends keyof AppStackParamList>({
   navigation,
@@ -22,29 +22,11 @@ export function AssessmentScreen<T extends keyof AppStackParamList>({
   );
 }
 
-export function KuppiyaBar({ onSearch }: { onSearch?: () => void }) {
-  const insets = useSafeAreaInsets();
-  return (
-    <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.logoTile}>
-        <MaterialIcons name="school" size={18} color={orange} />
-      </View>
-      <View style={styles.brand}>
-        <Text style={styles.brandName}>Kuppiya</Text>
-        <Text style={styles.brandSub}>Learning Hub</Text>
-      </View>
-      <TouchableOpacity style={styles.iconBtn} onPress={onSearch}>
-        <MaterialIcons name="search" size={20} color="#fff" />
-      </TouchableOpacity>
-      <View style={styles.avatar}>
-        <MaterialIcons name="person" size={18} color="#fff" />
-      </View>
-    </View>
-  );
+export function KuppiyaBar({ title }: { title: string }) {
+  return <PageHeader title={title} />;
 }
 
 export function HeroHeader({
-  eyebrow,
   title,
   onBack,
   children,
@@ -54,32 +36,10 @@ export function HeroHeader({
   onBack?: () => void;
   children?: React.ReactNode;
 }) {
-  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.barRow}>
-        <View style={styles.logoTile}>
-          <MaterialIcons name="school" size={18} color={orange} />
-        </View>
-        <View style={styles.brand}>
-          <Text style={styles.brandName}>Kuppiya</Text>
-          <Text style={styles.brandSub}>Learning Hub</Text>
-        </View>
-        <View style={styles.iconBtn}><MaterialIcons name="search" size={20} color="#fff" /></View>
-        <View style={styles.avatar}><MaterialIcons name="person" size={18} color="#fff" /></View>
-      </View>
-      <View style={styles.heroTitleRow}>
-        {onBack ? (
-          <TouchableOpacity style={styles.back} onPress={onBack}>
-            <MaterialIcons name="arrow-back" size={18} color="#fff" />
-          </TouchableOpacity>
-        ) : null}
-        <View style={styles.flex}>
-          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={styles.heroTitle}>{title}</Text>
-        </View>
-      </View>
-      {children}
+    <View>
+      <PageHeader title={title} onBack={onBack} />
+      {children ? <View style={styles.heroExtra}>{children}</View> : null}
     </View>
   );
 }
@@ -133,23 +93,15 @@ export function TakeHeader({
   secondsLeft: number;
   onBack: () => void;
 }) {
-  const insets = useSafeAreaInsets();
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
   return (
-    <View style={[styles.takeBar, { paddingTop: insets.top + 6 }]}>
-      <TouchableOpacity onPress={onBack} style={styles.takeBack}>
-        <MaterialIcons name="chevron-left" size={28} color={navy} />
-      </TouchableOpacity>
-      <View style={styles.flex}>
-        <Text style={styles.takeBrand}>Uni<Text style={styles.takeOrange}>Mentor</Text> · Kuppiya</Text>
-        <Text style={styles.takeCourse}>{course}</Text>
-      </View>
-      <View style={styles.timer}>
-        <MaterialIcons name="timer" size={14} color={navy} />
+    <View>
+      <PageHeader title={course} onBack={onBack} />
+      <View style={styles.timerRow}>
+        <MaterialIcons name="timer" size={16} color={navy} />
         <Text style={styles.timerText}>{minutes}:{String(seconds).padStart(2, '0')}</Text>
       </View>
-      <View style={styles.takeAvatar}><MaterialIcons name="person" size={16} color="#fff" /></View>
     </View>
   );
 }
@@ -174,7 +126,7 @@ const styles = StyleSheet.create({
   brandSub: { color: '#C9D4EA', fontSize: 11, marginTop: 1 },
   iconBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   avatar: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: blue,
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#31528E',
     alignItems: 'center', justifyContent: 'center',
   },
   hero: {
@@ -184,13 +136,15 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
-  heroTitleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 10 },
+  heroTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   back: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: '#1C3E78',
     alignItems: 'center', justifyContent: 'center',
   },
+  backSpacer: { width: 36, height: 36 },
   eyebrow: { color: orange, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   heroTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 2 },
+  heroExtra: { backgroundColor: page, paddingHorizontal: 16, paddingTop: 12 },
   search: {
     marginTop: 14, backgroundColor: card, borderRadius: 14, borderWidth: 1, borderColor: line,
     minHeight: 46, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -209,9 +163,14 @@ const styles = StyleSheet.create({
   takeBrand: { color: navy, fontWeight: '800', fontSize: 14 },
   takeOrange: { color: orange },
   takeCourse: { color: muted, fontSize: 12, marginTop: 1 },
-  timer: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: soft, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8,
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    backgroundColor: page,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   timerText: { color: navy, fontWeight: '800', fontSize: 12 },
   takeAvatar: {

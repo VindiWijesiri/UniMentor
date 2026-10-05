@@ -2,17 +2,16 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodPerson } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import { ice, ink, muted, navy, pageBg, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateSquad'>;
 
 export default function CreateSquadScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const [step, setStep] = useState<'details' | 'invite'>('details');
   const [title, setTitle] = useState('IT2040 DSA Advanced Squad');
   const [moduleCode, setModuleCode] = useState('IT2040 · Data Structures & Algorithms');
@@ -62,24 +61,10 @@ export default function CreateSquadScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity
-            style={styles.backHit}
-            onPress={() => (step === 'invite' ? setStep('details') : navigation.goBack())}
-            hitSlop={8}
-          >
-            <Text style={styles.back}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroTitle} numberOfLines={1}>
-            {step === 'details' ? 'Create Study Squad' : 'Invite & Study Setup'}
-          </Text>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandUni}>Uni</Text>
-            <Text style={styles.brandMentor}>Mentor</Text>
-          </View>
-        </View>
-      </View>
+      <PageHeader
+        title={step === 'details' ? 'Create Study Squad' : 'Invite & Study Setup'}
+        onBack={() => (step === 'invite' ? setStep('details') : navigation.goBack())}
+      />
 
       <View style={styles.stepper}>
           <TouchableOpacity style={styles.step} onPress={() => setStep('details')} activeOpacity={0.85}>

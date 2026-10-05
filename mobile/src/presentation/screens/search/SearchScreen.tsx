@@ -15,14 +15,13 @@ import {
 } from 'react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchMentorsUseCase } from '../../../domain/usecases/mentor/searchMentorsUseCase';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import { countTutorFilters } from '../../../domain/entities/TutorFilters';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { shortlistRepository } from '../../../data/repositories/shortlistRepository';
 import type { ShortlistedMentor } from '../../../domain/entities/ShortlistedMentor';
-import { Ionicons } from '@expo/vector-icons';
+import PageHeader from '../../components/PageHeader';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Search'>;
 type MentorCard = Mentor & {
@@ -59,7 +58,6 @@ export function getMentorRate(mentor: { _id?: string; name: string; hourlyRate?:
 }
 
 export default function SearchScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const initialQuery = route.params?.initialQuery ?? '';
   const faculty = route.params?.faculty;
   const department = route.params?.department;
@@ -478,28 +476,8 @@ export default function SearchScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
-        <View style={styles.headerTopBar}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleGoBack}
-            activeOpacity={0.7}
-            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons
-              name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-              size={26}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-          <Text style={styles.title} numberOfLines={1}>Find Your Mentor</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
-        <Text style={styles.subtitle}>Choose a tutor for your module.</Text>
-
+      <PageHeader title="Find Your Mentor" onBack={handleGoBack} />
+      <View style={styles.header}>
         <View style={styles.searchBox}>
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
@@ -725,7 +703,7 @@ const onlineGreen = '#22C55E';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  header: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 22 },
+  header: { backgroundColor: '#F4F7FB', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 },
   headerTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -875,7 +853,7 @@ const styles = StyleSheet.create({
   tabSwitchRow: {
     flexDirection: 'row',
     marginTop: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#E6EDF6',
     borderRadius: 14,
     padding: 3,
   },
@@ -893,7 +871,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabSwitchText: {
-    color: '#D5E3F6',
+    color: '#526681',
     fontSize: 12,
     fontWeight: '700',
   },

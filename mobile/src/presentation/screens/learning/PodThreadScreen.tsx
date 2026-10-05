@@ -18,6 +18,7 @@ import type { PodConversation, PodMessage } from '../../../domain/entities/Pod';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { ink, muted, navy, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
 import ChatMaterialsBar from './ChatMaterialsBar';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PodThread'>;
@@ -104,16 +105,7 @@ export default function PodThreadScreen({ route, navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>‹</Text></TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.name} numberOfLines={1}>{conversation?.title ?? 'Chat Pod'}</Text>
-          <Text style={styles.status} numberOfLines={1}>
-            {conversation?.meta.assessmentTitle ?? conversation?.meta.subtitle ?? 'UniMentor Chat Pod'}
-          </Text>
-        </View>
-        <Text style={styles.brand}>UniMentor</Text>
-      </View>
+      <PageHeader title={conversation?.title ?? 'Chat Pod'} onBack={() => navigation.goBack()} />
       {group && (
         <View style={styles.tabs}>
           {(['chat', 'notices', 'analytics'] as const).map((key) => (

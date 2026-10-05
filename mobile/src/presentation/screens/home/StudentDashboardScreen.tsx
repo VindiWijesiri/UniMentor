@@ -17,10 +17,10 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../domain/stores/authStore';
+import PageHeader from '../../components/PageHeader';
 import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
-import { Ionicons } from '@expo/vector-icons';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
 
@@ -386,32 +386,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeftRow}>
-            <TouchableOpacity
-              style={styles.headerBackButton}
-              onPress={handleBackToLogin}
-              activeOpacity={0.7}
-              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-              accessibilityRole="button"
-              accessibilityLabel="Back to Login"
-            >
-              <Ionicons
-                name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-                size={26}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Student Dashboard</Text>
-          </View>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandUni}>Uni</Text>
-            <Text style={styles.brandMentor}>Mentor</Text>
-          </View>
-        </View>
-      </View>
+      <PageHeader title="Student Dashboard" onBack={handleBackToLogin} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

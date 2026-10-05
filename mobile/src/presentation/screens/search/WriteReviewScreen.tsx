@@ -22,6 +22,7 @@ import { useAuthStore } from '../../../domain/stores/authStore';
 import { useReviewStore } from '../../../domain/stores/reviewStore';
 import type { Review } from '../../../domain/entities/Review';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'WriteReview'>;
 
@@ -305,6 +306,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
+      <PageHeader title="Write a Review" onBack={() => navigation.goBack()} />
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,

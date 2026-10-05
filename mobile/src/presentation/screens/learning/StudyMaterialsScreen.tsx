@@ -10,13 +10,13 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import type { LibraryKind, LibraryKindFilter, LibraryMaterial, LibrarySource } from '../../../domain/entities/Library';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import MaterialCard from './MaterialCard';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'StudyMaterials'>;
 type KindFilter = 'all' | LibraryKind;
@@ -48,7 +48,6 @@ function KindIcon({ name, active }: { name: LibraryKindFilter['icon']; active: b
 }
 
 export default function StudyMaterialsScreen({ navigation, route }: Props) {
-  const insets = useSafeAreaInsets();
   const conversationId = route.params?.conversationId;
   const [kind, setKind] = useState<KindFilter>('all');
   const [source, setSource] = useState<SourceFilter>('all');
@@ -105,14 +104,8 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 6 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
-            <Text style={styles.back}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroTitle}>Learning Materials</Text>
-          <Text style={styles.brand}>UniMentor</Text>
-        </View>
+      <PageHeader title="Learning Materials" onBack={() => navigation.goBack()} />
+      <View style={styles.hero}>
         <View style={styles.search}>
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
@@ -192,7 +185,7 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
+  hero: { backgroundColor: pageBg, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   heroTop: { flexDirection: 'row', alignItems: 'center' },
   back: { color: '#FFF', fontSize: 32, marginRight: 6, marginTop: -4 },
   heroTitle: { flex: 1, color: '#FFF', fontSize: 20, fontWeight: '900' },

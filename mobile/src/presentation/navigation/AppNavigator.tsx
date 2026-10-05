@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, View, StyleSheet } from 'react-native';
+import UniMentorWordmark from '../components/UniMentorWordmark';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
@@ -34,6 +34,15 @@ import StudyPlansScreen from '../screens/learning/StudyPlansScreen';
 import StudyMaterialsScreen from '../screens/learning/StudyMaterialsScreen';
 import StudyMaterialDetailScreen from '../screens/learning/StudyMaterialDetailScreen';
 import StoreMaterialScreen from '../screens/learning/StoreMaterialScreen';
+import GoalDetailScreen from '../screens/goals/GoalDetailScreen';
+import GoalMilestonesScreen from '../screens/goals/GoalMilestonesScreen';
+import GoalAnalyticsScreen from '../screens/goals/GoalAnalyticsScreen';
+import LogGoalProgressScreen from '../screens/goals/LogGoalProgressScreen';
+import AddGoalAssessmentScreen from '../screens/goals/AddGoalAssessmentScreen';
+import GoalAssessmentResultScreen from '../screens/goals/GoalAssessmentResultScreen';
+import FindGoalTutorScreen from '../screens/goals/FindGoalTutorScreen';
+import GoalAchievementScreen from '../screens/goals/GoalAchievementScreen';
+import StudyTaskTrackerScreen from '../screens/goals/StudyTaskTrackerScreen';
 import StudentAssessmentDashboardScreen from '../screens/assessments/StudentAssessmentDashboardScreen';
 import ImprovementHistoryScreen from '../screens/assessments/ImprovementHistoryScreen';
 import TakeAssessmentScreen from '../screens/assessments/TakeAssessmentScreen';
@@ -84,6 +93,15 @@ export type AppStackParamList = {
   CreateSquad: undefined;
   FindFriend: undefined;
   StudyPlans: undefined;
+  StudyTaskTracker: undefined;
+  GoalDetail: { goalId: string };
+  GoalMilestones: { goalId: string };
+  GoalAnalytics: { goalId: string };
+  LogGoalProgress: { goalId: string };
+  AddGoalAssessment: { goalId: string };
+  GoalAssessmentResult: { goalId: string; assessmentId: string };
+  FindGoalTutor: { goalId: string };
+  GoalAchievement: { goalId: string };
   StudyMaterials: { conversationId?: string } | undefined;
   StudyMaterialDetail: { id: string };
   StoreMaterial: { conversationId?: string } | undefined;
@@ -109,15 +127,7 @@ const Tab = createBottomTabNavigator<AppTabParamList>();
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
 function LogoTitle() {
-  return (
-    <View style={styles.logoRow}>
-      <Image
-        source={require('../../../assets/icon.png')}
-        style={styles.logoImg}
-        resizeMode="contain"
-      />
-    </View>
-  );
+  return <UniMentorWordmark tone="onLight" />;
 }
 
 function MainTabs() {
@@ -142,14 +152,14 @@ function MainTabs() {
         component={student ? HomeScreen : staff ? AdminHomeScreen : MentorHomeScreen}
         options={{ headerShown: false }}
       />
-      <Tab.Screen name="Sessions" component={SessionsScreen} />
+      <Tab.Screen name="Sessions" component={SessionsScreen} options={{ headerShown: false }} />
       <Tab.Screen
         name="Learning"
         component={student ? LearningDashboardScreen : staff ? AdminPortalScreen : TutorLearningDashboardScreen}
         options={{ headerShown: false }}
       />
       <Tab.Screen name="Alerts" component={AlertsScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
 }
@@ -162,23 +172,33 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerTintColor: '#062B67',
-        headerTitleStyle: { fontWeight: '800' },
+        headerTintColor: '#102B5D',
+        headerTitleStyle: { fontWeight: '800', color: '#102B5D' },
         headerShadowVisible: false,
+        headerRight: () => <UniMentorWordmark tone="onLight" />,
         contentStyle: { backgroundColor: '#F4F7FB' },
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
       {student && (
         <>
-          <Stack.Screen name="Search" component={SearchScreen} options={{ title: 'Find Tutors' }} />
-          <Stack.Screen name="TutorProfile" component={TutorProfileScreen} options={{ title: 'Tutor Profile' }} />
+          <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TutorProfile" component={TutorProfileScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Filters" component={FiltersScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="WriteReview" component={WriteReviewScreen} options={{ title: 'Write a Review' }} />
-          <Stack.Screen name="Reviews" component={ReviewsScreen} options={{ title: 'Reviews' }} />
+          <Stack.Screen name="WriteReview" component={WriteReviewScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Reviews" component={ReviewsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CompareTutors" component={CompareTutorsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="RecommendedTutor" component={RecommendedTutorScreen} options={{ headerShown: false }} />
           <Stack.Screen name="StudyPlans" component={StudyPlansScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="StudyTaskTracker" component={StudyTaskTrackerScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="GoalDetail" component={GoalDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="GoalMilestones" component={GoalMilestonesScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="GoalAnalytics" component={GoalAnalyticsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="LogGoalProgress" component={LogGoalProgressScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="AddGoalAssessment" component={AddGoalAssessmentScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="GoalAssessmentResult" component={GoalAssessmentResultScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="FindGoalTutor" component={FindGoalTutorScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="GoalAchievement" component={GoalAchievementScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Assessments" component={StudentAssessmentDashboardScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AssessmentHistory" component={ImprovementHistoryScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TakeAssessment" component={TakeAssessmentScreen} options={{ headerShown: false }} />
@@ -203,7 +223,7 @@ export default function AppNavigator() {
         </>
       )}
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="GuidanceWizard" component={HomeScreen} options={{ title: 'Academic Guidance' }} />
+      <Stack.Screen name="GuidanceWizard" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ChatPod" component={ChatPodScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PodThread" component={PodThreadScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CreateSquad" component={CreateSquadScreen} options={{ headerShown: false }} />
@@ -214,8 +234,3 @@ export default function AppNavigator() {
     </Stack.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  logoRow: { flexDirection: 'row', alignItems: 'center' },
-  logoImg: { width: 36, height: 36 },
-});

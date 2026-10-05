@@ -5,9 +5,7 @@ import {
   TouchableOpacity, View,
 } from 'react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../../domain/stores/authStore';
-import type { AppTabParamList } from '../../navigation/AppNavigator';
+import PageHeader from '../../components/PageHeader';
 
 type Props = {
   navigation: any;
@@ -177,8 +175,6 @@ function SelectField({
 }
 
 export default function HomeScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
-  const { user } = useAuthStore();
   const [selectedField, setSelectedField] = useState<FieldKey | null>(null);
   const [values, setValues] = useState<Partial<Record<FieldKey, string>>>({});
   const activeField = useMemo(() => academicFields.find(({ key }) => key === selectedField), [selectedField]);
@@ -278,19 +274,9 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
+      <PageHeader title="Academic Guidance" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.hero, { paddingTop: navigation.canGoBack?.() ? 12 : insets.top + 14 }]}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}><Text style={styles.brandMarkText}>U</Text></View>
-            <View style={styles.brandCopy}>
-              <Text style={styles.brandName}><Text style={styles.brandStrong}>Uni</Text>Mentor</Text>
-              <Text style={styles.brandTagline}>Learn Better. Go Further.</Text>
-            </View>
-            <TouchableOpacity style={styles.headerIcon}><Text style={styles.bell}>●</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
-              <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.hero}>
           <View style={styles.heroBody}>
             <View style={styles.heroCopy}>
               <View style={styles.stepPill}><Text style={styles.stepPillText}>Step 1 of 3</Text></View>
@@ -411,8 +397,9 @@ const navy = '#061E47';
 const blue = '#0B2754';
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' }, scrollContent: { paddingBottom: 16 },
-  hero: { backgroundColor: navy, paddingHorizontal: 20, paddingBottom: 44, overflow: 'hidden' },
-  brandRow: { flexDirection: 'row', alignItems: 'center' },
+  hero: { backgroundColor: '#F4F7FB', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  backMark: { color: '#FFF', fontSize: 28, fontWeight: '700', marginTop: -4 },
   brandMark: { width: 42, height: 34, borderRadius: 10, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
   brandMarkText: { color: navy, fontWeight: '900', fontSize: 22 }, brandCopy: { flex: 1, marginLeft: 10 },
   brandName: { color: '#FFF', fontSize: 24, fontWeight: '400' }, brandStrong: { fontWeight: '900' },
@@ -422,13 +409,13 @@ const styles = StyleSheet.create({
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#0B2754', borderWidth: 2, borderColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFF', fontSize: 18, fontWeight: '800' }, heroBody: { flexDirection: 'row', marginTop: 18 },
   heroCopy: { flex: 1.3 }, stepPill: { alignSelf: 'flex-start', backgroundColor: 'rgba(245, 158, 11, 0.16)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 9 },
-  stepPillText: { color: '#FBBF24', fontSize: 13, fontWeight: '700' }, heroTitle: { color: '#FFF', fontSize: 27, lineHeight: 32, fontWeight: '900' },
-  heroSubtitle: { color: '#E1ECFA', fontSize: 13, lineHeight: 18, marginTop: 6, maxWidth: 260 },
+  stepPillText: { color: '#D97706', fontSize: 13, fontWeight: '700' }, heroTitle: { color: navy, fontSize: 27, lineHeight: 32, fontWeight: '900' },
+  heroSubtitle: { color: '#64748B', fontSize: 13, lineHeight: 18, marginTop: 6, maxWidth: 260 },
   heroArt: { flex: 0.7, minHeight: 112, alignItems: 'center', justifyContent: 'center' },
   cap: { color: '#0B2754', fontSize: 58, fontWeight: '900', transform: [{ rotate: '-8deg' }] }, books: { color: '#F59E0B', fontSize: 55, marginTop: -24 },
   goalBubble: { position: 'absolute', right: -8, top: 2, backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 8, paddingVertical: 10 },
   goalText: { color: navy, textAlign: 'center', fontSize: 10, fontWeight: '800' },
-  contentPanel: { marginTop: -26, backgroundColor: '#F4F7FB', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 14, paddingTop: 14 },
+  contentPanel: { backgroundColor: '#F4F7FB', paddingHorizontal: 14, paddingTop: 8 },
   progressRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 8, marginBottom: 14 }, progressItem: { alignItems: 'center', width: 84 },
   progressCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }, progressCircleActive: { backgroundColor: '#061E47' },
   progressNumber: { color: '#64748B', fontSize: 17, fontWeight: '700' }, progressNumberActive: { color: '#FBBF24' },

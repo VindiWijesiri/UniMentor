@@ -58,7 +58,7 @@ export default function TutorSubmissionsScreen({ navigation, route }: Props) {
 
   return (
     <AssessmentScreen navigation={navigation}>
-      <KuppiyaBar />
+      <KuppiyaBar title="Submissions" />
       <ScrollView contentContainerStyle={styles.scroll}>
         <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>Back to hub</Text></TouchableOpacity>
         <Text style={styles.title}>{title}</Text>

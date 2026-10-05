@@ -49,7 +49,7 @@ export default function StudentAssessmentDashboardScreen({ navigation }: Props) 
 
   return (
     <AssessmentScreen navigation={navigation}>
-      <KuppiyaBar />
+      <KuppiyaBar title="Assessments" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.titleRow}>
           <View style={styles.flex}>

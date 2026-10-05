@@ -7,6 +7,10 @@ export type LearningGoal = {
   current: number;
   total: number;
   completed: boolean;
+  moduleCode?: string;
+  progress?: number;
+  priority?: string;
+  kind?: 'weekly' | 'module';
 };
 
 export type LearningActivity = {

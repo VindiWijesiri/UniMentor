@@ -12,11 +12,11 @@ import {
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { learningRepository } from '../../../data/repositories/learningRepository';
 import type { TutorLearningDashboard, TutorQueueStudent, TutorStudentStatus } from '../../../domain/entities/Learning';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { card, ink, muted, navy, pageBg, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
@@ -44,7 +44,6 @@ async function openStudentChat(stack: StackNav | undefined, student: TutorQueueS
 }
 
 export default function TutorLearningDashboardScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const stack = navigation.getParent<StackNav>();
   const [data, setData] = useState<TutorLearningDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,18 +97,9 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
+      <PageHeader title="Learning Management" onBack={() => navigation.navigate('Home')} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={[styles.hero, { paddingTop: insets.top + 10 }]}>
-          <View style={styles.heroTop}>
-            <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-              <Text style={styles.back}>‹</Text>
-            </TouchableOpacity>
-            <Text style={styles.heroTitle}>Learning Management</Text>
-            <Text style={styles.brand}>UniMentor</Text>
-          </View>
-          <Text style={styles.workspace}>
-            Tutor Workspace · {data?.header.enrolled ?? 0} Enrolled · Cohort: {data?.header.cohort ?? 'DSA & OOP'}
-          </Text>
+        <View style={styles.hero}>
           <TouchableOpacity style={styles.podChip} onPress={() => stack?.navigate('ChatPod')}>
             <View style={styles.podDot} />
             <Text style={styles.podChipText}>Chat Pod</Text>
@@ -354,7 +344,7 @@ function statusCopy(status: TutorStudentStatus) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
   scroll: { paddingBottom: 24 },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 18 },
+  hero: { backgroundColor: pageBg, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   heroTop: { flexDirection: 'row', alignItems: 'center' },
   back: { color: '#FFF', fontSize: 28, fontWeight: '300', marginRight: 8 },
   heroTitle: { flex: 1, color: '#FFF', fontSize: 18, fontWeight: '900' },

@@ -15,6 +15,7 @@ import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { getMentorRate } from './SearchScreen';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CompareTutors'>;
 type ReviewMap = Record<string, Review[]>;
@@ -117,15 +118,8 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroOrb} />
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}><Text style={styles.backText}>‹</Text></TouchableOpacity>
-        <View style={styles.heroCopy}>
-          <Text style={styles.title}>Compare Tutors</Text>
-          <Text style={styles.subtitle}>Student reviews • Up to 3 tutors</Text>
-        </View>
-        {loading && <ActivityIndicator color="#F59E0B" />}
-      </View>
+      <PageHeader title="Compare Tutors" onBack={() => navigation.goBack()} />
+      {loading ? <ActivityIndicator color="#102B5D" style={{ marginTop: 12 }} /> : null}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) + 88 }}>
         <View style={styles.infoBanner}>

@@ -2,13 +2,13 @@ import React, { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import { podRepository } from '../../../data/repositories/podRepository';
 import type { LibraryKind } from '../../../domain/entities/Library';
 import type { PodConversation } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { ink, muted, navy, pageBg, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'StoreMaterial'>;
 
@@ -21,7 +21,6 @@ const kinds: { key: LibraryKind; label: string }[] = [
 ];
 
 export default function StoreMaterialScreen({ navigation, route }: Props) {
-  const insets = useSafeAreaInsets();
   const [kind, setKind] = useState<LibraryKind>('pdf');
   const [title, setTitle] = useState('');
   const [moduleCode, setModuleCode] = useState('IT2040');
@@ -71,18 +70,7 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>‹</Text></TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <View style={styles.titleRow}>
-              <Text style={styles.heroTitle}>Store Material</Text>
-              <View style={styles.libraryPill}><Text style={styles.libraryText}>LIBRARY</Text></View>
-            </View>
-            <Text style={styles.sub}>Saved to MongoDB and visible in Chat Pod + dashboards</Text>
-          </View>
-        </View>
-      </View>
+      <PageHeader title="Store Material" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.label}>Material type</Text>
         <View style={styles.row}>

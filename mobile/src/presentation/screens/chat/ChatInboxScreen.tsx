@@ -14,6 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import PageHeader from '../../components/PageHeader';
 import { chatRepository } from '../../../data/repositories/chatRepository';
 import type { ChatConversation } from '../../../domain/entities/ChatMessage';
 import type { Mentor } from '../../../domain/entities/Mentor';
@@ -127,22 +128,8 @@ export default function ChatInboxScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      {/* Hero Header */}
+      <PageHeader title={isMentor ? 'Student Inquiries' : 'Messages'} />
       <View style={styles.hero}>
-        <View style={styles.heroOrb} />
-        <Text style={styles.eyebrow}>
-          {isMentor ? 'MENTOR CHAT HUB' : 'DIRECT MESSAGING'}
-        </Text>
-        <Text style={styles.title}>
-          {isMentor ? 'Student Inquiries' : 'Messages'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {isMentor
-            ? 'Real-time discussions and voice notes from your peer mentees'
-            : 'Chat with verified university peer mentors and tutors'}
-        </Text>
-
-        {/* Search Bar */}
         <View style={styles.searchBox}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -313,12 +300,13 @@ const yellow = '#F59E0B';
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   hero: {
-    backgroundColor: navy,
+    backgroundColor: '#F4F7FB',
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 16,
-    overflow: 'hidden',
+    paddingTop: 12,
+    paddingBottom: 12,
   },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  heroCopy: { flex: 1 },
   heroOrb: {
     position: 'absolute',
     width: 200,
@@ -366,14 +354,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#E8EEF6',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 12,
   },
   filterChipActive: { backgroundColor: yellow },
-  filterChipText: { color: '#E2E8F0', fontSize: 11, fontWeight: '700' },
-  filterChipTextActive: { color: '#FFFFFF' },
+  filterChipText: { color: '#102B5D', fontSize: 11, fontWeight: '700' },
+  filterChipTextActive: { color: '#102B5D' },
 
   listContent: { padding: 14, flexGrow: 1, paddingBottom: 30 },
   card: {

@@ -2,16 +2,15 @@ import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMySessionsUseCase } from '../../../domain/usecases/session/getMySessionsUseCase';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { Session } from '../../../domain/entities/Session';
 import type { AppTabParamList } from '../../navigation/AppNavigator';
+import PageHeader from '../../components/PageHeader';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
 
 export default function MentorHomeScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const [sessions, setSessions] = useState<Session[]>([]);
 
@@ -30,21 +29,9 @@ export default function MentorHomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
+      <PageHeader title="Mentor Home" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.hero, { paddingTop: insets.top + 14 }]}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}><Text style={styles.brandMarkText}>U</Text></View>
-            <View style={styles.brandCopy}>
-              <Text style={styles.brandName}><Text style={styles.brandStrong}>Uni</Text>Mentor</Text>
-              <Text style={styles.brandTagline}>Guide students. Grow together.</Text>
-            </View>
-            <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Alerts')}>
-              <Text style={styles.bell}>●</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
-              <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'T'}</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.hero}>
           <Text style={styles.welcome}>Welcome back,</Text>
           <Text style={styles.name}>{user?.name || 'Tutor'}</Text>
           <Text style={styles.rolePill}>Tutor dashboard</Text>
@@ -97,7 +84,7 @@ const navy = '#062B67';
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   scrollContent: { paddingBottom: 24 },
-  hero: { backgroundColor: navy, paddingHorizontal: 20, paddingBottom: 28 },
+  hero: { backgroundColor: '#F4F7FB', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8 },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
   brandMark: {
     width: 42,
@@ -134,8 +121,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { color: '#FFF', fontSize: 18, fontWeight: '800' },
-  welcome: { color: '#D7E6FA', fontSize: 14, marginTop: 22 },
-  name: { color: '#FFF', fontSize: 28, fontWeight: '900', marginTop: 2 },
+  welcome: { color: '#7585A5', fontSize: 14 },
+  name: { color: navy, fontSize: 28, fontWeight: '900', marginTop: 2 },
   rolePill: {
     alignSelf: 'flex-start',
     marginTop: 10,
@@ -148,7 +135,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  content: { paddingHorizontal: 16, marginTop: -14 },
+  content: { paddingHorizontal: 16, marginTop: 8 },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   statCard: {
     flex: 1,

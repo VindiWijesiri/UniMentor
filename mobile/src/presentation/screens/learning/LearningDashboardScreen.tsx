@@ -10,12 +10,11 @@ import {
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { learningRepository } from '../../../data/repositories/learningRepository';
 import type { LearningDashboard } from '../../../domain/entities/Learning';
-import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
-import { card, ice, ink, live, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
+import { card, ink, live, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
@@ -33,8 +32,6 @@ function formatWhen(value?: string) {
 }
 
 export default function LearningDashboardScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
-  const user = useAuthStore((state) => state.user);
   const stack = navigation.getParent<StackNav>();
   const [data, setData] = useState<LearningDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +42,7 @@ export default function LearningDashboardScreen({ navigation }: Props) {
 
   const load = useCallback(() => {
     let active = true;
-    if (dataRef.current && Date.now() - lastLoad.current < 20000) return () => { active = false; };
+    if (dataRef.current && Date.now() - lastLoad.current < 5000) return () => { active = false; };
     if (!dataRef.current) setLoading(true);
     learningRepository.getDashboard()
       .then((dashboard) => {
@@ -66,56 +63,35 @@ export default function LearningDashboardScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => load(), [load]));
 
-  const initials = data?.header.initials || user?.name?.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'ST';
   const week = data?.weeklyStudy;
   const maxHours = Math.max(4, ...(week?.days.map((day) => day.hours) ?? [1]));
   const activity = data?.continueActivity;
 
   return (
     <View style={styles.page}>
+      <PageHeader title="Learning Dashboard" rounded={false} />
+      <View style={styles.shortcutBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutRow}>
+          <TouchableOpacity style={[styles.shortcut, styles.shortcutActive]} onPress={() => stack?.navigate('ChatPod')}>
+            <View style={styles.liveDot} />
+            <Text style={styles.shortcutActiveText}>Chat Pod</Text>
+            {(data?.header.unreadChat ?? 0) > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{data?.header.unreadChat} New</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyTaskTracker')}>
+            <Text style={styles.shortcutIcon}>▣</Text>
+            <Text style={styles.shortcutText}>My Plans</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyMaterials')}>
+            <Text style={styles.shortcutIcon}>▤</Text>
+            <Text style={styles.shortcutText}>Study</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={[styles.hero, { paddingTop: insets.top + 12 }]}>
-          <View style={styles.topRow}>
-            <View>
-              <Text style={styles.portal}>UNIMENTOR PORTAL</Text>
-              <Text style={styles.heroTitle}>Learning Dashboard</Text>
-            </View>
-            <View style={styles.topActions}>
-              <TouchableOpacity style={styles.bell} onPress={() => navigation.navigate('Alerts')}>
-                <Text style={styles.bellIcon}>●</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.shortcutBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutRow}>
-            <TouchableOpacity style={[styles.shortcut, styles.shortcutActive]} onPress={() => stack?.navigate('ChatPod')}>
-              <View style={styles.liveDot} />
-              <Text style={styles.shortcutActiveText}>Chat Pod</Text>
-              {(data?.header.unreadChat ?? 0) > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{data?.header.unreadChat} New</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyPlans')}>
-              <Text style={styles.shortcutIcon}>▣</Text>
-              <Text style={styles.shortcutText}>My Plans</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyMaterials')}>
-              <Text style={styles.shortcutIcon}>▤</Text>
-              <Text style={styles.shortcutText}>Study Materials</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('Assessments')}>
-              <Text style={styles.shortcutIcon}>☑</Text>
-              <Text style={styles.shortcutText}>Assessments</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
 
         {loading && !data ? (
           <View style={styles.state}><ActivityIndicator color={navy} /><Text style={styles.stateText}>Loading dashboard...</Text></View>
@@ -129,16 +105,17 @@ export default function LearningDashboardScreen({ navigation }: Props) {
           </View>
         ) : (
           <View style={styles.body}>
-            <View style={styles.card}>
+            <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={() => stack?.navigate('StudyTaskTracker')}>
               <View style={styles.cardHead}>
                 <Text style={styles.cardTitle}>Weekly Study Hours</Text>
-                <Text style={styles.hoursTotal}>{week?.hoursDone ?? 0} / {week?.hoursGoal ?? 20} hours</Text>
+                <Text style={styles.viewAll}>Study plan</Text>
               </View>
+              <Text style={styles.hoursTotal}>{week?.hoursDone ?? 0} / {week?.hoursGoal ?? 20} hours</Text>
               <View style={styles.chart}>
                 {(week?.days ?? []).map((day, index) => (
                   <View key={`${day.day}-${index}`} style={styles.barCol}>
                     <View style={styles.barTrack}>
-                      <View style={[styles.barFill, { height: `${Math.max(8, (day.hours / maxHours) * 100)}%` }]} />
+                      <View style={[styles.barFill, { height: `${day.hours ? Math.max(8, (day.hours / maxHours) * 100) : 0}%` }]} />
                     </View>
                     <Text style={styles.barLabel}>{day.day}</Text>
                   </View>
@@ -148,32 +125,50 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                 <Text style={styles.weekPercent}>{week?.percent ?? 0}% of weekly goal accomplished</Text>
                 <Text style={styles.weekLeft}>{week?.hoursLeft ?? 0}h left</Text>
               </View>
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Today's Goals</Text>
-              {(data?.todayGoals ?? []).map((goal) => (
-                <TouchableOpacity
-                  key={goal._id}
-                  style={styles.goalRow}
-                  onPress={async () => {
-                    try {
-                      await learningRepository.toggleGoal(goal._id);
-                      load();
-                    } catch {
-                      setError('Could not update this goal. Check your connection.');
-                    }
-                  }}
-                >
-                  <View style={[styles.goalCheck, goal.completed && styles.goalCheckOn]}>
-                    <Text style={styles.goalCheckText}>{goal.completed ? '✓' : ''}</Text>
-                  </View>
-                  <View style={styles.goalCopy}>
-                    <Text style={styles.goalTitle}>{goal.title}</Text>
-                    <Text style={styles.goalMeta}>{goal.dueLabel}</Text>
-                  </View>
-                  <Text style={styles.goalProgress}>{goal.current}/{goal.total} done</Text>
+              <View style={styles.cardHead}>
+                <Text style={styles.cardTitle}>Today's Goals</Text>
+                <TouchableOpacity onPress={() => stack?.navigate('StudyTaskTracker')}>
+                  <Text style={styles.viewAll}>Open tracker</Text>
                 </TouchableOpacity>
+              </View>
+              {(data?.todayGoals ?? []).map((goal) => (
+                <View key={goal._id} style={styles.goalRow}>
+                  <TouchableOpacity
+                    style={[styles.goalCheck, goal.completed && styles.goalCheckOn]}
+                    onPress={async () => {
+                      if (goal.kind === 'weekly') {
+                        stack?.navigate('StudyTaskTracker');
+                        return;
+                      }
+                      try {
+                        await learningRepository.toggleGoal(goal._id);
+                        lastLoad.current = 0;
+                        load();
+                      } catch {
+                        setError('Could not update this goal. Check your connection.');
+                      }
+                    }}
+                  >
+                    <Text style={styles.goalCheckText}>{goal.completed ? '✓' : ''}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.goalCopy}
+                    onPress={() => {
+                      if (goal.kind === 'weekly') stack?.navigate('StudyTaskTracker');
+                      else stack?.navigate('GoalDetail', { goalId: goal._id });
+                    }}
+                  >
+                    <Text style={styles.goalTitle}>{goal.moduleCode ? `${goal.moduleCode} · ` : ''}{goal.title}</Text>
+                    <Text style={styles.goalMeta}>{goal.priority ? `${goal.priority} · ` : ''}{goal.dueLabel}</Text>
+                    {typeof goal.progress === 'number' ? (
+                      <View style={styles.goalTrack}><View style={[styles.goalFill, { width: `${Math.min(100, goal.progress)}%` }]} /></View>
+                    ) : null}
+                  </TouchableOpacity>
+                  <Text style={styles.goalProgress}>{goal.progress ?? Math.round((goal.current / Math.max(goal.total, 1)) * 100)}%</Text>
+                </View>
               ))}
             </View>
 
@@ -307,7 +302,8 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
   scroll: { paddingBottom: 24 },
   hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  heroCopy: { flex: 1 },
   portal: { color: yellow, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
   heroTitle: { color: '#FFF', fontSize: 26, fontWeight: '900', marginTop: 4 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -321,7 +317,14 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: '#4C74B4', alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
-  shortcutBar: { backgroundColor: ice, paddingVertical: 12, paddingLeft: 12 },
+  shortcutBar: {
+    backgroundColor: '#102B5D',
+    paddingTop: 2,
+    paddingBottom: 14,
+    paddingLeft: 12,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
   shortcutRow: { flexDirection: 'row', gap: 8, paddingRight: 16 },
   shortcut: {
     borderRadius: 22,
@@ -367,6 +370,8 @@ const styles = StyleSheet.create({
   goalTitle: { color: ink, fontSize: 14, fontWeight: '800' },
   goalMeta: { color: muted, fontSize: 12, marginTop: 3 },
   goalProgress: { color: muted, fontSize: 11, fontWeight: '700' },
+  goalTrack: { height: 6, backgroundColor: '#E7EDF6', borderRadius: 6, marginTop: 8 },
+  goalFill: { height: 6, backgroundColor: '#FF8D28', borderRadius: 6 },
   moduleCode: { color: ink, fontSize: 15, fontWeight: '900' },
   topic: { color: ink, fontSize: 13, fontWeight: '700', marginTop: 4 },
   yellowBtn: { backgroundColor: yellow, borderRadius: 16, paddingVertical: 13, alignItems: 'center', marginTop: 14 },

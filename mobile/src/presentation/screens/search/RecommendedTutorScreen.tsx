@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { getMentorRate } from './SearchScreen';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'RecommendedTutor'>;
 
@@ -38,24 +39,12 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
+      <PageHeader title="Recommendation" onBack={() => navigation.goBack()} />
       <ScrollView
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) + 92 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-          <View style={styles.heroOrbLarge} />
-          <View style={styles.heroOrbSmall} />
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backText}>‹</Text>
-            </TouchableOpacity>
-            <View style={styles.headerCopy}>
-              <Text style={styles.headerTitle}>Recommendation</Text>
-              <Text style={styles.headerSubtitle}>Based on student feedback</Text>
-            </View>
-            <View style={styles.stepBadge}><Text style={styles.stepText}>STEP 3</Text></View>
-          </View>
-
+        <View style={styles.hero}>
           <View style={styles.profileCard}>
             <View style={styles.avatar}><Text style={styles.avatarText}>{mentor.name.charAt(0).toUpperCase()}</Text></View>
             <View style={styles.profileCopy}>
@@ -167,7 +156,7 @@ const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  hero: { minHeight: 244, backgroundColor: navy, paddingHorizontal: 17, paddingBottom: 28, overflow: 'hidden' },
+  hero: { backgroundColor: '#F4F7FB', paddingHorizontal: 17, paddingTop: 12, paddingBottom: 4 },
   heroOrbLarge: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: navyCard, right: -90, top: -110, opacity: 0.65 },
   heroOrbSmall: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#0D3875', left: -48, bottom: 8, opacity: 0.4 },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
@@ -178,7 +167,7 @@ const styles = StyleSheet.create({
   headerSubtitle: { color: '#BFCFE7', fontSize: 10.5, marginTop: 2 },
   stepBadge: { borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.2)', paddingHorizontal: 10, paddingVertical: 6 },
   stepText: { color: gold, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.8 },
-  profileCard: { minHeight: 106, borderRadius: 20, backgroundColor: '#FFF', padding: 13, marginTop: 21, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: '#E2E8F0' },
+  profileCard: { minHeight: 106, borderRadius: 20, backgroundColor: '#FFF', padding: 13, marginTop: 4, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: '#E2E8F0' },
   avatar: { width: 72, height: 72, borderRadius: 23, backgroundColor: '#EEF2F8', borderWidth: 2, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center', marginRight: 13 },
   avatarText: { color: navy, fontSize: 29, fontWeight: '900' },
   profileCopy: { flex: 1, minWidth: 0 },

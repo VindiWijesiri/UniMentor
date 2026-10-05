@@ -10,17 +10,14 @@ import {
   StudyGoal,
   StudyMaterial,
   StudyPlan,
-  StudyWeek,
 } from '../models/learning';
 import { PodConversation } from '../models/pod';
 import { LibraryMaterial } from '../models/library';
 import { seedLearningData } from '../services/seedLearningData';
+import { goalSummaries } from './goalPlanController';
+import { addOpenSeconds, setWeeklyHoursGoal, weekSummary } from '../services/studyPresence';
 import { seedPodData } from '../services/seedPodData';
 import { seedLibraryData } from '../services/seedLibraryData';
-
-function hoursDone(days: { hours: number }[]): number {
-  return Math.round(days.reduce((sum, day) => sum + day.hours, 0) * 10) / 10;
-}
 
 function timeAgo(date: Date): string {
   const minutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000));
@@ -56,7 +53,7 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
     const user = await User.findById(studentId);
 
     const [week, goals, activity, sessions, discussions, assessments, materials, podConversations] = await Promise.all([
-      StudyWeek.findOne({ studentId }).lean(),
+      weekSummary(studentId),
       StudyGoal.find({ studentId }).sort({ createdAt: 1 }).limit(8).lean(),
       LearningActivity.findOne({ studentId }).sort({ updatedAt: -1 }).lean(),
       Session.find({ studentId }).populate('mentorId', 'name').sort({ scheduledAt: 1 }).limit(6).lean(),
@@ -88,9 +85,10 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
       meta: item.meta ?? {},
     }));
 
-    const days = week?.days ?? [];
-    const done = hoursDone(days);
-    const goal = week?.hoursGoal ?? 20;
+    const days = week.days.map((day) => ({ day: day.day, hours: day.hours }));
+    const done = week.hoursDone;
+    const goal = week.hoursGoal;
+    const plannedGoals = await goalSummaries(studentId);
     const live = sessions.find((session) => session.isLive);
     const upcoming = sessions.filter((session) => !session.isLive).slice(0, 2);
     const mentorName = (live?.mentorId as { name?: string } | undefined)?.name;
@@ -107,7 +105,7 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
         hoursLeft: Math.max(0, Math.round((goal - done) * 10) / 10),
         days,
       },
-      todayGoals: goals.map((item) => ({
+      todayGoals: plannedGoals.length ? plannedGoals : goals.map((item) => ({
         _id: item._id,
         title: item.title,
         dueLabel: item.dueLabel,
@@ -329,9 +327,49 @@ export async function postChatPod(req: AuthRequest, res: Response, next: NextFun
   }
 }
 
+export async function logPresence(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const studentId = await readyStudent(req);
+    const seconds = Number(req.body.seconds);
+    const date = String(req.body.date ?? '');
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      res.status(400).json({ message: 'Seconds are required.' });
+      return;
+    }
+    const week = await addOpenSeconds(studentId, seconds, date);
+    res.json(week);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateWeeklyGoal(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const studentId = await readyStudent(req);
+    const hoursGoal = Number(req.body.hoursGoal);
+    if (!Number.isFinite(hoursGoal)) {
+      res.status(400).json({ message: 'Weekly hours goal is required.' });
+      return;
+    }
+    const week = await setWeeklyHoursGoal(studentId, hoursGoal);
+    res.json(week);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function toggleGoal(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const studentId = await readyStudent(req);
+    const { GoalPlan } = await import('../models/goalPlan');
+    const planned = await GoalPlan.findOne({ _id: req.params.id, studentId });
+    if (planned) {
+      planned.completed = !planned.completed;
+      planned.progress = planned.completed ? 100 : Math.min(planned.progress, 99);
+      await planned.save();
+      res.json(planned);
+      return;
+    }
     const goal = await StudyGoal.findOne({ _id: req.params.id, studentId });
     if (!goal) {
       res.status(404).json({ message: 'Goal not found.' });

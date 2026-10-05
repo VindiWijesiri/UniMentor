@@ -10,17 +10,16 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodPerson } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'FindFriend'>;
 
 export default function FindFriendScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [people, setPeople] = useState<PodPerson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,17 +53,8 @@ export default function FindFriendScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity style={styles.backCircle} onPress={() => navigation.goBack()}>
-            <Text style={styles.back}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroTitle}>Chat with Friend</Text>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandUni}>Uni</Text>
-            <Text style={styles.brandMentor}>Mentor</Text>
-          </View>
-        </View>
+      <PageHeader title="Chat with Friend" onBack={() => navigation.goBack()} />
+      <View style={styles.hero}>
         <View style={styles.search}>
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
@@ -119,7 +109,7 @@ export default function FindFriendScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
+  hero: { backgroundColor: pageBg, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   heroTop: { flexDirection: 'row', alignItems: 'center' },
   backCircle: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)',

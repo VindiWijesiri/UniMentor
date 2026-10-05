@@ -38,7 +38,7 @@ export default function TutorAssessmentHubScreen({ navigation }: Props) {
 
   return (
     <AssessmentScreen navigation={navigation}>
-      <KuppiyaBar />
+      <KuppiyaBar title="Assessment Hub" />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Tutor Assessment Hub</Text>
         <Text style={styles.sub}>{data?.modules ?? 0} modules · {data?.enrolled ?? 0} enrolled students</Text>

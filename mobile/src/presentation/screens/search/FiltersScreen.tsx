@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { TutorFilters } from '../../../domain/entities/TutorFilters';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Filters'>;
 type FilterKey = Exclude<keyof TutorFilters, 'priceRange' | 'minRating'>;
@@ -62,22 +63,12 @@ export default function FiltersScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerOrbLeft} />
-        <View style={styles.headerOrbRight} />
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>Filters</Text>
-          <Text style={styles.subtitle}>Refine your tutor search</Text>
-        </View>
+      <PageHeader title="Filters" onBack={() => navigation.goBack()} />
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.clearButton} onPress={() => setFilters({})} activeOpacity={0.8}>
           <Text style={styles.clearText}>Clear All</Text>
         </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
           <View style={styles.sectionTop}>
             <View style={styles.sectionIcon}><Text style={styles.sectionIconText}>₨</Text></View>
@@ -153,7 +144,8 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1, alignItems: 'center', zIndex: 2 },
   title: { color: '#FFF', fontSize: 25, fontWeight: '900' },
   subtitle: { color: '#C9D8F0', fontSize: 11.5, marginTop: 4 },
-  clearButton: { height: 38, borderRadius: 19, backgroundColor: '#FFF', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  headerSide: { alignItems: 'flex-end', gap: 8, zIndex: 2 },
+  clearButton: { alignSelf: 'flex-end', height: 38, borderRadius: 19, backgroundColor: '#FFF', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10, borderWidth: 1, borderColor: '#E2E8F0' },
   clearText: { color: navy, fontSize: 11.5, fontWeight: '900' },
   scrollContent: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 102 },
   card: { backgroundColor: '#FFF', borderRadius: 18, borderWidth: 1, borderColor: '#E2E8F0', padding: 13, marginBottom: 9, shadowColor: '#1D3D66', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
