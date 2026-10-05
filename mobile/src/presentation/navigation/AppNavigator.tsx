@@ -24,11 +24,30 @@ import { colors } from '../../shared/theme';
 
 import TutorDashboardScreen from '../screens/home/TutorDashboardScreen';
 import SessionsScreen from '../screens/sessions/SessionsScreen';
+import BookingFlowScreen from '../screens/booking/BookingFlowScreen';
 import { Ionicons } from '@expo/vector-icons';
+
+export type BookingsStackParamList = {
+  SessionsList: undefined;
+  FindMentor: {
+    initialQuery?: string;
+    faculty?: string;
+    department?: string;
+    programme?: string;
+    academicYear?: string;
+    semester?: string;
+    topic?: string;
+    filters?: TutorFilters;
+  } | undefined;
+  BookSession: {
+    mentor: any;
+    initialMode?: '1-on-1' | 'group';
+  };
+};
 
 export type AppTabParamList = {
   Home: undefined;
-  Bookings: undefined;
+  Bookings: NavigatorScreenParams<BookingsStackParamList> | undefined;
   Search: {
     initialQuery?: string;
     faculty?: string;
@@ -55,10 +74,30 @@ export type AppStackParamList = {
   RecommendedTutor: { mentor: Mentor; reviews: Review[]; comparedCount: number; isBestMatch: boolean };
   Chat: { mentor: Mentor };
   GuidanceWizard: undefined;
+  BookSession: {
+    mentor: any;
+    initialMode?: '1-on-1' | 'group';
+  };
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const Stack = createNativeStackNavigator<AppStackParamList>();
+const BookingsStack = createNativeStackNavigator<BookingsStackParamList>();
+
+function BookingsNavigator() {
+  return (
+    <BookingsStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#F4F7FB' },
+      }}
+    >
+      <BookingsStack.Screen name="SessionsList" component={SessionsScreen} />
+      <BookingsStack.Screen name="FindMentor" component={SearchScreen} />
+      <BookingsStack.Screen name="BookSession" component={BookingFlowScreen} />
+    </BookingsStack.Navigator>
+  );
+}
 
 function LogoTitle() {
   return (
@@ -129,7 +168,17 @@ function MainTabs() {
       {/* 2. Bookings */}
       <Tab.Screen
         name="Bookings"
-        component={isStudent ? SessionsScreen : TutorProfileScreen}
+        component={isStudent ? BookingsNavigator : TutorProfileScreen}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            if (isStudent) {
+              e.preventDefault();
+              (navigation as any).navigate('Bookings', {
+                screen: 'SessionsList',
+              });
+            }
+          },
+        })}
         options={{
           tabBarLabel: 'Bookings',
           tabBarIcon: ({ color }) => (
@@ -141,7 +190,7 @@ function MainTabs() {
       {/* 3. Learning */}
       <Tab.Screen
         name="Search"
-        component={isStudent ? SearchScreen : HomeScreen}
+        component={HomeScreen}
         options={{
           tabBarLabel: 'Learning',
           tabBarIcon: ({ color }) => (

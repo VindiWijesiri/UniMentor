@@ -273,14 +273,17 @@ export default function HomeScreen({ navigation }: Props) {
       return;
     }
 
-    navigation.navigate('Search', {
-      initialQuery: values.module,
-      faculty: values.faculty,
-      department: values.department,
-      programme: values.programme,
-      academicYear: values.academicYear,
-      semester: values.semester,
-      topic: values.topic,
+    navigation.navigate('Bookings', {
+      screen: 'FindMentor',
+      params: {
+        initialQuery: values.module,
+        faculty: values.faculty,
+        department: values.department,
+        programme: values.programme,
+        academicYear: values.academicYear,
+        semester: values.semester,
+        topic: values.topic,
+      },
     });
   };
 
@@ -375,7 +378,7 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.sectionSubtitle}>Explore commonly requested modules</Text>
               </View>
               <TouchableOpacity
-                onPress={() => navigation.navigate('Search')}
+                onPress={() => navigation.navigate('Bookings', { screen: 'FindMentor' })}
                 style={{ flexDirection: 'row', alignItems: 'center' }}
               >
                 <Text style={styles.seeAll}>See All</Text>

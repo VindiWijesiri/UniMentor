@@ -22,6 +22,7 @@ import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import { Ionicons } from '@expo/vector-icons';
+import TutorAvatar from '../../components/common/TutorAvatar';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
 
@@ -495,7 +496,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
               <TouchableOpacity
                 style={[styles.alertActionBtn, { marginTop: 6 }]}
-                onPress={() => navigation.navigate('Search', { initialQuery: 'Probability' })}
+                onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor', params: { initialQuery: 'Probability' } })}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <Text style={styles.alertActionBtnText}>Find Tutor</Text>
@@ -616,24 +617,141 @@ export default function StudentDashboardScreen({ navigation }: Props) {
           </View>
         )}
 
+        {/* UPCOMING BOOKINGS & GROUP STUDY PODS */}
+        <View style={styles.bookingsSectionWrap}>
+          <View style={styles.bookingsHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 6 }}>
+              <Text style={styles.bookingsSectionTitle}>Upcoming Bookings & Pods</Text>
+              <Text style={styles.bookingsSectionSubtitle}>
+                Active 1-on-1 tutoring and collaborative group study sessions
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.bookNewPillBtn}
+              onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor' })}
+              activeOpacity={0.85}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="calendar" size={13} color="#061E47" />
+                <Text style={styles.bookNewPillBtnText}>Book Session</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Bookings Carousel */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.bookingsCardsScroll}
+          >
+            {/* Card 1: Group Booking */}
+            <View style={styles.bookingCard}>
+              <View style={styles.bookingCardTop}>
+                <View style={styles.groupBadge}>
+                  <Ionicons name="people" size={12} color="#059669" />
+                  <Text style={styles.groupBadgeText}>Group Session (3 Students)</Text>
+                </View>
+                <View style={styles.statusConfirmedBadge}>
+                  <Text style={styles.statusConfirmedText}>Confirmed</Text>
+                </View>
+              </View>
+              <Text style={styles.bookingCardTitle}>Database Systems: Indexing & B+ Trees</Text>
+              <Text style={styles.bookingCardTutor}>with Alex Ferreira • Database Systems Tutor</Text>
+
+              {/* High-Contrast Clear Price Badge */}
+              <View style={styles.bookingCardPriceRow}>
+                <View style={styles.groupPriceTagBadge}>
+                  <Ionicons name="pricetag" size={12} color="#065F46" />
+                  <Text style={styles.groupPriceTagMain}>LKR 1,200</Text>
+                  <Text style={styles.groupPriceTagSub}>/ student</Text>
+                </View>
+                <Text style={styles.groupTotalSummaryText}>Total: LKR 3,600 (3 Students)</Text>
+              </View>
+
+              <View style={styles.bookingCardTimeRow}>
+                <Ionicons name="time-outline" size={13} color="#D97706" />
+                <Text style={styles.bookingCardTimeText}>Friday, 19 Sep 2025 • 4:00 PM - 5:00 PM</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.joinPodBtn}
+                onPress={() => setShowLiveRoom(true)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="videocam-outline" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.joinPodBtnText}>Join Study Pod</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Card 2: 1-on-1 Booking */}
+            <View style={styles.bookingCard}>
+              <View style={styles.bookingCardTop}>
+                <View style={styles.oneOnOneBadge}>
+                  <Ionicons name="person" size={12} color="#1D4ED8" />
+                  <Text style={styles.oneOnOneBadgeText}>1-on-1 Mentoring</Text>
+                </View>
+                <View style={styles.statusConfirmedBadge}>
+                  <Text style={styles.statusConfirmedText}>Confirmed</Text>
+                </View>
+              </View>
+              <Text style={styles.bookingCardTitle}>Data Structures: Dynamic Programming</Text>
+              <Text style={styles.bookingCardTutor}>with Shenal Perera • Senior Peer Tutor</Text>
+
+              {/* High-Contrast Clear Price Badge */}
+              <View style={styles.bookingCardPriceRow}>
+                <View style={styles.oneOnOnePriceTagBadge}>
+                  <Ionicons name="pricetag" size={12} color="#1E40AF" />
+                  <Text style={styles.oneOnOnePriceTagMain}>LKR 2,500</Text>
+                  <Text style={styles.oneOnOnePriceTagSub}>/ hour</Text>
+                </View>
+                <Text style={styles.oneOnOneSummaryText}>Individual 1-on-1 Session</Text>
+              </View>
+
+              <View style={styles.bookingCardTimeRow}>
+                <Ionicons name="time-outline" size={13} color="#D97706" />
+                <Text style={styles.bookingCardTimeText}>Monday, 22 Sep 2025 • 10:30 AM - 11:30 AM</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.viewBookingDetailsBtn}
+                onPress={() => (navigation as any).navigate('Bookings', { screen: 'SessionsList' })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.viewBookingDetailsText}>View in My Bookings →</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+
         {/* REGISTERED MODULES & WHO THE MENTOR IS */}
         <View style={styles.modulesSectionHeaderRow}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingRight: 6 }}>
             <Text style={styles.modulesSectionTitle}>Registered Modules</Text>
             <Text style={styles.modulesSectionSubtitle}>
               {enrolledModules.length} Modules Enrolled • Synchronized with Database
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.addModulePillBtn}
-            activeOpacity={0.85}
-            onPress={() => setShowRegisterModal(true)}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={styles.addModuleBtnText}>Register</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TouchableOpacity
+              style={styles.findTutorPillBtn}
+              activeOpacity={0.85}
+              onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor' })}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="search" size={13} color="#061E47" />
+                <Text style={styles.findTutorBtnText}>Find New Tutor</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.addModulePillBtn}
+              activeOpacity={0.85}
+              onPress={() => setShowRegisterModal(true)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="add" size={16} color="#FFFFFF" />
+                <Text style={styles.addModuleBtnText}>Register</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Modules List */}
@@ -698,15 +816,13 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                     style={styles.mentorAvatarWrapper}
                     onPress={() => handleViewTutorProfile(item.mentor!)}
                   >
-                    <Image
-                      source={{
-                        uri:
-                          item.mentor.avatar ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(item.mentor.name)}&background=0D4F9E&color=fff`,
-                      }}
-                      style={styles.mentorAvatar}
+                    <TutorAvatar
+                      name={item.mentor.name}
+                      imageUrl={item.mentor.avatar}
+                      size={46}
+                      borderRadius={16}
+                      showOnlineDot
                     />
-                    <View style={styles.onlineMiniDot} />
                   </TouchableOpacity>
 
                   <View style={styles.mentorDetailsCol}>
@@ -722,17 +838,26 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                       {item.mentor.roleTitle || 'Senior Peer Mentor'} • {item.mentor.batch || "Batch '24"}
                     </Text>
 
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate('Reviews')}
-                      activeOpacity={0.7}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                        <Ionicons name="star" size={12} color="#F59E0B" />
-                        <Text style={styles.mentorRatingText}>
-                          {item.mentor.rating || 4.9} ({item.mentor.reviewCount || 28} reviews) • LKR {(item.mentor.hourlyRate || 1800).toLocaleString()}/hr
+                    {/* Distinct Badges for Rating and Hourly Rate */}
+                    <View style={styles.mentorMetaChipsRow}>
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate('Reviews')}
+                        activeOpacity={0.7}
+                        style={styles.mentorRatingChip}
+                      >
+                        <Ionicons name="star" size={11} color="#F59E0B" />
+                        <Text style={styles.mentorRatingChipText}>
+                          {item.mentor.rating || 4.9} ({item.mentor.reviewCount || 28})
+                        </Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.mentorRateChip}>
+                        <Ionicons name="pricetag" size={11} color="#065F46" />
+                        <Text style={styles.mentorRateChipText}>
+                          LKR {(item.mentor.hourlyRate || 1800).toLocaleString()} / hr
                         </Text>
                       </View>
-                    </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               ) : (
@@ -769,7 +894,24 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                 {item.mentor && (
                   <TouchableOpacity
                     style={styles.bookMentorBtn}
-                    onPress={() => handleViewTutorProfile(item.mentor!)}
+                    onPress={() => {
+                      (navigation as any).navigate('Bookings', {
+                        screen: 'BookSession',
+                        params: {
+                          mentor: {
+                            _id: item.mentor!.id || 'mentor-default',
+                            name: item.mentor!.name,
+                            experience: item.mentor!.roleTitle || 'Peer Tutor',
+                            rating: item.mentor!.rating || 4.9,
+                            reviewCount: item.mentor!.reviewCount || 25,
+                            hourlyRate: item.mentor!.hourlyRate || 1800,
+                            profilePicture: item.mentor!.avatar,
+                            subjects: [item.name],
+                          },
+                          initialMode: '1-on-1',
+                        },
+                      });
+                    }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="calendar" size={13} color="#0D4F9E" />
@@ -1406,11 +1548,16 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                     }
                   }}
                 >
-                  <Image source={{ uri: m.avatar }} style={styles.mentorAvatar} />
+                  <TutorAvatar name={m.name} imageUrl={m.avatar} size={44} borderRadius={16} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.mentorCardName}>{m.name} ✓</Text>
                     <Text style={styles.mentorCardRole}>{m.roleTitle || 'Senior Peer Mentor'} • {m.batch || "Batch '24"}</Text>
-                    <Text style={styles.mentorRatingText}>★ {m.rating || 4.9} • LKR {(m.hourlyRate || 1800).toLocaleString()}/hr • Active: {m.activeStudentsCount || 24}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400E' }}>★ {m.rating || 4.9}</Text>
+                      <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#065F46' }}>LKR {(m.hourlyRate || 1800).toLocaleString()}/hr</Text>
+                      </View>
+                    </View>
                   </View>
                   <Text style={styles.selectMentorPill}>Select</Text>
                 </TouchableOpacity>
@@ -2108,6 +2255,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  findTutorPillBtn: {
+    backgroundColor: '#FBBF24',
+    borderRadius: 14,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  findTutorBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   addModulePillBtn: {
     backgroundColor: '#0D4F9E',
     borderRadius: 14,
@@ -2117,6 +2275,248 @@ const styles = StyleSheet.create({
   addModuleBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
+    fontWeight: '800',
+  },
+
+  /* Upcoming Bookings Section */
+  bookingsSectionWrap: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  bookingsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  bookingsSectionTitle: {
+    color: '#061E47',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  bookingsSectionSubtitle: {
+    color: '#64748B',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  bookNewPillBtn: {
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  bookNewPillBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  bookingsCardsScroll: {
+    gap: 12,
+    paddingVertical: 2,
+  },
+  bookingCard: {
+    width: 280,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  bookingCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  groupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  groupBadgeText: {
+    color: '#059669',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  oneOnOneBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  oneOnOneBadgeText: {
+    color: '#1D4ED8',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  statusConfirmedBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  statusConfirmedText: {
+    color: '#475569',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  bookingCardTitle: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  bookingCardTutor: {
+    color: '#64748B',
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  bookingCardTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  bookingCardTimeText: {
+    color: '#D97706',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  joinPodBtn: {
+    backgroundColor: '#0D4F9E',
+    borderRadius: 12,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinPodBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  viewBookingDetailsBtn: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  viewBookingDetailsText: {
+    color: '#0D4F9E',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  /* Booking Card Price Row */
+  bookingCardPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  groupPriceTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  groupPriceTagMain: {
+    color: '#065F46',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  groupPriceTagSub: {
+    color: '#047857',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  groupTotalSummaryText: {
+    color: '#475569',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  oneOnOnePriceTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  oneOnOnePriceTagMain: {
+    color: '#1E40AF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  oneOnOnePriceTagSub: {
+    color: '#1D4ED8',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  oneOnOneSummaryText: {
+    color: '#475569',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+
+  /* Mentor Meta Chips Row */
+  mentorMetaChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  mentorRatingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  mentorRatingChipText: {
+    color: '#92400E',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  mentorRateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  mentorRateChipText: {
+    color: '#065F46',
+    fontSize: 10.5,
     fontWeight: '800',
   },
 

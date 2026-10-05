@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Alert,
   Dimensions,
@@ -18,6 +18,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../domain/stores/authStore';
+import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
+import { tutorSettingsRepository } from '../../../data/repositories/tutorSettingsRepository';
+import type { TutorSlot } from '../../../domain/entities/TutorSlot';
+import TutorAvatar from '../../components/common/TutorAvatar';
 
 const { width } = Dimensions.get('window');
 
@@ -35,10 +39,150 @@ export default function TutorDashboardScreen({ navigation }: any) {
   const [scheduleDays, setScheduleDays] = useState('Monday to Friday');
   const [scheduleHours, setScheduleHours] = useState('3:00 PM - 6:00 PM');
 
+  // Slot management state
+  const [tutorSlots, setTutorSlots] = useState<TutorSlot[]>([]);
+  const [addSlotModalVisible, setAddSlotModalVisible] = useState(false);
+  const [newSlotDate, setNewSlotDate] = useState('Friday, 19 Sep 2025');
+  const [newSlotStartTime, setNewSlotStartTime] = useState('02:30 PM');
+  const [newSlotEndTime, setNewSlotEndTime] = useState('03:30 PM');
+  const [newSlotType, setNewSlotType] = useState<'1-on-1' | 'group' | 'both'>('both');
+  const [newSlotCapacity, setNewSlotCapacity] = useState('5');
+  const [newSlotModule, setNewSlotModule] = useState('Database Systems');
+
+  // Tutor Profile Image state
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+
+  // Pricing and preferences state
+  const [rate1on1, setRate1on1] = useState('2500');
+  const [rateGroup, setRateGroup] = useState('1200');
+  const [subjectPreferences, setSubjectPreferences] = useState<string[]>([
+    'Query Optimization',
+    'Indexing',
+    'ER Diagrams',
+    'Normalization',
+    'Transactions & ACID',
+    'NoSQL & MongoDB',
+  ]);
+  const [newTopicInput, setNewTopicInput] = useState('');
+
   // Assessment form state
   const [assessmentTitle, setAssessmentTitle] = useState('');
   const [assessmentModule, setAssessmentModule] = useState('Data Structures & Algorithms');
   const [assessmentDuration, setAssessmentDuration] = useState('45 Mins');
+
+  useEffect(() => {
+    loadTutorSettingsAndSlots();
+  }, []);
+
+  const loadTutorSettingsAndSlots = async () => {
+    try {
+      const slots = await tutorSlotRepository.getAllSlots();
+      setTutorSlots(slots);
+      const settings = await tutorSettingsRepository.getSettings(
+        currentUser?._id || 'mentor-alex',
+        currentUser?.name || 'Alex Ferreira'
+      );
+      setRate1on1(String(settings.hourlyRate1on1));
+      setRateGroup(String(settings.hourlyRateGroup));
+      setSubjectPreferences(settings.subjectPreferences);
+      setProfileImageUri(settings.profileImage || null);
+      if (settings.profileImage) {
+        setImageUrlInput(settings.profileImage);
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleSaveProfileImage = async (url: string | null) => {
+    await tutorSettingsRepository.updateProfileImage(
+      currentUser?._id || 'mentor-alex',
+      url
+    );
+    setProfileImageUri(url);
+    setImageModalVisible(false);
+    Alert.alert(
+      url ? 'Photo Updated 🎉' : 'Initials Avatar Selected',
+      url
+        ? 'Your tutor profile photo has been updated successfully.'
+        : 'You are now displaying your stylish initials avatar.'
+    );
+  };
+
+  const handleSaveRates = async () => {
+    const r1 = parseInt(rate1on1, 10);
+    const rg = parseInt(rateGroup, 10);
+    if (isNaN(r1) || isNaN(rg) || r1 <= 0 || rg <= 0) {
+      Alert.alert('Invalid Rates', 'Please enter valid numerical hourly rates.');
+      return;
+    }
+    await tutorSettingsRepository.updateRates(currentUser?._id || 'mentor-alex', {
+      hourlyRate1on1: r1,
+      hourlyRateGroup: rg,
+    });
+    Alert.alert(
+      'Rates Saved! 🎉',
+      `1-on-1 Rate set to LKR ${r1.toLocaleString()}/hr and Group Rate set to LKR ${rg.toLocaleString()}/student/hr.`
+    );
+  };
+
+  const handleAddSubject = async () => {
+    if (!newTopicInput.trim()) return;
+    const updated = await tutorSettingsRepository.addSubjectPreference(
+      currentUser?._id || 'mentor-alex',
+      newTopicInput.trim()
+    );
+    setSubjectPreferences(updated.subjectPreferences);
+    setNewTopicInput('');
+  };
+
+  const handleRemoveSubject = async (topic: string) => {
+    const updated = await tutorSettingsRepository.removeSubjectPreference(
+      currentUser?._id || 'mentor-alex',
+      topic
+    );
+    setSubjectPreferences(updated.subjectPreferences);
+  };
+
+  const handleAddSlot = async () => {
+    if (!newSlotStartTime.trim() || !newSlotEndTime.trim()) {
+      Alert.alert('Missing Field', 'Please enter slot start and end times.');
+      return;
+    }
+    const created = await tutorSlotRepository.addSlot({
+      mentorId: currentUser?._id || 'mentor-alex',
+      mentorName: currentUser?.name || 'Alex Ferreira',
+      date: newSlotDate,
+      startTime: newSlotStartTime,
+      endTime: newSlotEndTime,
+      timeRange: `${newSlotStartTime} - ${newSlotEndTime}`,
+      type: newSlotType,
+      maxCapacity: parseInt(newSlotCapacity, 10) || 5,
+      module: newSlotModule,
+    });
+    setTutorSlots((prev) => [created, ...prev]);
+    setAddSlotModalVisible(false);
+    Alert.alert(
+      'Slot Published Live! 🎉',
+      `New booking slot (${newSlotStartTime} - ${newSlotEndTime}, ${newSlotType.toUpperCase()}) published for students.`
+    );
+  };
+
+  const handleDeleteSlot = (slotId: string) => {
+    Alert.alert('Remove Slot', 'Are you sure you want to remove this available booking slot?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          await tutorSlotRepository.deleteSlot(slotId);
+          setTutorSlots((prev) => prev.filter((s) => s.id !== slotId));
+        },
+      },
+    ]);
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -110,15 +254,22 @@ export default function TutorDashboardScreen({ navigation }: any) {
         {/* 3. Tutor Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileTopRow}>
-            {/* Oval Tutor Image */}
+            {/* Tutor Avatar with Camera Edit Badge */}
             <View style={styles.avatarOuterContainer}>
-              <View style={styles.avatarOvalWrapper}>
-                <Image
-                  source={require('../../../../assets/tutor_avatar.jpg')}
-                  style={styles.avatarOvalImage}
-                  resizeMode="cover"
+              <TouchableOpacity
+                onPress={() => setImageModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <TutorAvatar
+                  name={currentUser?.name || 'Alex Ferreira'}
+                  imageUrl={profileImageUri}
+                  size={76}
+                  borderRadius={25}
                 />
-              </View>
+                <View style={styles.cameraBadgeBtn}>
+                  <Ionicons name="camera" size={13} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
               <View style={styles.verifiedBadgeOverlay}>
                 <Ionicons name="checkmark-sharp" size={13} color="#0A2342" />
               </View>
@@ -128,7 +279,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
             <View style={styles.profileDetails}>
               <View style={styles.nameBadgeRow}>
                 <View style={styles.nameAndBadge}>
-                  <Text style={styles.tutorName}>T</Text>
+                  <Text style={styles.tutorName}>{currentUser?.name || 'Alex Ferreira'}</Text>
                   <View style={styles.verifiedPill}>
                     <Ionicons name="checkmark-circle" size={14} color="#F59E0B" />
                     <Text style={styles.verifiedText}>Verified</Text>
@@ -146,6 +297,17 @@ export default function TutorDashboardScreen({ navigation }: any) {
               <Text style={styles.tutorRole}>
                 Senior Peer Tutor • Faculty of Computing
               </Text>
+
+              <TouchableOpacity
+                style={styles.editPhotoLinkRow}
+                onPress={() => setImageModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="image-outline" size={13} color="#1D4ED8" />
+                <Text style={styles.editPhotoLinkText}>
+                  {profileImageUri ? 'Change Photo' : 'Add Profile Photo'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -182,6 +344,168 @@ export default function TutorDashboardScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* 3.1 Booking Pricing & Subject Preferences Section */}
+        <View style={styles.pricingAndTopicsCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.sectionHeading}>Booking Pricing & Topics</Text>
+              <Text style={styles.sectionSubheading}>
+                Configure student rates & topics shown under Subject Preferences
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.saveRatesBtn}
+              onPress={handleSaveRates}
+              activeOpacity={0.85}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="checkmark-done" size={14} color="#061E47" />
+                <Text style={styles.saveRatesBtnText}>Save Rates</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Rates Inputs Row */}
+          <View style={styles.ratesInputRow}>
+            <View style={styles.rateCol}>
+              <Text style={styles.rateColLabel}>1-on-1 Rate / Hour</Text>
+              <View style={styles.rateInputWrap}>
+                <Text style={styles.currencyPrefix}>LKR</Text>
+                <TextInput
+                  style={styles.rateInputField}
+                  value={rate1on1}
+                  onChangeText={setRate1on1}
+                  keyboardType="numeric"
+                  placeholder="2500"
+                />
+              </View>
+            </View>
+
+            <View style={styles.rateCol}>
+              <Text style={styles.rateColLabel}>Group Rate / Student</Text>
+              <View style={styles.rateInputWrap}>
+                <Text style={styles.currencyPrefix}>LKR</Text>
+                <TextInput
+                  style={styles.rateInputField}
+                  value={rateGroup}
+                  onChangeText={setRateGroup}
+                  keyboardType="numeric"
+                  placeholder="1200"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Subject Preferences Management */}
+          <Text style={styles.topicsSectionTitle}>SUBJECT PREFERENCES FOR BOOKING</Text>
+          <Text style={styles.topicsSectionDesc}>
+            These topics will appear as checkboxes for students booking a session with you
+          </Text>
+
+          <View style={styles.topicsChipsWrap}>
+            {subjectPreferences.map((topic) => (
+              <View key={topic} style={styles.topicChip}>
+                <Text style={styles.topicChipText}>{topic}</Text>
+                <TouchableOpacity
+                  onPress={() => handleRemoveSubject(topic)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="close-circle" size={15} color="#DC2626" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.addTopicRow}>
+            <TextInput
+              style={styles.addTopicInput}
+              value={newTopicInput}
+              onChangeText={setNewTopicInput}
+              placeholder="Add topic (e.g. Transactions & ACID)..."
+              placeholderTextColor="#94A3B8"
+            />
+            <TouchableOpacity
+              style={styles.addTopicBtn}
+              onPress={handleAddSubject}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Text style={styles.addTopicBtnText}>Add Topic</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 3.2 Upload & Manage Booking Slots for Students */}
+        <View style={styles.slotsSection}>
+          <View style={styles.slotsSectionHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 6 }}>
+              <Text style={styles.slotsSectionTitle}>Available Student Booking Slots</Text>
+              <Text style={styles.slotsSectionSubtitle}>
+                Slots published for 1-on-1 and Group bookings ({tutorSlots.length} active)
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.addSlotBtn}
+              activeOpacity={0.85}
+              onPress={() => setAddSlotModalVisible(true)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="add" size={16} color="#061E47" />
+                <Text style={styles.addSlotBtnText}>Add Slot</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Slots Horizontal List */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.slotsHorizontalList}
+          >
+            {tutorSlots.map((slot) => (
+              <View key={slot.id} style={styles.tutorSlotCard}>
+                <View style={styles.slotCardTop}>
+                  <View
+                    style={[
+                      styles.slotTypeBadge,
+                      slot.type === 'group'
+                        ? { backgroundColor: '#ECFDF5' }
+                        : slot.type === '1-on-1'
+                        ? { backgroundColor: '#EFF6FF' }
+                        : { backgroundColor: '#FFFBEB' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.slotTypeBadgeText,
+                        slot.type === 'group'
+                          ? { color: '#059669' }
+                          : slot.type === '1-on-1'
+                          ? { color: '#1D4ED8' }
+                          : { color: '#D97706' },
+                      ]}
+                    >
+                      {slot.type === 'both' ? '1-on-1 & Group' : slot.type.toUpperCase()}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleDeleteSlot(slot.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                    <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.slotCardStartTime}>{slot.startTime}</Text>
+                <Text style={styles.slotCardRange}>{slot.timeRange}</Text>
+                <Text style={styles.slotCardDate}>{slot.date}</Text>
+                <View style={styles.slotCapacityRow}>
+                  <Ionicons name="people-outline" size={12} color="#64748B" />
+                  <Text style={styles.slotCapacityText}>
+                    {slot.bookedCount}/{slot.maxCapacity} booked
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
         </View>
 
         {/* 4. Tutor Performance Section */}
@@ -458,6 +782,222 @@ export default function TutorDashboardScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* MODAL 4: Upload & Add Booking Slot */}
+      <Modal visible={addSlotModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Upload Available Booking Slot</Text>
+            <Text style={styles.modalSub}>
+              Students will be able to book 1-on-1 or group study sessions during this time.
+            </Text>
+
+            <Text style={styles.modalLabel}>Date</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newSlotDate}
+              onChangeText={setNewSlotDate}
+              placeholder="e.g. Friday, 19 Sep 2025"
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalLabel}>Start Time</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={newSlotStartTime}
+                  onChangeText={setNewSlotStartTime}
+                  placeholder="e.g. 10:00 AM"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalLabel}>End Time</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={newSlotEndTime}
+                  onChangeText={setNewSlotEndTime}
+                  placeholder="e.g. 11:30 AM"
+                />
+              </View>
+            </View>
+
+            <Text style={styles.modalLabel}>Booking Mode Allowed</Text>
+            <View style={styles.modePickerRow}>
+              {(['1-on-1', 'group', 'both'] as const).map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.modePickerBtn, newSlotType === m && styles.modePickerBtnActive]}
+                  onPress={() => setNewSlotType(m)}
+                >
+                  <Text style={[styles.modePickerBtnText, newSlotType === m && styles.modePickerBtnTextActive]}>
+                    {m === 'both' ? 'Both' : m === 'group' ? 'Group Only' : '1-on-1 Only'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalLabel}>Max Students (Group)</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={newSlotCapacity}
+                  onChangeText={setNewSlotCapacity}
+                  keyboardType="numeric"
+                  placeholder="5"
+                />
+              </View>
+              <View style={{ flex: 1.5 }}>
+                <Text style={styles.modalLabel}>Module / Subject</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={newSlotModule}
+                  onChangeText={setNewSlotModule}
+                  placeholder="Database Systems"
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setAddSlotModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, { backgroundColor: '#F59E0B' }]}
+                onPress={handleAddSlot}
+              >
+                <Text style={[styles.modalConfirmText, { color: '#061E47' }]}>Publish Slot Live</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL 5: Tutor Profile Image Management */}
+      <Modal visible={imageModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.modalTitle}>Tutor Profile Photo</Text>
+              <TouchableOpacity onPress={() => setImageModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#0A2342" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSub}>
+              Personalize your tutor profile photo for students. If no photo is added, your stylish initials avatar will be displayed automatically.
+            </Text>
+
+            {/* Current Preview */}
+            <View style={styles.photoPreviewBox}>
+              <TutorAvatar
+                name={currentUser?.name || 'Alex Ferreira'}
+                imageUrl={imageUrlInput.trim() || profileImageUri}
+                size={84}
+                borderRadius={28}
+              />
+              <Text style={styles.photoPreviewLabel}>
+                {imageUrlInput.trim() || profileImageUri ? 'Photo Preview' : 'Initials Avatar Active'}
+              </Text>
+            </View>
+
+            {/* Image URL Input */}
+            <Text style={styles.inputSectionLabel}>Custom Image URL</Text>
+            <View style={styles.urlInputRow}>
+              <TextInput
+                style={[styles.modalInput, { flex: 1, marginBottom: 0 }]}
+                value={imageUrlInput}
+                onChangeText={setImageUrlInput}
+                placeholder="https://example.com/my-photo.jpg"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+              />
+              {imageUrlInput ? (
+                <TouchableOpacity
+                  style={styles.clearInputBtn}
+                  onPress={() => setImageUrlInput('')}
+                >
+                  <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Academic Sample Presets */}
+            <Text style={[styles.inputSectionLabel, { marginTop: 14 }]}>Or Choose From Sample Tutor Photos</Text>
+            <View style={styles.samplePhotosRow}>
+              {[
+                {
+                  id: 'p1',
+                  url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+                  label: 'Academic 1',
+                },
+                {
+                  id: 'p2',
+                  url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+                  label: 'Academic 2',
+                },
+                {
+                  id: 'p3',
+                  url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
+                  label: 'Academic 3',
+                },
+                {
+                  id: 'p4',
+                  url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+                  label: 'Academic 4',
+                },
+              ].map((sample) => (
+                <TouchableOpacity
+                  key={sample.id}
+                  style={[
+                    styles.samplePhotoThumb,
+                    imageUrlInput === sample.url && styles.samplePhotoThumbActive,
+                  ]}
+                  onPress={() => setImageUrlInput(sample.url)}
+                >
+                  <Image source={{ uri: sample.url }} style={styles.samplePhotoImg} />
+                  {imageUrlInput === sample.url && (
+                    <View style={styles.samplePhotoCheck}>
+                      <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Clear / Initials Button */}
+            <TouchableOpacity
+              style={styles.useInitialsBtn}
+              onPress={() => {
+                setImageUrlInput('');
+                handleSaveProfileImage(null);
+              }}
+            >
+              <Ionicons name="person-circle-outline" size={16} color="#475569" />
+              <Text style={styles.useInitialsBtnText}>Remove Photo & Use Initials Avatar</Text>
+            </TouchableOpacity>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setImageModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, { backgroundColor: '#061E47' }]}
+                onPress={() => handleSaveProfileImage(imageUrlInput.trim() || null)}
+              >
+                <Text style={[styles.modalConfirmText, { color: '#FFFFFF' }]}>Save Photo</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -579,24 +1119,30 @@ const styles = StyleSheet.create({
   },
   avatarOuterContainer: {
     position: 'relative',
-    width: 128,
-    height: 86,
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatarOvalWrapper: {
-    width: 128,
-    height: 86,
-    borderRadius: 43,
-    overflow: 'hidden',
-    backgroundColor: '#E2E8F0',
-  },
-  avatarOvalImage: {
-    width: '100%',
-    height: '100%',
+  cameraBadgeBtn: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#1D4ED8',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    zIndex: 12,
+    elevation: 4,
   },
   verifiedBadgeOverlay: {
     position: 'absolute',
-    bottom: -1,
-    right: 6,
+    top: -4,
+    right: -4,
     backgroundColor: '#F59E0B',
     width: 22,
     height: 22,
@@ -610,7 +1156,18 @@ const styles = StyleSheet.create({
   },
   profileDetails: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 16,
+  },
+  editPhotoLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  editPhotoLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1D4ED8',
   },
   nameBadgeRow: {
     flexDirection: 'row',
@@ -1038,5 +1595,354 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  /* Slot Management Styles */
+  slotsSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  slotsSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  slotsSectionTitle: {
+    color: '#0A2342',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  slotsSectionSubtitle: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  addSlotBtn: {
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  addSlotBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  slotsHorizontalList: {
+    gap: 10,
+    paddingVertical: 2,
+  },
+  tutorSlotCard: {
+    width: 148,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  slotCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  slotTypeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  slotTypeBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  slotCardStartTime: {
+    color: '#0A2342',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  slotCardRange: {
+    color: '#64748B',
+    fontSize: 10.5,
+    marginTop: 1,
+  },
+  slotCardDate: {
+    color: '#475569',
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  slotCapacityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 4,
+  },
+  slotCapacityText: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  modePickerRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  modePickerBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modePickerBtnActive: {
+    backgroundColor: '#061E47',
+    borderColor: '#061E47',
+  },
+  modePickerBtnText: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  modePickerBtnTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+
+  /* Pricing & Topics Section Styles */
+  pricingAndTopicsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionHeading: {
+    color: '#0A2342',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  sectionSubheading: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  saveRatesBtn: {
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  saveRatesBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  ratesInputRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14,
+  },
+  rateCol: {
+    flex: 1,
+  },
+  rateColLabel: {
+    color: '#334155',
+    fontSize: 11.5,
+    fontWeight: '700',
+    marginBottom: 5,
+  },
+  rateInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 10,
+  },
+  currencyPrefix: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '800',
+    marginRight: 6,
+  },
+  rateInputField: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0A2342',
+    paddingVertical: 8,
+  },
+  topicsSectionTitle: {
+    color: '#0A2342',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  topicsSectionDesc: {
+    color: '#64748B',
+    fontSize: 11,
+    marginBottom: 10,
+  },
+  topicsChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  topicChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFDF5',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  topicChipText: {
+    color: '#061E47',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  addTopicRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  addTopicInput: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 12,
+    color: '#0F172A',
+  },
+  addTopicBtn: {
+    backgroundColor: '#0D4F9E',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addTopicBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  /* Tutor Photo Modal Styles */
+  photoPreviewBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  photoPreviewLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 8,
+  },
+  inputSectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 6,
+  },
+  urlInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 8,
+  },
+  clearInputBtn: {
+    position: 'absolute',
+    right: 12,
+  },
+  samplePhotosRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+  },
+  samplePhotoThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  samplePhotoThumbActive: {
+    borderColor: '#1D4ED8',
+    borderWidth: 2.5,
+  },
+  samplePhotoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  samplePhotoCheck: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#1D4ED8',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  useInitialsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  useInitialsBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
   },
 });

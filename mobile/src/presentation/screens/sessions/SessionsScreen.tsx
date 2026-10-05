@@ -20,6 +20,7 @@ import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { Ionicons } from '@expo/vector-icons';
+import TutorAvatar from '../../components/common/TutorAvatar';
 
 type FacultyFilter = 'all' | 'Computing' | 'Engineering' | 'Business' | 'Architecture';
 
@@ -94,6 +95,52 @@ export default function SessionsScreen() {
     return Math.round(sum / enrolledModules.length);
   }, [enrolledModules]);
 
+  // Distinct list of booked tutors
+  const bookedTutors = useMemo(() => {
+    const list: Array<{
+      mentor: EnrolledMentor;
+      moduleCode: string;
+      moduleName: string;
+      nextSession?: string;
+    }> = [];
+
+    const seenIds = new Set<string>();
+
+    enrolledModules.forEach((m) => {
+      if (m.mentor && m.mentor.name) {
+        const id = m.mentor.id || m.mentor.name;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          list.push({
+            mentor: m.mentor,
+            moduleCode: m.code,
+            moduleName: m.name,
+            nextSession: m.nextSession,
+          });
+        }
+      }
+    });
+
+    if (!seenIds.has('mentor-alex')) {
+      list.push({
+        mentor: {
+          id: 'mentor-alex',
+          name: 'Alex Ferreira',
+          roleTitle: 'Database Systems Tutor',
+          avatar: undefined,
+          rating: 4.9,
+          reviewCount: 48,
+          hourlyRate: 2500,
+        },
+        moduleCode: 'IT2020',
+        moduleName: 'Database Systems',
+        nextSession: 'Friday, 19 Sep 2025 • 4:00 PM',
+      });
+    }
+
+    return list;
+  }, [enrolledModules]);
+
   const handleViewTutorProfile = (mentor: EnrolledMentor) => {
     const mentorEntity = {
       _id: mentor.id || 'mentor-default',
@@ -131,14 +178,11 @@ export default function SessionsScreen() {
   };
 
   const handleFindTutorForModule = (moduleItem: EnrolledModule) => {
-    navigation.navigate('MainTabs', {
-      screen: 'Search',
-      params: {
-        initialQuery: moduleItem.code || moduleItem.name,
-        faculty: moduleItem.faculty,
-        department: moduleItem.department,
-      },
-    } as any);
+    (navigation as any).navigate('FindMentor', {
+      initialQuery: moduleItem.code || moduleItem.name,
+      faculty: moduleItem.faculty,
+      department: moduleItem.department,
+    });
   };
 
   return (
@@ -154,7 +198,7 @@ export default function SessionsScreen() {
         </View>
       </View>
 
-      {/* Modules List */}
+      {/* Main Content List */}
       <FlatList
         data={filteredModules}
         keyExtractor={(item) => item.code}
@@ -167,9 +211,149 @@ export default function SessionsScreen() {
         }
         ListHeaderComponent={
           <View style={styles.belowHeaderSection}>
-            <Text style={styles.belowHeaderSubtitle}>
-              Peer tutoring sessions and registered university modules
-            </Text>
+            {/* Top Subtitle & Find New Tutor Row */}
+            <View style={styles.belowHeaderTopRow}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.belowHeaderSubtitle}>
+                  Manage your booked tutors and registered university modules
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.findNewTutorBtn}
+                onPress={() => (navigation as any).navigate('FindMentor')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="search" size={13} color="#061E47" />
+                <Text style={styles.findNewTutorBtnText}>Find New Tutor</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* SECTION 1: BOOKED TUTORS (Separately Displayed) */}
+            <View style={styles.bookedTutorsBarSection}>
+              <View style={styles.bookedTutorsBarHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                  <View style={styles.sectionHeaderIconWrap}>
+                    <Ionicons name="people" size={15} color="#061E47" />
+                  </View>
+                  <View>
+                    <Text style={styles.bookedTutorsBarTitle}>Booked Tutors</Text>
+                    <Text style={styles.bookedTutorsBarSub}>Active peer mentors & tutors</Text>
+                  </View>
+                </View>
+                <View style={styles.bookedTutorsCountBadge}>
+                  <Text style={styles.bookedTutorsCountBadgeText}>
+                    {bookedTutors.length} Active
+                  </Text>
+                </View>
+              </View>
+
+              {bookedTutors.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.bookedTutorsScroll}
+                >
+                  {bookedTutors.map((bt) => (
+                    <View key={bt.mentor.id || bt.mentor.name} style={styles.bookedTutorPillCard}>
+                      {/* Top Row: Avatar & Name */}
+                      <View style={styles.tutorCardTopPart}>
+                        <TutorAvatar
+                          name={bt.mentor.name}
+                          imageUrl={bt.mentor.avatar}
+                          size={46}
+                          borderRadius={16}
+                          showOnlineDot
+                        />
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.bookedTutorPillName} numberOfLines={1}>
+                              {bt.mentor.name}
+                            </Text>
+                            <Ionicons name="checkmark-circle" size={13} color="#10B981" style={{ marginLeft: 3 }} />
+                          </View>
+                          <Text style={styles.bookedTutorPillRole} numberOfLines={1}>
+                            {bt.mentor.roleTitle || 'Senior Peer Mentor'}
+                          </Text>
+                          <View style={styles.bookedTutorBadgeRow}>
+                            <Text style={styles.bookedTutorBadgeText} numberOfLines={1}>
+                              {bt.moduleCode} • {bt.moduleName}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Stats Row (Rate & Rating) */}
+                      <View style={styles.tutorCardStatsMini}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                          <Ionicons name="pricetag" size={11} color="#065F46" />
+                          <Text style={styles.tutorRateHighlight}>
+                            LKR {(bt.mentor.hourlyRate || 1800).toLocaleString()}/hr
+                          </Text>
+                        </View>
+                        <View style={styles.tutorStatsDivider} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                          <Ionicons name="star" size={12} color="#F59E0B" />
+                          <Text style={styles.tutorRatingHighlight}>
+                            {bt.mentor.rating || 4.9}
+                          </Text>
+                          <Text style={styles.tutorReviewCountMini}>
+                            ({bt.mentor.reviewCount || 25})
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Next Session indicator */}
+                      <View style={styles.tutorNextSessionBadge}>
+                        <Ionicons name="calendar-outline" size={12} color="#B45309" />
+                        <Text style={styles.tutorNextSessionBadgeText} numberOfLines={1}>
+                          Next: {bt.nextSession || 'Weekly session scheduled'}
+                        </Text>
+                      </View>
+
+                      {/* Actions: Chat & Profile ONLY (NO Book button!) */}
+                      <View style={styles.tutorCardActionRow}>
+                        <TouchableOpacity
+                          style={styles.tutorChatActionBtn}
+                          onPress={() => handleOpenChat(bt.mentor)}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="chatbubbles-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                          <Text style={styles.tutorChatActionBtnText}>Chat</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.tutorProfileActionBtn}
+                          onPress={() => handleViewTutorProfile(bt.mentor)}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="person-outline" size={13} color="#061E47" style={{ marginRight: 3 }} />
+                          <Text style={styles.tutorProfileActionBtnText}>Profile</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View style={styles.emptyBookedTutorsBox}>
+                  <Text style={styles.emptyBookedTutorsText}>
+                    No tutors booked yet. Connect with verified peer mentors for your modules.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* SECTION 2: REGISTERED MODULES & SESSIONS */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <View style={styles.sectionHeaderIconWrap}>
+                  <Ionicons name="book-outline" size={15} color="#061E47" />
+                </View>
+                <View>
+                  <Text style={styles.bookedTutorsBarTitle}>Registered Modules & Sessions</Text>
+                  <Text style={styles.bookedTutorsBarSub}>Track progress & course milestones</Text>
+                </View>
+              </View>
+            </View>
 
             {/* Stats Row */}
             <View style={styles.statsCard}>
@@ -194,7 +378,7 @@ export default function SessionsScreen() {
               <Ionicons name="search" size={17} color="#8997AF" style={{ marginRight: 8 }} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search selected modules, codes, or mentors..."
+                placeholder="Search registered modules, codes, or mentors..."
                 placeholderTextColor="#8997AF"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -342,16 +526,13 @@ export default function SessionsScreen() {
                       onPress={() => handleViewTutorProfile(item.mentor!)}
                       activeOpacity={0.8}
                     >
-                      {item.mentor.avatar ? (
-                        <Image source={{ uri: item.mentor.avatar }} style={styles.mentorAvatar} />
-                      ) : (
-                        <View style={styles.mentorAvatarFallback}>
-                          <Text style={styles.mentorAvatarLetter}>
-                            {item.mentor.name.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.onlineDot} />
+                      <TutorAvatar
+                        name={item.mentor.name}
+                        imageUrl={item.mentor.avatar}
+                        size={46}
+                        borderRadius={16}
+                        showOnlineDot
+                      />
                     </TouchableOpacity>
 
                     <View style={styles.mentorInfoCol}>
@@ -370,22 +551,23 @@ export default function SessionsScreen() {
                         {item.mentor.roleTitle || 'Senior Peer Mentor'} • {item.mentor.batch || "Batch '24"}
                       </Text>
 
-                      <View style={styles.mentorRatingRow}>
-                        <Text style={styles.mentorRatingText}>
-                          ★ {item.mentor.rating || 4.9}
-                        </Text>
-                        <Text style={styles.reviewCountText}>
-                          ({item.mentor.reviewCount || 25} reviews)
-                        </Text>
-                        {item.mentor.hourlyRate ? (
-                          <Text style={styles.hourlyRateText}>
-                            • LKR {item.mentor.hourlyRate.toLocaleString()}/hr
+                      <View style={styles.mentorMetaChipsRow}>
+                        <View style={styles.mentorRatingPill}>
+                          <Ionicons name="star" size={10} color="#F59E0B" />
+                          <Text style={styles.mentorRatingText}>
+                            {item.mentor.rating || 4.9} ({item.mentor.reviewCount || 25})
                           </Text>
-                        ) : null}
+                        </View>
+                        <View style={styles.mentorPricePill}>
+                          <Ionicons name="pricetag" size={10} color="#065F46" />
+                          <Text style={styles.mentorPricePillText}>
+                            LKR {(item.mentor.hourlyRate || 1800).toLocaleString()} / hr
+                          </Text>
+                        </View>
                       </View>
                     </View>
 
-                    {/* Quick Contact Buttons */}
+                    {/* Quick Contact Buttons (Profile & Chat only - tutor already booked) */}
                     <View style={styles.mentorActionButtons}>
                       <TouchableOpacity
                         style={styles.profileBtn}
@@ -401,7 +583,7 @@ export default function SessionsScreen() {
                         activeOpacity={0.8}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Ionicons name="chatbubbles-outline" size={14} color="#061E47" />
+                          <Ionicons name="chatbubbles-outline" size={13} color="#FFFFFF" />
                           <Text style={styles.chatBtnText}>Chat</Text>
                         </View>
                       </TouchableOpacity>
@@ -478,12 +660,31 @@ const styles = StyleSheet.create({
   belowHeaderSection: {
     marginBottom: 6,
   },
+  belowHeaderTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
   belowHeaderSubtitle: {
     color: '#64748B',
     fontSize: 13,
-    marginBottom: 12,
     marginTop: 2,
     fontWeight: '500',
+  },
+  findNewTutorBtn: {
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  findNewTutorBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '800',
   },
 
   /* Stats Card Below Header */
@@ -838,6 +1039,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  /* Meta Chips in Module Card */
+  mentorMetaChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  mentorRatingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  mentorPricePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  mentorPricePillText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+
   /* Mentor Action Buttons */
   mentorActionButtons: {
     flexDirection: 'column',
@@ -943,5 +1177,200 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+  },
+
+  /* Section Header Row */
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  sectionHeaderIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#EEF2F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Booked Tutors Dedicated Bar Section */
+  bookedTutorsBarSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  bookedTutorsBarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  bookedTutorsBarTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#061E47',
+    letterSpacing: -0.2,
+  },
+  bookedTutorsBarSub: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  bookedTutorsCountBadge: {
+    backgroundColor: '#EEF2F6',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  bookedTutorsCountBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  bookedTutorsScroll: {
+    gap: 12,
+    paddingRight: 6,
+  },
+  bookedTutorPillCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    width: 260,
+  },
+  tutorCardTopPart: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bookedTutorPillName: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  bookedTutorPillRole: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  bookedTutorBadgeRow: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  bookedTutorBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#061E47',
+  },
+  tutorCardStatsMini: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 9,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  tutorRateHighlight: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  tutorStatsDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: '#E2E8F0',
+  },
+  tutorRatingHighlight: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  tutorReviewCountMini: {
+    fontSize: 10,
+    color: '#64748B',
+  },
+  tutorNextSessionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  tutorNextSessionBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#B45309',
+    flex: 1,
+  },
+  tutorCardActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  tutorChatActionBtn: {
+    flex: 1,
+    backgroundColor: '#061E47',
+    borderRadius: 9,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tutorChatActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  tutorProfileActionBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 9,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tutorProfileActionBtnText: {
+    color: '#061E47',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  emptyBookedTutorsBox: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  emptyBookedTutorsText: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

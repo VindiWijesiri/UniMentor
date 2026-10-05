@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   FlatList,
   Modal,
   Platform,
@@ -21,11 +22,12 @@ import { searchMentorsUseCase } from '../../../domain/usecases/mentor/searchMent
 import type { Mentor } from '../../../domain/entities/Mentor';
 import { countTutorFilters } from '../../../domain/entities/TutorFilters';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import { sessionRepository } from '../../../data/repositories/sessionRepository';
 import { shortlistRepository } from '../../../data/repositories/shortlistRepository';
 import type { ShortlistedMentor } from '../../../domain/entities/ShortlistedMentor';
 import { Ionicons } from '@expo/vector-icons';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Search'>;
+type Props = any;
 type MentorCard = Mentor & {
   experience?: string;
   sessionCount?: number;
@@ -99,6 +101,56 @@ export default function SearchScreen({ route, navigation }: Props) {
   const [selectedPriority, setSelectedPriority] = useState<'Top Choice' | 'Considering' | 'Backup'>('Top Choice');
   const [shortlistNotes, setShortlistNotes] = useState('');
   const [submittingShortlist, setSubmittingShortlist] = useState(false);
+
+  // Booking Modal state
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingTargetMentor, setBookingTargetMentor] = useState<MentorCard | null>(null);
+  const [bookingSubject, setBookingSubject] = useState('');
+  const [bookingSlot, setBookingSlot] = useState('Tomorrow 10:00 AM');
+  const [bookingNotes, setBookingNotes] = useState('');
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
+
+  const handleOpenBookingModal = (mentor: MentorCard) => {
+    (navigation as any).navigate('BookSession', {
+      mentor,
+      initialMode: '1-on-1',
+    });
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!bookingTargetMentor) return;
+    try {
+      setIsSubmittingBooking(true);
+      await sessionRepository.bookSession({
+        mentorId: bookingTargetMentor._id,
+        subject: bookingSubject,
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        notes: bookingNotes.trim() || `Booked session for ${bookingSubject} with ${bookingTargetMentor.name}`,
+      });
+      setShowBookingModal(false);
+      Alert.alert(
+        'Session Booked! 🎉',
+        `Your tutoring session with ${bookingTargetMentor.name} for ${bookingSubject} has been confirmed.`,
+        [
+          {
+            text: 'View in My Bookings',
+            onPress: () => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                (navigation as any).navigate('SessionsList');
+              }
+            },
+          },
+          { text: 'Done', style: 'cancel' },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Booking Error', err?.message || 'Could not schedule session. Please try again.');
+    } finally {
+      setIsSubmittingBooking(false);
+    }
+  };
 
   useEffect(() => {
     shortlistRepository.getShortlist().then((data) => {
@@ -297,21 +349,23 @@ export default function SearchScreen({ route, navigation }: Props) {
   };
 
   const handleGoBack = () => {
-    const parent = navigation.getParent<NativeStackNavigationProp<AppStackParamList>>();
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else if (route.params?.faculty || route.params?.department || route.params?.programme) {
-      if (parent) {
-        parent.navigate('GuidanceWizard');
-      } else {
-        navigation.navigate('Home');
-      }
-    } else if (parent && parent.canGoBack()) {
-      parent.goBack();
-    } else {
-      navigation.navigate('Home');
+    // Specifically return to My Bookings page as requested
+    try {
+      (navigation as any).navigate('SessionsList');
+    } catch {
+      const parent = (navigation.getParent?.() as any) || (navigation as any);
+      parent?.navigate('Bookings', { screen: 'SessionsList' });
     }
   };
+
+  useEffect(() => {
+    const onBackPress = () => {
+      handleGoBack();
+      return true;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, []);
 
   const openComparison = () => {
     const mentors = visibleMentors.filter(({ _id }) => comparisonIds.includes(_id));
@@ -319,7 +373,7 @@ export default function SearchScreen({ route, navigation }: Props) {
       Alert.alert('Select tutors', 'Choose at least 2 tutors to compare.');
       return;
     }
-    navigation.getParent<NativeStackNavigationProp<AppStackParamList>>()
+    ((navigation.getParent?.() as any) || (navigation as any))
       ?.navigate('CompareTutors', { mentors });
   };
 
@@ -354,47 +408,93 @@ export default function SearchScreen({ route, navigation }: Props) {
           ))}
         </View>
 
-        <View style={styles.cardFooter}>
-          <View style={styles.priceBlock}>
-            <Text style={styles.priceLabel}>HOURLY RATE</Text>
-            <Text style={styles.priceText}>LKR {rate.toLocaleString()} <Text style={styles.priceUnit}>/ hour</Text></Text>
-            <Text style={styles.availableText}>●  {item.availability ?? 'Schedule available'}</Text>
+        <View style={styles.tutorCardFooter}>
+          <View style={styles.priceRow}>
+            <View style={styles.priceBlock}>
+              <Text style={styles.priceLabel}>HOURLY RATE</Text>
+              <Text style={styles.priceText}>
+                LKR {rate.toLocaleString()} <Text style={styles.priceUnit}>/ hour</Text>
+              </Text>
+            </View>
+            <View style={styles.availabilityBadge}>
+              <Text style={styles.availableText}>● {item.availability ?? 'Schedule available'}</Text>
+            </View>
           </View>
-          <View style={styles.cardActions}>
-            <TouchableOpacity
-              style={[styles.saveShortlistBtn, isShortlisted && styles.saveShortlistBtnActive]}
-              onPress={() => openSaveModal(item)}
-              activeOpacity={0.8}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+
+          {/* 2 Column x 2 Row Action Buttons Grid */}
+          <View style={styles.buttonGrid2x2}>
+            {/* Row 1: Book & Profile */}
+            <View style={styles.gridRow}>
+              <TouchableOpacity
+                style={styles.gridBookBtn}
+                onPress={() => handleOpenBookingModal(item)}
+                activeOpacity={0.82}
+              >
+                <Ionicons name="calendar" size={14} color="#061E47" style={{ marginRight: 5 }} />
+                <Text style={styles.gridBookBtnText}>Book</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.gridProfileBtn}
+                activeOpacity={0.82}
+                onPress={() => ((navigation.getParent?.() as any) || (navigation as any))
+                  ?.navigate('TutorProfile', { mentor: item })}
+              >
+                <Ionicons name="person-outline" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+                <Text style={styles.gridProfileBtnText}>Profile</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Row 2: Compare & Save */}
+            <View style={styles.gridRow}>
+              <TouchableOpacity
+                style={[
+                  styles.gridCompareBtn,
+                  comparisonIds.includes(item._id) && styles.gridCompareBtnSelected,
+                ]}
+                onPress={() => toggleComparison(item._id)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={comparisonIds.includes(item._id) ? 'checkmark-circle' : 'git-compare-outline'}
+                  size={14}
+                  color={comparisonIds.includes(item._id) ? '#FFFFFF' : '#061E47'}
+                  style={{ marginRight: 5 }}
+                />
+                <Text
+                  style={[
+                    styles.gridCompareBtnText,
+                    comparisonIds.includes(item._id) && styles.gridCompareBtnTextSelected,
+                  ]}
+                >
+                  {comparisonIds.includes(item._id) ? 'Comparing' : 'Compare'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.gridSaveBtn,
+                  isShortlisted && styles.gridSaveBtnActive,
+                ]}
+                onPress={() => openSaveModal(item)}
+                activeOpacity={0.8}
+              >
                 <Ionicons
                   name={isShortlisted ? 'bookmark' : 'bookmark-outline'}
-                  size={13}
+                  size={14}
                   color={isShortlisted ? '#B45309' : '#0F172A'}
+                  style={{ marginRight: 5 }}
                 />
-                <Text style={[styles.saveShortlistText, isShortlisted && styles.saveShortlistTextActive]}>
+                <Text
+                  style={[
+                    styles.gridSaveBtnText,
+                    isShortlisted && styles.gridSaveBtnTextActive,
+                  ]}
+                >
                   {isShortlisted ? 'Saved' : 'Save'}
                 </Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.addCompareButton, comparisonIds.includes(item._id) && styles.addCompareButtonSelected]}
-              onPress={() => toggleComparison(item._id)}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.addCompareText, comparisonIds.includes(item._id) && styles.addCompareTextSelected]}>
-                {comparisonIds.includes(item._id) ? '✓ Added' : '+ Compare'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.viewButton}
-              activeOpacity={0.82}
-              onPress={() => navigation
-                .getParent<NativeStackNavigationProp<AppStackParamList>>()
-                ?.navigate('TutorProfile', { mentor: item })}
-            >
-              <Text style={styles.viewButtonText}>Profile</Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -450,6 +550,25 @@ export default function SearchScreen({ route, navigation }: Props) {
         <View style={styles.cardFooter}>
           <View style={styles.shortlistActions}>
             <TouchableOpacity
+              style={styles.bookButton}
+              onPress={() => {
+                const fullMentor = apiMentors.find((m) => m._id === item.mentorId) || {
+                  _id: item.mentorId,
+                  name: item.name,
+                  email: '',
+                  role: 'mentor' as const,
+                  subjects: item.subjects,
+                  rating: item.rating,
+                  hourlyRate: item.hourlyRate,
+                };
+                handleOpenBookingModal(fullMentor as MentorCard);
+              }}
+              activeOpacity={0.82}
+            >
+              <Ionicons name="calendar" size={13} color="#061E47" style={{ marginRight: 4 }} />
+              <Text style={styles.bookButtonText}>Book</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.editNotesBtn}
               onPress={() => openEditShortlistModal(item)}
             >
@@ -480,8 +599,7 @@ export default function SearchScreen({ route, navigation }: Props) {
                 rating: item.rating,
                 hourlyRate: item.hourlyRate,
               };
-              navigation
-                .getParent<NativeStackNavigationProp<AppStackParamList>>()
+              ((navigation.getParent?.() as any) || (navigation as any))
                 ?.navigate('TutorProfile', { mentor: fullMentor as Mentor });
             }}
           >
@@ -497,7 +615,16 @@ export default function SearchScreen({ route, navigation }: Props) {
       {/* Top Header Bar */}
       <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle} numberOfLines={1}>Find Your Mentor</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              style={styles.headerBackBtn}
+              onPress={handleGoBack}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>Find Your Mentor</Text>
+          </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
@@ -568,8 +695,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               <Text style={styles.browseLabel}>Filter by module</Text>
               <TouchableOpacity
                 style={[styles.openFiltersButton, activeFilterCount > 0 && styles.openFiltersButtonActive]}
-                onPress={() => navigation
-                  .getParent<NativeStackNavigationProp<AppStackParamList>>()
+                onPress={() => ((navigation.getParent?.() as any) || (navigation as any))
                   ?.navigate('Filters', { filters, searchParams: route.params })}
                 activeOpacity={0.8}
               >
@@ -613,7 +739,17 @@ export default function SearchScreen({ route, navigation }: Props) {
             {comparisonIds.length > 0 && (
               <View style={styles.comparePanel}>
                 <View style={styles.compareCountWrap}>
-                  <Text style={styles.compareCount}>{comparisonIds.length}/3</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={styles.compareCount}>{comparisonIds.length}/3</Text>
+                    <TouchableOpacity
+                      style={styles.headerClearBtn}
+                      onPress={() => setComparisonIds([])}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
+                      <Text style={styles.headerClearBtnText}>Clear</Text>
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.compareHint}>tutors selected</Text>
                 </View>
                 <TouchableOpacity
@@ -734,10 +870,42 @@ export default function SearchScreen({ route, navigation }: Props) {
 
       {comparisonIds.length > 0 && (
         <View style={styles.floatingCompareBar}>
-          <View>
-            <Text style={styles.floatingCompareCount}>{comparisonIds.length}/3 selected</Text>
-            <Text style={styles.floatingCompareHint}>{comparisonIds.length < 2 ? 'Select one more tutor' : 'Ready to compare'}</Text>
+          <View style={styles.floatingCompareInfo}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.floatingCompareCount}>{comparisonIds.length}/3 selected</Text>
+              <TouchableOpacity
+                style={styles.floatingClearBtn}
+                onPress={() => setComparisonIds([])}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={14} color="#FCA5A5" />
+                <Text style={styles.floatingClearText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.floatingCompareHint}>
+              {comparisonIds.length < 2 ? 'Select 1 more tutor or tap Clear' : 'Ready to compare'}
+            </Text>
+
+            {/* Individual chips with remove (X) */}
+            <View style={styles.selectedChipsRow}>
+              {comparisonIds.map((id) => {
+                const mentorObj = apiMentors.find((m) => m._id === id);
+                const tutorName = mentorObj?.name ? mentorObj.name.split(' ')[0] : 'Tutor';
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    style={styles.selectedChip}
+                    onPress={() => toggleComparison(id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.selectedChipText} numberOfLines={1}>{tutorName}</Text>
+                    <Ionicons name="close" size={11} color="#061E47" />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
+
           <TouchableOpacity
             style={[styles.floatingCompareButton, comparisonIds.length < 2 && styles.compareButtonDisabled]}
             onPress={openComparison}
@@ -748,6 +916,127 @@ export default function SearchScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* ================= BOOKING MODAL ================= */}
+      <Modal
+        visible={showBookingModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBookingModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowBookingModal(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Book Tutoring Session</Text>
+            <Text style={styles.sheetSubtitle}>
+              Schedule a 1-on-1 peer learning session with your verified tutor
+            </Text>
+
+            {bookingTargetMentor && (
+              <View style={styles.bookingMentorCard}>
+                <View style={styles.bookingAvatarWrap}>
+                  <Text style={styles.avatarText}>
+                    {bookingTargetMentor.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bookingMentorName}>{bookingTargetMentor.name}</Text>
+                  <Text style={styles.bookingMentorRate}>
+                    LKR {getMentorRate(bookingTargetMentor).toLocaleString()} / hour • ★ {bookingTargetMentor.rating?.toFixed(1) || '4.9'}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Subject Selection */}
+            <Text style={styles.modalLabel}>Select Subject / Topic:</Text>
+            <View style={styles.bookingChipsRow}>
+              {(bookingTargetMentor?.subjects?.length ? bookingTargetMentor.subjects : ['Academic Guidance', 'Module Revision']).map(
+                (sub) => (
+                  <TouchableOpacity
+                    key={sub}
+                    style={[styles.bookingChip, bookingSubject === sub && styles.bookingChipActive]}
+                    onPress={() => setBookingSubject(sub)}
+                  >
+                    <Text
+                      style={[
+                        styles.bookingChipText,
+                        bookingSubject === sub && styles.bookingChipTextActive,
+                      ]}
+                    >
+                      {sub}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              )}
+            </View>
+
+            {/* Preferred Time Slot */}
+            <Text style={styles.modalLabel}>Preferred Time Slot:</Text>
+            <View style={styles.bookingChipsRow}>
+              {[
+                'Tomorrow 10:00 AM',
+                'Tomorrow 3:30 PM',
+                'In 2 Days 11:00 AM',
+                'In 3 Days 4:00 PM',
+              ].map((slot) => (
+                <TouchableOpacity
+                  key={slot}
+                  style={[styles.bookingChip, bookingSlot === slot && styles.bookingChipActive]}
+                  onPress={() => setBookingSlot(slot)}
+                >
+                  <Text
+                    style={[
+                      styles.bookingChipText,
+                      bookingSlot === slot && styles.bookingChipTextActive,
+                    ]}
+                  >
+                    {slot}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Session Goals Notes */}
+            <Text style={styles.modalLabel}>Session Goals / Questions (Optional):</Text>
+            <TextInput
+              style={styles.modalNotesInput}
+              value={bookingNotes}
+              onChangeText={setBookingNotes}
+              placeholder="e.g. Need assistance with graph traversal past papers and Assignment 2..."
+              placeholderTextColor="#94A3B8"
+              multiline
+            />
+
+            {/* Action Buttons */}
+            <TouchableOpacity
+              style={[styles.confirmBookingBtn, isSubmittingBooking && { opacity: 0.7 }]}
+              onPress={handleConfirmBooking}
+              disabled={isSubmittingBooking}
+              activeOpacity={0.85}
+            >
+              {isSubmittingBooking ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <Text style={styles.confirmBookingText}>Scheduling Session...</Text>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="calendar" size={16} color="#061E47" />
+                  <Text style={styles.confirmBookingText}>Confirm & Book Session</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelLink}
+              onPress={() => setShowBookingModal(false)}
+            >
+              <Text style={styles.cancelLinkText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
     </View>
   );
@@ -1134,4 +1423,212 @@ const styles = StyleSheet.create({
   sheetSubtitle: { color: '#64748B', fontSize: 11, marginTop: 2, marginBottom: 14 },
   cancelLink: { alignItems: 'center', paddingVertical: 8 },
   cancelLinkText: { color: '#64748B', fontSize: 12, fontWeight: '600' },
+
+  /* Header & Book Button Styles */
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerBackBtn: { paddingRight: 6, paddingVertical: 2 },
+  headerClearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  headerClearBtnText: { color: '#DC2626', fontSize: 10, fontWeight: '800' },
+  bookButton: {
+    minWidth: 70,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#F59E0B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  bookButtonText: { color: '#061E47', fontSize: 11, fontWeight: '900' },
+
+  /* Floating Compare Bar Extras */
+  floatingCompareInfo: { flex: 1, marginRight: 8 },
+  floatingClearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  floatingClearText: { color: '#FCA5A5', fontSize: 10, fontWeight: '800' },
+  selectedChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 4 },
+  selectedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  selectedChipText: { color: '#061E47', fontSize: 10, fontWeight: '800', maxWidth: 70 },
+
+  /* Booking Modal Styles */
+  bookingMentorCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+  },
+  bookingAvatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#061E47',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  bookingMentorName: { color: '#0F172A', fontSize: 15, fontWeight: '800' },
+  bookingMentorRate: { color: '#D97706', fontSize: 12, fontWeight: '700', marginTop: 2 },
+  bookingChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  bookingChip: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  bookingChipActive: { backgroundColor: '#061E47', borderColor: '#061E47' },
+  bookingChipText: { color: '#475569', fontSize: 11, fontWeight: '700' },
+  bookingChipTextActive: { color: '#FFFFFF', fontWeight: '800' },
+  confirmBookingBtn: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  confirmBookingText: { color: '#061E47', fontSize: 14, fontWeight: '800' },
+
+  /* 2 Column x 2 Row Tutor Card Action Buttons */
+  tutorCardFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#ECF0F5',
+    marginTop: 14,
+    paddingTop: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  availabilityBadge: {
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  buttonGrid2x2: {
+    gap: 8,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  gridBookBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#F59E0B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  gridBookBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  gridProfileBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#061E47',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  gridProfileBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  gridCompareBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#061E47',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  gridCompareBtnSelected: {
+    backgroundColor: '#061E47',
+    borderColor: '#061E47',
+  },
+  gridCompareBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  gridCompareBtnTextSelected: {
+    color: '#FFFFFF',
+  },
+  gridSaveBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    backgroundColor: '#FFFDF0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  gridSaveBtnActive: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  gridSaveBtnText: {
+    color: '#B45309',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  gridSaveBtnTextActive: {
+    color: '#92400E',
+    fontWeight: '900',
+  },
 });
