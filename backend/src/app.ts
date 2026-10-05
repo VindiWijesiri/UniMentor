@@ -46,7 +46,10 @@ app.get('/health', (_req, res) => {
 });
 
 // Database connectivity check for API routes to prevent Mongoose 10s query hangs
-app.use('/api', (_req, res, next) => {
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/payment')) {
+    return next(); // DirectPay and payment operations are always available
+  }
   if (mongoose.connection.readyState !== 1) {
     return res.status(503).json({
       message: 'Database connection pending. Please whitelist IP 112.134.149.17 or 0.0.0.0/0 in MongoDB Atlas > Network Access.',

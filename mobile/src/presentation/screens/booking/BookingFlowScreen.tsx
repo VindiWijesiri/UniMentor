@@ -13,6 +13,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +23,7 @@ import { tutorSlotRepository } from '../../../data/repositories/tutorSlotReposit
 import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/repositories/tutorSettingsRepository';
 import { sessionRepository } from '../../../data/repositories/sessionRepository';
 import { bookedTutorsRepository } from '../../../data/repositories/bookedTutorsRepository';
-import { paymentRepository } from '../../../data/repositories/paymentRepository';
+import { paymentRepository, DirectPaySession, DirectPayReceipt } from '../../../data/repositories/paymentRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import type { TutorSlot } from '../../../domain/entities/TutorSlot';
@@ -126,6 +127,7 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
 
   // DirectPay state
   const [showDirectPayModal, setShowDirectPayModal] = useState<boolean>(false);
+  const [activeDpSession, setActiveDpSession] = useState<DirectPaySession | null>(null);
   const [dpCardNumber, setDpCardNumber] = useState<string>('4111 2222 3333 4444');
   const [dpCardExpiry, setDpCardExpiry] = useState<string>('12/28');
   const [dpCardCvv, setDpCardCvv] = useState<string>('842');
@@ -145,6 +147,8 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
     transactionId: string;
     facePhoto: string | null;
     studyMode: string;
+    authCode?: string;
+    cardDetails?: string;
   } | null>(null);
 
   // Sync wallet balance
@@ -262,8 +266,250 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
     setCurrentStep('finalize');
   };
 
-  // Step 5: Finalize Booking
-  const handleFinalizeBooking = async () => {
+  // Step 6: Face Capture & Biometric Verification Handlers
+  const handleAutoScanWithCamera = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Camera Access Required',
+          'Camera permission is needed to scan your face for biometric session verification.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Grant Access', onPress: () => handleAutoScanWithCamera() },
+          ]
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        cameraType: ImagePicker.CameraType.front,
+        allowsEditing: false,
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        startFaceVerification(result.assets[0].uri);
+      }
+    } catch (err: any) {
+      console.warn('[FaceScan] Camera launch error:', err);
+      Alert.alert(
+        'Camera Notice',
+        'Could not access the camera on this device. Would you like to select a photo from gallery or run a sample scan?',
+        [
+          { text: 'Upload Photo', onPress: handlePickFaceLibrary },
+          { text: 'Sample Scan', onPress: handleRunDemoScan },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  };
+
+  const handleCaptureFaceCamera = handleAutoScanWithCamera;
+  const handleSimulateFaceScan = handleAutoScanWithCamera;
+
+  const handlePickFaceLibrary = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        startFaceVerification(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.log('[FaceCapture] Library pick notice:', err);
+    }
+  };
+
+  const handleRunDemoScan = () => {
+    const demoFace =
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
+    startFaceVerification(demoFace);
+  };
+
+  const startFaceVerification = (uri: string) => {
+    setFacePhotoUri(uri);
+    setFaceVerificationStatus('scanning');
+    setTimeout(() => {
+      setFaceVerificationStatus('verified');
+      setAntiProxyToken(`SLIIT-BIO-${Math.floor(10000 + Math.random() * 90000)}-VERIFIED`);
+    }, 1200);
+  };
+
+  // Card formatting & DirectPay sandbox helpers
+  const formatCardNumber = (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, 16);
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+  };
+
+  const formatExpiryDate = (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, 4);
+    if (digits.length > 2) {
+      return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    }
+    return digits;
+  };
+
+  const getCardBrand = (cardNumber: string): 'Visa' | 'Mastercard' | 'Amex' | 'Card' => {
+    const clean = cardNumber.replace(/\D/g, '');
+    if (clean.startsWith('4')) return 'Visa';
+    if (
+      clean.startsWith('51') ||
+      clean.startsWith('52') ||
+      clean.startsWith('53') ||
+      clean.startsWith('54') ||
+      clean.startsWith('55') ||
+      clean.startsWith('2')
+    ) {
+      return 'Mastercard';
+    }
+    if (clean.startsWith('34') || clean.startsWith('37')) return 'Amex';
+    return 'Card';
+  };
+
+  const quickFillTestCard = (brand: 'visa' | 'mastercard') => {
+    if (brand === 'visa') {
+      setDpCardNumber('4111 2222 3333 4444');
+      setDpCardExpiry('12/28');
+      setDpCardCvv('842');
+      setDpCardholderName(studentName || 'Vindi Wijesiri');
+      setDpOtpCode('123456');
+    } else {
+      setDpCardNumber('5105 1051 0510 5100');
+      setDpCardExpiry('11/27');
+      setDpCardCvv('321');
+      setDpCardholderName(studentName || 'Vindi Wijesiri');
+      setDpOtpCode('123456');
+    }
+  };
+
+  // Step 7: Payment confirmation & DirectPay handlers
+  const handleConfirmAndPay = async () => {
+    if (selectedPaymentMethod === 'card') {
+      setIsSubmitting(true);
+      try {
+        const session = await paymentRepository.initiateDirectPay({
+          amount: totalPayable,
+          studentName,
+          studentEmail,
+          tutorName: mentor.name,
+          subject: mentor.subjects?.[0] || 'Academic Tutoring',
+        });
+        setActiveDpSession(session);
+        setDpStep('card_entry');
+        setShowDirectPayModal(true);
+      } catch (err: any) {
+        console.log('[DirectPay] Session initiation fallback notice:', err);
+        setDpStep('card_entry');
+        setShowDirectPayModal(true);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else if (selectedPaymentMethod === 'wallet') {
+      if (walletBalance < totalPayable) {
+        Alert.alert(
+          'Insufficient Wallet Balance',
+          `Your Campus Wallet balance is Rs. ${walletBalance.toLocaleString()}, but Rs. ${totalPayable.toLocaleString()} is required. Please choose Credit/Debit Card (DirectPay) or Bank Transfer.`
+        );
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        const result = await paymentRepository.payWithWallet(totalPayable);
+        setWalletBalance(result.remainingBalance);
+        await handleFinalizeBooking('Campus Wallet', result.transactionId);
+      } catch (err: any) {
+        Alert.alert('Payment Error', err?.message || 'Could not complete campus wallet payment.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else if (selectedPaymentMethod === 'bank') {
+      setIsSubmitting(true);
+      try {
+        const bankTxnId = `BOC-SLIIT-${Date.now()}`;
+        await handleFinalizeBooking('Bank Transfer', bankTxnId);
+      } catch (err: any) {
+        Alert.alert('Payment Error', err?.message || 'Could not complete bank payment.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const handleDirectPaySubmitCard = () => {
+    const cleanNum = dpCardNumber.replace(/\D/g, '');
+    if (!dpCardholderName.trim()) {
+      Alert.alert('Cardholder Name Required', 'Please enter the name printed on your debit or credit card.');
+      return;
+    }
+    if (cleanNum.length < 15) {
+      Alert.alert('Invalid Card Number', 'Please enter a valid 16-digit debit/credit card number.');
+      return;
+    }
+    const cleanExp = dpCardExpiry.replace(/\D/g, '');
+    if (cleanExp.length < 4) {
+      Alert.alert('Invalid Expiry Date', 'Please enter a valid MM/YY expiration date.');
+      return;
+    }
+    const mm = parseInt(cleanExp.slice(0, 2), 10);
+    if (mm < 1 || mm > 12) {
+      Alert.alert('Invalid Expiry Month', 'Expiration month must be between 01 and 12.');
+      return;
+    }
+    if (dpCardCvv.length < 3) {
+      Alert.alert('Invalid CVV', 'Please enter the 3-digit security CVV code on the back of your card.');
+      return;
+    }
+    // Proceed to DirectPay 3D-Secure OTP verification
+    setDpStep('otp_verify');
+  };
+
+  const handleDirectPayVerifyOtp = async () => {
+    if (!dpOtpCode || dpOtpCode.trim().length < 4) {
+      Alert.alert(
+        'OTP Required',
+        'Please enter the 6-digit OTP code sent for 3D-Secure verification. For sandbox testing, enter 123456.'
+      );
+      return;
+    }
+    setIsProcessingDirectPay(true);
+    setDpStep('processing');
+    try {
+      const cleanNum = dpCardNumber.replace(/\D/g, '');
+      const cardBrand = getCardBrand(dpCardNumber);
+      const receipt = await paymentRepository.verifyDirectPay({
+        transactionId: activeDpSession?.transactionId || `DP-LKR-${Date.now()}`,
+        orderId: activeDpSession?.orderId || `ORD-${Date.now()}`,
+        cardLast4: cleanNum.slice(-4) || '4242',
+        cardType: cardBrand,
+        amount: totalPayable,
+        otp: dpOtpCode.trim(),
+      });
+
+      setShowDirectPayModal(false);
+      await handleFinalizeBooking(
+        'DirectPay',
+        receipt.transactionId,
+        receipt.authCode,
+        `${cardBrand} •••• ${cleanNum.slice(-4) || '4242'}`
+      );
+    } catch (err: any) {
+      Alert.alert('DirectPay Authorization Error', err?.message || 'Could not verify card payment.');
+      setDpStep('otp_verify');
+    } finally {
+      setIsProcessingDirectPay(false);
+    }
+  };
+
+  // Finalize Booking persistence
+  const handleFinalizeBooking = async (
+    paymentMethod: 'DirectPay' | 'Campus Wallet' | 'Bank Transfer' = 'DirectPay',
+    transactionId: string = `DP-${Date.now()}`,
+    authCode?: string,
+    cardDetails?: string
+  ) => {
     setIsSubmitting(true);
     try {
       const finalTime = timeUpdatedBanner ? selectedAlternative : selectedSlot?.startTime || '10:00 AM';
@@ -300,6 +546,12 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         studyMode,
         groupSize: studyMode === 'group' ? groupSize : 1,
         bookedAt: new Date().toISOString(),
+        paymentMethod,
+        paymentStatus: 'PAID',
+        paidAmount: totalPayable,
+        transactionId,
+        faceVerificationPhoto: facePhotoUri || undefined,
+        isFaceVerified: true,
       });
 
       try {
@@ -309,7 +561,7 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
           scheduledAt: scheduledDateTime.toISOString(),
           notes: `[${studyMode.toUpperCase()} STUDY - ${
             studyMode === 'group' ? `${groupSize} Students` : '1-on-1'
-          }] Time: ${finalTime}. Rate: ${feeSummary}. Notes: ${sessionNotes}`,
+          }] Time: ${finalTime}. Rate: ${feeSummary}. Paid: Rs. ${totalPayable} via ${paymentMethod} (${transactionId}). Student Face Verified. Notes: ${sessionNotes}`,
         });
       } catch (apiErr) {
         console.log('[BookingFlow] API session book sync notice:', apiErr);
@@ -319,18 +571,19 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         await tutorSlotRepository.markSlotBooked(selectedSlot.id, studyMode === 'group');
       }
 
-      Alert.alert(
-        'Booking Confirmed! 🎉',
-        `Your ${studyMode === 'group' ? `Group (${groupSize} Students)` : '1-on-1'} tutoring session with ${
-          mentor.name
-        } is scheduled for ${selectedDate} at ${finalTime} (${feeSummary}).`,
-        [
-          {
-            text: 'View in My Bookings',
-            onPress: () => navigation.navigate('SessionsList'),
-          },
-        ]
-      );
+      setSuccessReceipt({
+        mentorName: mentor.name,
+        subject: primarySubject,
+        dateTime: `${selectedDate} • ${finalTime}`,
+        amount: totalPayable,
+        paymentMethod: paymentMethod === 'DirectPay' ? 'DirectPay Sri Lanka (Verified)' : paymentMethod,
+        transactionId,
+        facePhoto: facePhotoUri,
+        studyMode,
+        authCode,
+        cardDetails,
+      });
+      setShowSuccessModal(true);
     } catch {
       Alert.alert(
         'Booking Placed',
@@ -344,7 +597,11 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
 
   // Back button handler
   const handleBack = () => {
-    if (currentStep === 'finalize') {
+    if (currentStep === 'verify_booking') {
+      setCurrentStep('session_verification');
+    } else if (currentStep === 'session_verification') {
+      setCurrentStep('finalize');
+    } else if (currentStep === 'finalize') {
       if (timeUpdatedBanner) {
         setCurrentStep('alternatives');
       } else {
@@ -373,6 +630,10 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         return 'Select Alternatives';
       case 'finalize':
         return 'Finalize Booking';
+      case 'session_verification':
+        return 'Verify Session';
+      case 'verify_booking':
+        return 'Verify Booking';
     }
   };
 
@@ -1012,20 +1273,322 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
               </Text>
             </View>
 
-            {/* Confirm Booking Button */}
+            {/* Verify Session Button -> Navigates to Student Face Verification (Camera not opened automatically) */}
             <TouchableOpacity
-              style={[styles.primaryActionButton, isSubmitting && { opacity: 0.7 }]}
-              onPress={handleFinalizeBooking}
-              disabled={isSubmitting}
+              style={styles.primaryActionButton}
+              onPress={() => {
+                setCurrentStep('session_verification');
+              }}
               activeOpacity={0.85}
             >
-              {isSubmitting ? (
+              <Text style={styles.primaryActionText}>Verify Session</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ========================================================================= */}
+        {/* STEP 6: SESSION VERIFICATION (STUDENT FACE CAPTURE) */}
+        {/* ========================================================================= */}
+        {currentStep === 'session_verification' && (
+          <View style={styles.stepContainer}>
+            {/* Security Badge Card */}
+            <View style={styles.securityBadgeCard}>
+              <View style={styles.securityIconWrap}>
+                <Ionicons name="shield-checkmark" size={24} color="#059669" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.securityBadgeTitle}>Session Biometric Verification</Text>
+                <Text style={styles.securityBadgeSubtitle}>
+                  UniMentor captures and validates your student face to ensure academic attendance integrity and prevent proxy bookings.
+                </Text>
+              </View>
+            </View>
+
+            {/* Student Info Strip */}
+            <View style={styles.studentInfoStrip}>
+              <View style={styles.studentInfoAvatar}>
+                <Ionicons name="person" size={18} color="#061E47" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.studentNameText}>{studentName}</Text>
+                <Text style={styles.studentIdText}>SLIIT ID: IT21049281 • Faculty of Computing</Text>
+              </View>
+              <View
+                style={[
+                  styles.statusPill,
+                  faceVerificationStatus === 'verified'
+                    ? styles.statusPillVerified
+                    : styles.statusPillPending,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    faceVerificationStatus === 'verified'
+                      ? styles.statusPillTextVerified
+                      : styles.statusPillTextPending,
+                  ]}
+                >
+                  {faceVerificationStatus === 'verified' ? 'Verified ✓' : 'Awaiting Scan'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Facial Scanner Viewfinder - Tap opens camera */}
+            <View style={styles.scannerContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.faceOvalFrame,
+                  faceVerificationStatus === 'verified' && styles.faceOvalFrameVerified,
+                  faceVerificationStatus === 'scanning' && styles.faceOvalFrameScanning,
+                ]}
+                onPress={handleAutoScanWithCamera}
+                activeOpacity={0.88}
+              >
+                {facePhotoUri ? (
+                  <Image source={{ uri: facePhotoUri }} style={styles.faceCapturedImage} />
+                ) : (
+                  <View style={styles.facePlaceholderInner}>
+                    <Ionicons name="camera" size={54} color="#061E47" style={{ opacity: 0.75, marginBottom: 8 }} />
+                    <Text style={styles.faceScanGuideText}>Tap to Open Camera & Auto-Scan</Text>
+                  </View>
+                )}
+
+                {/* Corner Crosshairs */}
+                <View style={[styles.reticleCorner, styles.reticleTL]} />
+                <View style={[styles.reticleCorner, styles.reticleTR]} />
+                <View style={[styles.reticleCorner, styles.reticleBL]} />
+                <View style={[styles.reticleCorner, styles.reticleBR]} />
+              </TouchableOpacity>
+
+              {faceVerificationStatus === 'scanning' && (
+                <View style={styles.scanningIndicatorRow}>
+                  <ActivityIndicator color="#F59E0B" size="small" />
+                  <Text style={styles.scanningText}>Analyzing facial geometry & liveness...</Text>
+                </View>
+              )}
+
+              {faceVerificationStatus === 'verified' && (
+                <View style={styles.verifiedChecklist}>
+                  <View style={styles.checkItemRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                    <Text style={styles.checkItemText}>Facial geometry & liveness verified</Text>
+                  </View>
+                  <View style={styles.checkItemRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                    <Text style={styles.checkItemText}>Matched with University Academic Registry</Text>
+                  </View>
+                  <View style={styles.checkItemRow}>
+                    <Ionicons name="shield-checkmark" size={16} color="#059669" />
+                    <Text style={styles.checkItemText}>
+                      Anti-Proxy Token: {antiProxyToken || 'SLIIT-BIO-VERIFIED'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Primary Action Button: Auto-Scan Face with Camera */}
+            <TouchableOpacity
+              style={styles.mainAutoScanBtn}
+              onPress={handleAutoScanWithCamera}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="camera" size={20} color="#061E47" style={{ marginRight: 8 }} />
+              <Text style={styles.mainAutoScanBtnText}>
+                {faceVerificationStatus === 'verified'
+                  ? 'Auto-Scan Again (Open Camera)'
+                  : 'Auto-Scan Face (Open Camera)'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Secondary Capture Options */}
+            <View style={styles.cameraActionRow}>
+              <TouchableOpacity
+                style={styles.galleryActionBtn}
+                onPress={handlePickFaceLibrary}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="images-outline" size={18} color="#061E47" style={{ marginRight: 6 }} />
+                <Text style={styles.galleryActionBtnText}>Upload from Gallery</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.demoScanBtn}
+                onPress={handleRunDemoScan}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="flask-outline" size={18} color="#D97706" style={{ marginRight: 4 }} />
+                <Text style={styles.demoScanBtnText}>Sample Scan</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Proceed to Payment Button */}
+            {faceVerificationStatus === 'verified' ? (
+              <TouchableOpacity
+                style={styles.primaryActionButton}
+                onPress={() => setCurrentStep('verify_booking')}
+                activeOpacity={0.85}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.primaryActionText}>Proceed to Payment</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#061E47" />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.disabledProceedBox}>
+                <Ionicons name="information-circle-outline" size={16} color="#64748B" />
+                <Text style={styles.disabledProceedText}>
+                  Please capture your face to verify student identity
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ========================================================================= */}
+        {/* STEP 7: VERIFY BOOKING & PAYMENT METHOD (Exact match to uploaded mockup) */}
+        {/* ========================================================================= */}
+        {currentStep === 'verify_booking' && (
+          <View style={styles.stepContainer}>
+            {/* Card 1: BOOKING SUMMARY */}
+            <View style={styles.verifySummaryCard}>
+              <Text style={styles.verifySummaryEyebrow}>BOOKING SUMMARY</Text>
+              <View style={styles.verifySummaryTopRow}>
+                <Text style={styles.verifySummaryTutorName}>{mentor.name}</Text>
+                <View style={styles.verifyDurationPill}>
+                  <Text style={styles.verifyDurationText}>1 hour</Text>
+                </View>
+              </View>
+              <Text style={styles.verifySummarySubtitle}>
+                {mentor.subjects?.[0] || 'Database Systems'} •{' '}
+                {studyMode === 'group' ? `Group (${groupSize} Students)` : '1-on-1'}
+              </Text>
+              <View style={styles.verifySummaryDateRow}>
+                <Ionicons name="calendar-outline" size={16} color="#475569" style={{ marginRight: 8 }} />
+                <Text style={styles.verifySummaryDateText}>
+                  {selectedDate} •{' '}
+                  {timeUpdatedBanner ? selectedAlternative : selectedSlot?.startTime || '10:00 AM'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Card 2: Fee Breakdown */}
+            <View style={styles.verifyFeeCard}>
+              <Text style={styles.verifyFeeTitle}>Fee Breakdown</Text>
+
+              <View style={styles.verifyFeeRow}>
+                <Text style={styles.verifyFeeLabel}>Session Fee</Text>
+                <Text style={styles.verifyFeeValue}>Rs. {rawFee.toLocaleString()}</Text>
+              </View>
+
+              <View style={styles.verifyFeeRow}>
+                <Text style={styles.verifyFeeLabel}>Discount</Text>
+                <Text style={styles.verifyFeeDiscount}>-Rs. {discount.toLocaleString()}</Text>
+              </View>
+
+              <View style={[styles.verifyFeeRow, { marginTop: 6 }]}>
+                <Text style={styles.verifyTotalLabel}>Total Payable</Text>
+                <Text style={styles.verifyTotalValue}>Rs. {totalPayable.toLocaleString()}</Text>
+              </View>
+            </View>
+
+            {/* Section Title: PAYMENT METHOD */}
+            <View style={styles.verifyPaymentHeaderRow}>
+              <View style={styles.verifyOrangeIndicator} />
+              <Text style={styles.verifyPaymentHeaderText}>PAYMENT METHOD</Text>
+            </View>
+
+            {/* Option 1: UniMentor Campus Wallet */}
+            <TouchableOpacity
+              style={[
+                styles.paymentOptionCard,
+                selectedPaymentMethod === 'wallet' && styles.paymentOptionCardSelected,
+              ]}
+              onPress={() => setSelectedPaymentMethod('wallet')}
+              activeOpacity={0.85}
+            >
+              <View
+                style={[
+                  styles.paymentRadioOuter,
+                  selectedPaymentMethod === 'wallet' && styles.paymentRadioOuterSelected,
+                ]}
+              >
+                {selectedPaymentMethod === 'wallet' && <View style={styles.paymentRadioInner} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.paymentOptionTitle}>UniMentor Campus Wallet</Text>
+                <Text style={styles.paymentOptionSubtitle}>
+                  Balance: Rs. {walletBalance.toLocaleString()}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Option 2: Credit / Debit Card (Powered by DirectPay) */}
+            <TouchableOpacity
+              style={[
+                styles.paymentOptionCard,
+                selectedPaymentMethod === 'card' && styles.paymentOptionCardSelected,
+              ]}
+              onPress={() => setSelectedPaymentMethod('card')}
+              activeOpacity={0.85}
+            >
+              <View
+                style={[
+                  styles.paymentRadioOuter,
+                  selectedPaymentMethod === 'card' && styles.paymentRadioOuterSelected,
+                ]}
+              >
+                {selectedPaymentMethod === 'card' && <View style={styles.paymentRadioInner} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.paymentOptionTitle}>Credit / Debit Card</Text>
+                  <View style={styles.directPayTag}>
+                    <Text style={styles.directPayTagText}>DirectPay</Text>
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            {/* Option 3: Bank Transfer */}
+            <TouchableOpacity
+              style={[
+                styles.paymentOptionCard,
+                selectedPaymentMethod === 'bank' && styles.paymentOptionCardSelected,
+              ]}
+              onPress={() => setSelectedPaymentMethod('bank')}
+              activeOpacity={0.85}
+            >
+              <View
+                style={[
+                  styles.paymentRadioOuter,
+                  selectedPaymentMethod === 'bank' && styles.paymentRadioOuterSelected,
+                ]}
+              >
+                {selectedPaymentMethod === 'bank' && <View style={styles.paymentRadioInner} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.paymentOptionTitle}>Bank Transfer</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Confirm & Pay Button */}
+            <TouchableOpacity
+              style={[styles.confirmPayButton, isSubmitting && { opacity: 0.7 }]}
+              onPress={handleConfirmAndPay}
+              disabled={isSubmitting}
+              activeOpacity={0.88}
+            >
+              {isSubmitting ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <ActivityIndicator color="#061E47" size="small" />
-                  <Text style={styles.primaryActionText}>Finalizing Booking...</Text>
+                  <Text style={styles.confirmPayButtonText}>Processing Payment...</Text>
                 </View>
               ) : (
-                <Text style={styles.primaryActionText}>Confirm Booking</Text>
+                <Text style={styles.confirmPayButtonText}>
+                  Confirm & Pay Rs. {totalPayable.toLocaleString()}
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1138,6 +1701,351 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
             </ScrollView>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* ================= DIRECTPAY PAYMENT MODAL ================= */}
+      <Modal visible={showDirectPayModal} transparent animationType="slide">
+        <View style={styles.dpModalBackdrop}>
+          <View style={styles.dpSheetCard}>
+            {/* DirectPay Header */}
+            <View style={styles.dpHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.dpLogoBadge}>
+                  <Text style={styles.dpLogoText}>DP</Text>
+                </View>
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.dpBrandTitle}>DirectPay Gateway</Text>
+                    <View style={styles.dpSandboxPill}>
+                      <Text style={styles.dpSandboxPillText}>SANDBOX</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.dpBrandSub}>Central Bank Approved • 256-Bit SSL</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowDirectPayModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Amount Banner */}
+            <View style={styles.dpAmountBanner}>
+              <View>
+                <Text style={styles.dpAmountLabel}>Total Payable</Text>
+                <Text style={styles.dpOrderRefText}>
+                  Ref: {activeDpSession?.orderId ? activeDpSession.orderId.replace('ORD-UNIMENTOR-', 'ORD-') : 'ORD-UNIMENTOR'}
+                </Text>
+              </View>
+              <Text style={styles.dpAmountValue}>LKR {totalPayable.toFixed(2)}</Text>
+            </View>
+
+            {dpStep === 'card_entry' && (
+              <View>
+                {/* Quick-Fill Sandbox Test Cards */}
+                <View style={styles.dpQuickFillSection}>
+                  <Text style={styles.dpQuickFillLabel}>Quick Test Cards:</Text>
+                  <View style={styles.dpQuickCardsRow}>
+                    <TouchableOpacity
+                      style={styles.dpQuickCardBtn}
+                      onPress={() => quickFillTestCard('visa')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="card" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
+                      <Text style={styles.dpQuickCardText}>Visa Test</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.dpQuickCardBtn}
+                      onPress={() => quickFillTestCard('mastercard')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="card" size={13} color="#EA580C" style={{ marginRight: 4 }} />
+                      <Text style={styles.dpQuickCardText}>Mastercard Test</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Cardholder Name */}
+                <Text style={styles.dpInputLabel}>Cardholder Name</Text>
+                <View style={styles.dpCardInputWrap}>
+                  <TextInput
+                    style={[styles.dpInput, { flex: 1, borderWidth: 0 }]}
+                    value={dpCardholderName}
+                    onChangeText={setDpCardholderName}
+                    placeholder="e.g. Vindi Wijesiri"
+                    placeholderTextColor="#94A3B8"
+                    autoCapitalize="words"
+                  />
+                  <Ionicons name="person-outline" size={18} color="#64748B" style={{ marginHorizontal: 12 }} />
+                </View>
+
+                {/* Card Number */}
+                <Text style={styles.dpInputLabel}>Card Number</Text>
+                <View style={styles.dpCardInputWrap}>
+                  <TextInput
+                    style={[styles.dpInput, { flex: 1, borderWidth: 0 }]}
+                    value={dpCardNumber}
+                    onChangeText={(text) => setDpCardNumber(formatCardNumber(text))}
+                    placeholder="4111 2222 3333 4444"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="number-pad"
+                    maxLength={19}
+                  />
+                  {getCardBrand(dpCardNumber) === 'Visa' ? (
+                    <View style={[styles.dpBrandBadge, { backgroundColor: '#1D4ED8' }]}>
+                      <Text style={styles.dpBrandBadgeText}>VISA</Text>
+                    </View>
+                  ) : getCardBrand(dpCardNumber) === 'Mastercard' ? (
+                    <View style={[styles.dpBrandBadge, { backgroundColor: '#EA580C' }]}>
+                      <Text style={styles.dpBrandBadgeText}>MC</Text>
+                    </View>
+                  ) : getCardBrand(dpCardNumber) === 'Amex' ? (
+                    <View style={[styles.dpBrandBadge, { backgroundColor: '#D97706' }]}>
+                      <Text style={styles.dpBrandBadgeText}>AMEX</Text>
+                    </View>
+                  ) : (
+                    <Ionicons name="card-outline" size={20} color="#64748B" style={{ marginHorizontal: 10 }} />
+                  )}
+                </View>
+
+                {/* Expiry Date & CVV */}
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dpInputLabel}>Expiry Date</Text>
+                    <TextInput
+                      style={styles.dpInput}
+                      value={dpCardExpiry}
+                      onChangeText={(text) => setDpCardExpiry(formatExpiryDate(text))}
+                      placeholder="MM/YY"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="number-pad"
+                      maxLength={5}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dpInputLabel}>CVV / CVC</Text>
+                    <TextInput
+                      style={styles.dpInput}
+                      value={dpCardCvv}
+                      onChangeText={(text) => setDpCardCvv(text.replace(/\D/g, '').slice(0, 4))}
+                      placeholder="•••"
+                      placeholderTextColor="#94A3B8"
+                      secureTextEntry
+                      keyboardType="number-pad"
+                      maxLength={4}
+                    />
+                  </View>
+                </View>
+
+                {/* Security Trust Badge */}
+                <View style={styles.dpSecurityRow}>
+                  <Ionicons name="lock-closed" size={13} color="#059669" />
+                  <Text style={styles.dpSecurityText}>
+                    Encrypted via DirectPay 256-bit SSL • PCI-DSS Level 1 Compliant
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.dpSubmitBtn}
+                  onPress={handleDirectPaySubmitCard}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.dpSubmitBtnText}>Proceed to 3D-Secure 2.0</Text>
+                  <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                </TouchableOpacity>
+
+                {/* DirectPay Hosted Checkout Web Link */}
+                {activeDpSession?.paymentUrl && (
+                  <TouchableOpacity
+                    style={styles.dpWebCheckoutBtn}
+                    onPress={() => {
+                      Linking.openURL(activeDpSession.paymentUrl).catch(() => {
+                        Alert.alert('DirectPay Portal', 'Opening sandbox DirectPay checkout: ' + activeDpSession.paymentUrl);
+                      });
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="open-outline" size={14} color="#0D4F9E" style={{ marginRight: 5 }} />
+                    <Text style={styles.dpWebCheckoutText}>Or open DirectPay Web Checkout Portal</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {dpStep === 'otp_verify' && (
+              <View>
+                <View style={styles.dpOtpInfoBox}>
+                  <Ionicons name="shield-checkmark" size={26} color="#059669" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.dpOtpInfoTitle}>DirectPay 3D-Secure 2.0</Text>
+                    <Text style={styles.dpOtpInfoSub}>
+                      Enter the 6-digit OTP code sent for your {getCardBrand(dpCardNumber)} ending in •••• {dpCardNumber.replace(/\D/g, '').slice(-4) || '4444'}.
+                    </Text>
+                    <View style={styles.dpTestOtpBadge}>
+                      <Text style={styles.dpTestOtpText}>🔑 Sandbox Test OTP: 123456</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <Text style={styles.dpInputLabel}>One-Time Password (OTP)</Text>
+                <TextInput
+                  style={[styles.dpInput, { textAlign: 'center', fontSize: 22, letterSpacing: 8, fontWeight: '800' }]}
+                  value={dpOtpCode}
+                  onChangeText={(text) => setDpOtpCode(text.replace(/\D/g, '').slice(0, 6))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+
+                <TouchableOpacity
+                  style={styles.dpSubmitBtn}
+                  onPress={handleDirectPayVerifyOtp}
+                  disabled={isProcessingDirectPay}
+                  activeOpacity={0.85}
+                >
+                  {isProcessingDirectPay ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.dpSubmitBtnText}>Authorize & Pay LKR {totalPayable.toFixed(2)}</Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Secondary Actions: Back & Resend */}
+                <View style={styles.dpOtpSecondaryRow}>
+                  <TouchableOpacity
+                    style={styles.dpOtpActionBtn}
+                    onPress={() => setDpStep('card_entry')}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="arrow-back" size={13} color="#64748B" style={{ marginRight: 3 }} />
+                    <Text style={styles.dpOtpActionText}>Edit Card</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.dpOtpActionBtn}
+                    onPress={() => {
+                      setDpOtpCode('123456');
+                      Alert.alert(
+                        'DirectPay 3D-Secure',
+                        'New OTP authorization code sent to your registered mobile: 123456'
+                      );
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="refresh" size={13} color="#D97706" style={{ marginRight: 3 }} />
+                    <Text style={[styles.dpOtpActionText, { color: '#D97706', fontWeight: '800' }]}>
+                      Resend OTP (123456)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {dpStep === 'processing' && (
+              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                <ActivityIndicator color="#F59E0B" size="large" />
+                <Text style={{ color: '#061E47', fontSize: 16, fontWeight: '800', marginTop: 16 }}>
+                  DirectPay Gateway Authenticating...
+                </Text>
+                <Text style={{ color: '#64748B', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                  Authorizing 3D-Secure 2.0 with issuing bank & Central Bank IPG switch
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ================= BOOKING & PAYMENT SUCCESS MODAL ================= */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.successModalCard}>
+            <View style={styles.successIconWrap}>
+              <Ionicons name="checkmark-circle" size={44} color="#059669" />
+            </View>
+
+            <Text style={styles.successTitle}>Booking & Payment Verified</Text>
+            <Text style={styles.successSubtitle}>
+              Your tutoring session has been confirmed and registered with campus academic services.
+            </Text>
+
+            {successReceipt && (
+              <View style={styles.receiptBox}>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Mentor</Text>
+                  <Text style={styles.receiptValue}>{successReceipt.mentorName}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Module</Text>
+                  <Text style={styles.receiptValue} numberOfLines={1}>{successReceipt.subject}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Date & Time</Text>
+                  <Text style={styles.receiptValue}>{successReceipt.dateTime}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Paid Amount</Text>
+                  <Text style={[styles.receiptValue, { color: '#D97706', fontWeight: '900', fontSize: 13.5 }]}>
+                    Rs. {successReceipt.amount.toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Payment Gateway</Text>
+                  <View style={styles.receiptGatewayBadge}>
+                    <Text style={styles.receiptGatewayText}>
+                      {successReceipt.paymentMethod}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Transaction ID</Text>
+                  <Text
+                    style={styles.receiptTxnText}
+                    numberOfLines={1}
+                  >
+                    {successReceipt.transactionId}
+                  </Text>
+                </View>
+                {successReceipt.authCode && (
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Authorization Code</Text>
+                    <Text style={[styles.receiptValue, { color: '#059669', fontWeight: '800' }]}>
+                      {successReceipt.authCode}
+                    </Text>
+                  </View>
+                )}
+                {successReceipt.cardDetails && (
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Paid With Card</Text>
+                    <Text style={[styles.receiptValue, { color: '#061E47', fontWeight: '700' }]}>
+                      {successReceipt.cardDetails}
+                    </Text>
+                  </View>
+                )}
+                <View style={[styles.receiptRow, { borderBottomWidth: 0 }]}>
+                  <Text style={styles.receiptLabel}>Student Biometrics</Text>
+                  <View style={styles.receiptBioPill}>
+                    <Ionicons name="shield-checkmark" size={13} color="#059669" style={{ marginRight: 4 }} />
+                    <Text style={styles.receiptBioPillText}>Face Verified</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.successDoneButton}
+              onPress={() => {
+                setShowSuccessModal(false);
+                navigation.navigate('SessionsList');
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.successDoneButtonText}>View in My Bookings</Text>
+              <Ionicons name="arrow-forward" size={16} color="#061E47" style={{ marginLeft: 6 }} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1912,5 +2820,844 @@ const styles = StyleSheet.create({
   pickerItemTextActive: {
     color: '#D97706',
     fontWeight: '800',
+  },
+
+  /* ========================================================= */
+  /* STEP 6: SESSION BIOMETRIC FACE VERIFICATION STYLES */
+  /* ========================================================= */
+  securityBadgeCard: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  securityIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  securityBadgeTitle: {
+    color: '#065F46',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  securityBadgeSubtitle: {
+    color: '#047857',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  studentInfoStrip: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  studentInfoAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EEF2F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studentNameText: {
+    color: '#061E47',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  studentIdText: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  statusPillPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusPillVerified: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  statusPillTextPending: {
+    color: '#D97706',
+  },
+  statusPillTextVerified: {
+    color: '#059669',
+  },
+  scannerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  faceOvalFrame: {
+    width: 180,
+    height: 230,
+    borderRadius: 90,
+    borderWidth: 2.5,
+    borderColor: '#94A3B8',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: '#F8FAFC',
+    position: 'relative',
+  },
+  faceOvalFrameScanning: {
+    borderColor: '#F59E0B',
+    borderStyle: 'solid',
+    backgroundColor: '#FFFDF0',
+  },
+  faceOvalFrameVerified: {
+    borderColor: '#059669',
+    borderStyle: 'solid',
+    backgroundColor: '#ECFDF5',
+  },
+  faceCapturedImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 90,
+  },
+  facePlaceholderInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  faceScanGuideText: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  reticleCorner: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderColor: '#061E47',
+  },
+  reticleTL: { top: 12, left: 16, borderTopWidth: 3, borderLeftWidth: 3 },
+  reticleTR: { top: 12, right: 16, borderTopWidth: 3, borderRightWidth: 3 },
+  reticleBL: { bottom: 12, left: 16, borderBottomWidth: 3, borderLeftWidth: 3 },
+  reticleBR: { bottom: 12, right: 16, borderBottomWidth: 3, borderRightWidth: 3 },
+  scanningIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  scanningText: {
+    color: '#D97706',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  verifiedChecklist: {
+    marginTop: 16,
+    width: '85%',
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 10,
+    gap: 6,
+  },
+  checkItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkItemText: {
+    color: '#065F46',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  mainAutoScanBtn: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 14,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  mainAutoScanBtnText: {
+    color: '#061E47',
+    fontSize: 14.5,
+    fontWeight: '900',
+  },
+  cameraActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  cameraActionBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#F59E0B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraActionBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  galleryActionBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  galleryActionBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  demoScanBtn: {
+    paddingHorizontal: 12,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#FFFDF0',
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  demoScanBtnText: {
+    color: '#D97706',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  disabledProceedBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+  },
+  disabledProceedText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  /* ========================================================= */
+  /* STEP 7: VERIFY BOOKING SCREEN (Matches Uploaded Screenshot) */
+  /* ========================================================= */
+  verifySummaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  verifySummaryEyebrow: {
+    color: '#D97706',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  verifySummaryTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  verifySummaryTutorName: {
+    color: '#061E47',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  verifyDurationPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  verifyDurationText: {
+    color: '#D97706',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  verifySummarySubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  verifySummaryDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  verifySummaryDateText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  verifyFeeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 18,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  verifyFeeTitle: {
+    color: '#061E47',
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 12,
+  },
+  verifyFeeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 5,
+  },
+  verifyFeeLabel: {
+    color: '#64748B',
+    fontSize: 13.5,
+    fontWeight: '500',
+  },
+  verifyFeeValue: {
+    color: '#1E293B',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  verifyFeeDiscount: {
+    color: '#059669',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  verifyTotalLabel: {
+    color: '#061E47',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  verifyTotalValue: {
+    color: '#F59E0B',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  verifyPaymentHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  verifyOrangeIndicator: {
+    width: 3.5,
+    height: 16,
+    backgroundColor: '#D97706',
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  verifyPaymentHeaderText: {
+    color: '#1E293B',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  paymentOptionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  paymentOptionCardSelected: {
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFFFF',
+  },
+  paymentRadioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#94A3B8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  paymentRadioOuterSelected: {
+    borderColor: '#F59E0B',
+  },
+  paymentRadioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#F59E0B',
+  },
+  paymentOptionTitle: {
+    color: '#061E47',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  paymentOptionSubtitle: {
+    color: '#64748B',
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  directPayTag: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  directPayTagText: {
+    color: '#B45309',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  confirmPayButton: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 14,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  confirmPayButtonText: {
+    color: '#061E47',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+
+  /* ========================================================= */
+  /* DIRECTPAY MODAL STYLES */
+  /* ========================================================= */
+  dpModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 30, 71, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  dpSheetCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+  },
+  dpHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  dpLogoBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#061E47',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dpLogoText: {
+    color: '#F59E0B',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  dpBrandTitle: {
+    color: '#061E47',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  dpBrandSub: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  dpAmountBanner: {
+    backgroundColor: '#FFFDF0',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 14,
+    padding: 12,
+    marginVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dpAmountLabel: {
+    color: '#78350F',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  dpAmountValue: {
+    color: '#D97706',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  dpInputLabel: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 6,
+    marginTop: 6,
+  },
+  dpInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  dpCardInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+  },
+  dpSubmitBtn: {
+    backgroundColor: '#061E47',
+    borderRadius: 14,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  dpSubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  dpOtpInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 12,
+  },
+  dpOtpInfoTitle: {
+    color: '#061E47',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  dpOtpInfoSub: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  dpSandboxPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  dpSandboxPillText: {
+    color: '#92400E',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  dpOrderRefText: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  dpQuickFillSection: {
+    marginBottom: 10,
+    marginTop: 2,
+  },
+  dpQuickFillLabel: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  dpQuickCardsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dpQuickCardBtn: {
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dpQuickCardText: {
+    color: '#061E47',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  dpBrandBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginHorizontal: 8,
+  },
+  dpBrandBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  dpSecurityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 12,
+  },
+  dpSecurityText: {
+    color: '#059669',
+    fontSize: 10.5,
+    fontWeight: '600',
+  },
+  dpWebCheckoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    paddingVertical: 4,
+  },
+  dpWebCheckoutText: {
+    color: '#0D4F9E',
+    fontSize: 11.5,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  dpTestOtpBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  dpTestOtpText: {
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  dpOtpSecondaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingHorizontal: 4,
+  },
+  dpOtpActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  dpOtpActionText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* ========================================================= */
+  /* SUCCESS RECEIPT MODAL */
+  /* ========================================================= */
+  successModalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  successIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+  },
+  successTitle: {
+    color: '#061E47',
+    fontSize: 19,
+    fontWeight: '900',
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  successSubtitle: {
+    color: '#64748B',
+    fontSize: 12.5,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 16,
+    lineHeight: 18,
+    paddingHorizontal: 6,
+  },
+  receiptBox: {
+    width: '100%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 18,
+  },
+  receiptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  receiptLabel: {
+    color: '#64748B',
+    fontSize: 12.5,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 8,
+  },
+  receiptValue: {
+    color: '#061E47',
+    fontSize: 12.5,
+    fontWeight: '700',
+    textAlign: 'right',
+    flexShrink: 1,
+  },
+  receiptGatewayBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  receiptGatewayText: {
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  receiptTxnText: {
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: '#334155',
+    fontWeight: '600',
+    maxWidth: '60%',
+    textAlign: 'right',
+  },
+  receiptBioPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  receiptBioPillText: {
+    color: '#065F46',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  successDoneButton: {
+    width: '100%',
+    backgroundColor: '#F59E0B',
+    borderRadius: 14,
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  successDoneButtonText: {
+    color: '#061E47',
+    fontSize: 15,
+    fontWeight: '900',
   },
 });

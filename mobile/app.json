@@ -36,7 +36,14 @@
     "plugins": [
       "expo-secure-store",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "UniMentor needs access to your photos to upload profile and verification photos.",
+          "cameraPermission": "UniMentor needs access to your camera to scan and verify your face for session bookings."
+        }
+      ]
     ]
   }
 }

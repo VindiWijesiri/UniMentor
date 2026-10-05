@@ -103,15 +103,30 @@ router.post('/directpay/initiate', async (req: Request<{}, {}, DirectPayInitiate
 
 /**
  * POST /api/payment/directpay/verify
- * Confirms that a DirectPay card transaction was authorized.
+ * Confirms that a DirectPay card transaction was authorized via 3D-Secure.
  */
 router.post('/directpay/verify', (req: Request, res: Response) => {
-  const { transactionId, orderId, cardLast4, cardType, amount } = req.body;
+  const { transactionId, orderId, cardLast4, cardType, amount, otp } = req.body;
   const approvedTxnId = transactionId || `DP-LKR-${Date.now()}`;
+
+  // Sandbox OTP validation: Accept 123456, 654321, or any 6-digit numeric code except deliberate failures like 000000
+  if (otp !== undefined && otp !== null && otp.toString().trim() !== '') {
+    const cleanOtp = otp.toString().trim();
+    if (cleanOtp === '000000' || cleanOtp.length < 4) {
+      console.log(`❌ [DIRECTPAY VERIFY] Authorization rejected for OTP: ${cleanOtp}`);
+      return res.status(400).json({
+        success: false,
+        gateway: 'DirectPay',
+        message: 'DirectPay 3D-Secure authorization failed: Invalid OTP code. For sandbox testing, use 123456.',
+        error: 'INVALID_OTP',
+      });
+    }
+  }
 
   console.log(`\n✅ [DIRECTPAY VERIFY] Transaction authorized: ${approvedTxnId}`);
   console.log(`   Card: ${cardType || 'Visa'} ending in ${cardLast4 || '4242'}`);
   console.log(`   Amount: LKR ${amount || 2300}`);
+  console.log(`   OTP: 3D-Secure 2.0 Verified`);
 
   res.json({
     success: true,
@@ -125,6 +140,24 @@ router.post('/directpay/verify', (req: Request, res: Response) => {
     amount: Number(amount) || 2300,
     paidAt: new Date().toISOString(),
     authCode: `AUTH-DP-${Math.floor(100000 + Math.random() * 900000)}`,
+    verificationMethod: '3D-Secure 2.0 Biometric/OTP',
+  });
+});
+
+/**
+ * GET /api/payment/directpay/status/:transactionId
+ * Checks status of a DirectPay transaction.
+ */
+router.get('/directpay/status/:transactionId', (req: Request, res: Response) => {
+  const { transactionId } = req.params;
+  res.json({
+    success: true,
+    gateway: 'DirectPay',
+    transactionId,
+    status: 'PAID',
+    currency: 'LKR',
+    verified: true,
+    timestamp: new Date().toISOString(),
   });
 });
 

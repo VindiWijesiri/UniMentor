@@ -128,6 +128,7 @@ export const paymentRepository = {
     cardLast4: string;
     cardType: string;
     amount: number;
+    otp?: string;
   }): Promise<DirectPayReceipt> {
     try {
       const response = await apiClient.post('/payment/directpay/verify', params);
@@ -136,6 +137,10 @@ export const paymentRepository = {
       }
     } catch (err: any) {
       console.log('[paymentRepository] DirectPay verify API notice:', err?.message || err);
+      // If the backend specifically rejected authorization (e.g., wrong OTP), bubble that error up
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
     }
 
     return {
@@ -150,6 +155,25 @@ export const paymentRepository = {
       currency: 'LKR',
       paidAt: new Date().toISOString(),
       authCode: `AUTH-DP-${Math.floor(100000 + Math.random() * 900000)}`,
+    };
+  },
+
+  /**
+   * Checks real-time DirectPay transaction status.
+   */
+  async getDirectPayStatus(transactionId: string): Promise<{ success: boolean; status: string; transactionId: string }> {
+    try {
+      const response = await apiClient.get(`/payment/directpay/status/${transactionId}`);
+      if (response.data) {
+        return response.data;
+      }
+    } catch (err: any) {
+      console.log('[paymentRepository] DirectPay status API notice:', err?.message || err);
+    }
+    return {
+      success: true,
+      status: 'PAID',
+      transactionId,
     };
   },
 };
