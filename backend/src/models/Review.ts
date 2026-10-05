@@ -6,6 +6,8 @@ export interface IReview extends Document {
   studentName: string;
   rating: number;
   comment: string;
+  reply?: string;
+  replyAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +19,8 @@ const reviewSchema = new Schema<IReview>(
     studentName: { type: String, required: true, trim: true },
     rating: { type: Number, required: true, min: 1, max: 5 },
     comment: { type: String, required: true, trim: true, maxlength: 500 },
+    reply: { type: String, trim: true, maxlength: 500 },
+    replyAt: { type: Date },
   },
   { timestamps: true },
 );

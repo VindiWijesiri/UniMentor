@@ -39,7 +39,12 @@ import {
   gradeTutorStudent,
 } from '../controllers/tutorLearningController';
 import {
+  getTutorPeople,
+  getTutorStudentProgress,
+} from '../controllers/tutorPortalController';
+import {
   addCatalogItem,
+  assignPaper,
   createTutorPaper,
   getAdminPortal,
   getAssessmentCenter,
@@ -88,6 +93,9 @@ router.patch('/goals/:id', ...studentOnly, toggleGoal);
 router.patch('/activities/:id/progress', ...studentOnly, progressActivity);
 router.get('/sessions', ...studentOnly, getLearningSessions);
 router.get('/tutor/dashboard', ...mentorOnly, getTutorDashboard);
+router.get('/tutor/people', ...mentorOnly, getTutorPeople);
+router.get('/tutor/people/:id', ...mentorOnly, getTutorStudentProgress);
+router.post('/tutor/papers/:id/assign', ...mentorOnly, assignPaper);
 router.get('/tutor/students/:id', ...mentorOnly, getTutorStudent);
 router.post('/tutor/students/:id/grade', ...mentorOnly, gradeTutorStudent);
 router.post('/tutor/students/:id/assign-pack', ...mentorOnly, assignTutorPack);

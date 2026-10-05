@@ -5,6 +5,8 @@ export interface Review {
   studentName: string;
   rating: number;
   comment: string;
+  reply?: string;
+  replyAt?: string;
   createdAt: string;
   updatedAt: string;
 }

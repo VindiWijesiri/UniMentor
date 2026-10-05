@@ -30,6 +30,9 @@ export const assessmentRepository = {
     await apiClient.post(`/learning/tutor/attempts/${attemptId}/grade`, { score, feedback })
   ).data,
   release: async (paperId: string) => (await apiClient.post(`/learning/tutor/papers/${paperId}/release`)).data,
+  assign: async (paperId: string, studentIds: string[]) => (
+    await apiClient.post(`/learning/tutor/papers/${paperId}/assign`, { studentIds })
+  ).data as { paperId: string; assigned: number; status: string },
   adminPortal: async () => (await apiClient.get<AdminPortal>('/learning/admin/portal')).data,
   review: async (paperId: string, decision: 'approve' | 'changes', note: string) => (
     await apiClient.post(`/learning/admin/papers/${paperId}/review`, { decision, note })

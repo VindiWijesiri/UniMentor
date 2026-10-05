@@ -5,6 +5,7 @@ import Session from '../models/Session';
 import { GoalPlan, type GoalAssessmentLink, type GoalMilestone, type GoalTask, type IGoalPlan } from '../models/goalPlan';
 import { ensureGoalPlans } from '../services/seedGoalPlans';
 import { weekSummary } from '../services/studyPresence';
+import { notify } from '../services/notify';
 import { seedLearningData } from '../services/seedLearningData';
 
 function asList<T>(value: unknown): T[] {
@@ -319,9 +320,11 @@ export async function bookGoalTutor(req: AuthRequest, res: Response, next: NextF
     }
     const tutors = asList<{ key: string; name: string; slot: string }>(goal.tutors);
     const tutor = tutors.find((item) => item.key === req.body.tutorKey) ?? tutors[0];
-    const mentor = await User.findOne({ role: 'mentor' });
+    const mentor = tutor?.name
+      ? await User.findOne({ role: 'mentor', name: tutor.name })
+      : null;
     if (!mentor) {
-      res.status(400).json({ message: 'No tutor is available to book.' });
+      res.status(400).json({ message: 'Book this session from Find a Tutor so it reaches that tutor.' });
       return;
     }
     const session = await Session.create({
@@ -329,10 +332,18 @@ export async function bookGoalTutor(req: AuthRequest, res: Response, next: NextF
       studentId: req.userId,
       subject: `${goal.moduleCode} ${goal.title}`,
       scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      notes: `Booked ${tutor?.name ?? 'tutor'} · ${tutor?.slot ?? 'next open slot'}`,
+      notes: `Booked ${tutor?.name ?? mentor.name} · ${tutor?.slot ?? 'next open slot'}`,
+      durationMin: 60,
       status: 'pending',
     });
-    res.status(201).json({ sessionId: session._id, tutorName: tutor?.name, slot: tutor?.slot });
+    const student = await User.findById(req.userId).select('name');
+    await notify(mentor._id, {
+      kind: 'booking',
+      title: 'Goal session request',
+      body: `${student?.name || 'A student'} booked ${session.subject}.`,
+      refId: String(session._id),
+    });
+    res.status(201).json({ sessionId: session._id, tutorName: mentor.name, slot: tutor?.slot });
   } catch (err) {
     next(err);
   }

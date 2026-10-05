@@ -10,6 +10,14 @@ import PageHeader from '../../components/PageHeader';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
 
+function Tool({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.tool} onPress={onPress}>
+      <Text style={styles.toolText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function MentorHomeScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -62,8 +70,18 @@ export default function MentorHomeScreen({ navigation }: Props) {
               <Text style={styles.empty}>No upcoming student bookings yet.</Text>
             )}
             <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('Sessions')}>
-              <Text style={styles.linkText}>View bookings →</Text>
+              <Text style={styles.linkText}>Open bookings →</Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Tutor tools</Text>
+            <View style={styles.tools}>
+              <Tool label="Messages" onPress={() => navigation.getParent()?.navigate('TutorInbox' as never)} />
+              <Tool label="Reviews" onPress={() => navigation.getParent()?.navigate('TutorReviews' as never)} />
+              <Tool label="Payments" onPress={() => navigation.getParent()?.navigate('TutorPayments' as never)} />
+              <Tool label="Hours" onPress={() => navigation.getParent()?.navigate('TutorAvailability' as never)} />
+            </View>
           </View>
 
           <View style={styles.card}>
@@ -160,5 +178,8 @@ const styles = StyleSheet.create({
   sessionMeta: { color: '#6B7280', fontSize: 13, marginTop: 4 },
   empty: { color: '#7C8AA1', fontSize: 13, lineHeight: 18 },
   linkButton: { marginTop: 12 },
-  linkText: { color: '#075A4D', fontSize: 13, fontWeight: '800' },
+  linkText: { color: '#FF8D28', fontSize: 13, fontWeight: '800' },
+  tools: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  tool: { backgroundColor: '#102B5D', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 },
+  toolText: { color: '#FFF', fontWeight: '800', fontSize: 12 },
 });

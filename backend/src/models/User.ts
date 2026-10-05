@@ -61,6 +61,7 @@ export interface IUser extends Document {
   experience?: string;
   sessionCount?: number;
   availability?: string;
+  availabilitySlots?: { day: number; start: string; end: string }[];
   qualification?: string;
   languages?: string[];
   teachingMode?: string;
@@ -137,6 +138,11 @@ const userSchema = new Schema<IUser>(
     experience: { type: String, default: 'Verified Senior Mentor' },
     sessionCount: { type: Number, default: 14 },
     availability: { type: String, default: 'Weekdays & Weekends' },
+    availabilitySlots: [{
+      day: { type: Number, min: 0, max: 6 },
+      start: { type: String },
+      end: { type: String },
+    }],
     qualification: { type: String, default: 'Undergraduate Teaching Assistant' },
     languages: [{ type: String, default: 'English' }],
     teachingMode: { type: String, default: 'Online / Hybrid' },

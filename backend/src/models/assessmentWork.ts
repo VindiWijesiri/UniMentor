@@ -106,6 +106,7 @@ export interface IAssessmentPaper extends Document {
   reviewNote?: string;
   urgent: boolean;
   gradesReleased: boolean;
+  assignedStudentIds?: mongoose.Types.ObjectId[];
   questions: WorkQuestion[];
 }
 
@@ -212,6 +213,7 @@ const paperSchema = new Schema<IAssessmentPaper>({
   reviewNote: { type: String, default: '' },
   urgent: { type: Boolean, default: false },
   gradesReleased: { type: Boolean, default: false },
+  assignedStudentIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   questions: { type: Schema.Types.Mixed, default: [] },
 }, { timestamps: true });
 

@@ -18,6 +18,13 @@ export interface User {
   rating?: number;
   reviewCount?: number;
   hourlyRate?: number;
+  availability?: string;
+  availabilitySlots?: { day: number; start: string; end: string }[];
+  languages?: string[];
+  teachingMode?: string;
+  lessonTypes?: string[];
+  qualification?: string;
+  experience?: string;
   campusId?: string;
   createdAt: string;
 }

@@ -126,13 +126,30 @@ export async function getProfile(req: AuthRequest, res: Response, next: NextFunc
 
 export async function updateProfile(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const allowedFields = ['name', 'bio', 'profilePicture', 'subjects', 'degreeProgramme', 'academicYear', 'semester'];
+    const allowedFields = [
+      'name', 'bio', 'profilePicture', 'subjects', 'degreeProgramme', 'academicYear', 'semester',
+      'hourlyRate', 'availability', 'availabilitySlots', 'languages', 'teachingMode', 'lessonTypes',
+      'qualification', 'experience',
+    ];
     const updates: Record<string, unknown> = {};
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         updates[field] = req.body[field];
       }
+    }
+
+    if (updates.hourlyRate !== undefined) {
+      const rate = Number(updates.hourlyRate);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 20000) {
+        res.status(400).json({ message: 'Hourly rate must be between 0 and 20,000 LKR.' });
+        return;
+      }
+      updates.hourlyRate = rate;
+    }
+    if (updates.availabilitySlots !== undefined && !Array.isArray(updates.availabilitySlots)) {
+      res.status(400).json({ message: 'Availability slots must be a list.' });
+      return;
     }
 
     const user = await User.findByIdAndUpdate(req.userId, updates, {

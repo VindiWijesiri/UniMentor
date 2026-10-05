@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
+import { tutorPortalRepository, type TutorPerson } from '../../../data/repositories/tutorPortalRepository';
 import { ASSESSMENT_KINDS, KIND_META, type AssessmentKind, type TutorAssessmentHub, type TutorHubItem } from '../../../domain/entities/AssessmentWork';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { AssessmentScreen, KuppiyaBar, OrangeButton } from './Chrome';
@@ -16,6 +17,8 @@ export default function TutorAssessmentHubScreen({ navigation }: Props) {
   const [filter, setFilter] = useState<'all' | 'ungraded' | 'review'>('all');
   const [picker, setPicker] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState<string | null>(null);
+  const [people, setPeople] = useState<TutorPerson[]>([]);
 
   const load = useCallback(() => {
     let active = true;
@@ -35,6 +38,37 @@ export default function TutorAssessmentHubScreen({ navigation }: Props) {
   }), [data, filter]);
 
   const remind = (item: TutorHubItem) => Alert.alert('Reminder queued', `Students in ${item.moduleCode} will be reminded about ${item.title}.`);
+
+  const openAssign = async (paperId: string) => {
+    try {
+      const rows = await tutorPortalRepository.people();
+      if (!rows.length) {
+        Alert.alert('No booked students', 'Students appear here after they book you.');
+        return;
+      }
+      setPeople(rows);
+      setAssigning(paperId);
+    } catch {
+      Alert.alert('Could not load booked students.');
+    }
+  };
+
+  const confirmAssign = async () => {
+    if (!assigning) return;
+    try {
+      const result = await assessmentRepository.assign(assigning, people.map((person) => person._id));
+      setAssigning(null);
+      Alert.alert(
+        'Assigned',
+        result.status === 'pending_review'
+          ? `${result.assigned} booked student${result.assigned === 1 ? '' : 's'}. It now waits for LIC to publish.`
+          : `${result.assigned} booked student${result.assigned === 1 ? '' : 's'} can see this assessment.`,
+      );
+      load();
+    } catch {
+      Alert.alert('Could not assign this assessment.');
+    }
+  };
 
   return (
     <AssessmentScreen navigation={navigation}>
@@ -100,6 +134,9 @@ export default function TutorAssessmentHubScreen({ navigation }: Props) {
               <TouchableOpacity style={styles.icon} onPress={() => Alert.alert(item.title, item.average !== null ? `Class average ${item.average}% from graded submissions.` : 'No graded submissions yet.')}>
                 <MaterialIcons name="insights" size={18} color={navy} />
               </TouchableOpacity>
+              <TouchableOpacity style={styles.icon} onPress={() => openAssign(item.paperId)}>
+                <MaterialIcons name="person-add" size={18} color={navy} />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.icon} onPress={() => remind(item)}>
                 <MaterialIcons name="notifications" size={18} color={navy} />
               </TouchableOpacity>
@@ -127,6 +164,20 @@ export default function TutorAssessmentHubScreen({ navigation }: Props) {
               ))}
             </ScrollView>
             <TouchableOpacity onPress={() => setPicker(false)}><Text style={styles.link}>Close</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={Boolean(assigning)} animationType="slide" transparent onRequestClose={() => setAssigning(null)}>
+        <View style={styles.modal}>
+          <View style={styles.sheet}>
+            <Text style={styles.section}>Assign to booked students</Text>
+            <ScrollView>
+              {people.map((person) => (
+                <Text key={person._id} style={styles.cardTitle}>{person.name}</Text>
+              ))}
+            </ScrollView>
+            <OrangeButton label="Assign" onPress={confirmAssign} />
+            <TouchableOpacity onPress={() => setAssigning(null)}><Text style={styles.link}>Close</Text></TouchableOpacity>
           </View>
         </View>
       </Modal>

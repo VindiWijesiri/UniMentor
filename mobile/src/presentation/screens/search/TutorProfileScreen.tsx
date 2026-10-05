@@ -357,6 +357,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                       </View>
 
                       <Text style={styles.reviewComment}>{rev.comment}</Text>
+                      {rev.reply ? <Text style={styles.reviewDate}>Tutor reply: {rev.reply}</Text> : null}
 
                       {isMyReview && (
                         <View style={styles.reviewActionsRow}>

@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import Review from '../models/Review';
 import User from '../models/User';
+import { notify } from '../services/notify';
 import { AuthRequest } from '../middleware/auth';
 
 async function refreshTutorRating(tutorId: string) {
@@ -68,6 +69,13 @@ export async function saveTutorReview(req: AuthRequest, res: Response, next: Nex
     } catch (ratingError) {
       console.error('Review saved, but tutor rating refresh failed:', ratingError);
     }
+
+    await notify(tutor._id, {
+      kind: 'review',
+      title: 'New student review',
+      body: `${student.name} rated you ${rating}/5.`,
+      refId: String(review._id),
+    });
 
     res.status(201).json(review);
   } catch (error) {
@@ -145,6 +153,46 @@ export async function deleteReview(req: AuthRequest, res: Response, next: NextFu
     }
 
     res.json({ message: 'Review deleted successfully.', id: req.params.id });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getReviewInbox(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const reviews = await Review.find({ tutor: req.userId }).sort({ updatedAt: -1 });
+    res.json(reviews);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function replyToReview(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const reply = String(req.body.reply ?? '').trim();
+    if (!reply || reply.length > 500) {
+      res.status(400).json({ message: 'Reply must contain 1 to 500 characters.' });
+      return;
+    }
+    const review = await Review.findById(req.params.id);
+    if (!review) {
+      res.status(404).json({ message: 'Review not found.' });
+      return;
+    }
+    if (String(review.tutor) !== req.userId) {
+      res.status(403).json({ message: 'Only the tutor can reply to this review.' });
+      return;
+    }
+    review.reply = reply;
+    review.replyAt = new Date();
+    await review.save();
+    await notify(review.student, {
+      kind: 'review',
+      title: 'Your tutor replied',
+      body: reply,
+      refId: String(review._id),
+    });
+    res.json(review);
   } catch (error) {
     next(error);
   }

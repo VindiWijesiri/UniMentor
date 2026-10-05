@@ -300,6 +300,7 @@ export default function ReviewsScreen({ navigation }: Props) {
                 </View>
 
                 <Text style={styles.reviewCommentText}>{item.comment}</Text>
+                {item.reply ? <Text style={styles.reviewDateText}>Tutor reply: {item.reply}</Text> : null}
                 <Text style={styles.reviewDateText}>
                   {new Date(item.updatedAt || item.createdAt).toLocaleDateString()}
                 </Text>
