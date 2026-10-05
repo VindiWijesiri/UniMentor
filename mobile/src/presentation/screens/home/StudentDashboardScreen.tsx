@@ -380,13 +380,9 @@ export default function StudentDashboardScreen({ navigation }: Props) {
   const enrolledModules = dashboard?.enrolledModules || [];
   const availableMentors = dashboard?.availableMentors || [];
 
-  const handleBackToLogin = () => {
-    useAuthStore.getState().logout();
-  };
-
   return (
     <View style={styles.screen}>
-      <PageHeader title="Student Dashboard" onBack={handleBackToLogin} />
+      <PageHeader title="Student Dashboard" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

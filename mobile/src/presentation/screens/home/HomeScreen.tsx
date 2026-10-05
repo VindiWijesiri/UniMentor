@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal, Pressable, ScrollView, StyleSheet, Text,
@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import PageHeader from '../../components/PageHeader';
+import { useAuthStore } from '../../../domain/stores/authStore';
+import { completeGuidance } from '../../../domain/stores/sessionGate';
 
 type Props = {
   navigation: any;
@@ -250,7 +252,18 @@ export default function HomeScreen({ navigation }: Props) {
 
   const isFormComplete = missingFields.length === 0;
 
-  const handleContinue = () => {
+  const needsGuidance = useAuthStore((state) => state.needsGuidance);
+
+  useEffect(() => {
+    if (!needsGuidance) return undefined;
+    const unsubscribe = navigation.addListener('beforeRemove', (event: { preventDefault: () => void; data: { action: { type: string } } }) => {
+      if (event.data.action.type === 'RESET') return;
+      event.preventDefault();
+    });
+    return unsubscribe;
+  }, [navigation, needsGuidance]);
+
+  const handleContinue = async () => {
     if (!isFormComplete) {
       const missingLabels = missingFields.map((f) => f.label);
       Alert.alert(
@@ -258,6 +271,12 @@ export default function HomeScreen({ navigation }: Props) {
         `Please select all academic fields before proceeding to find your mentor:\n\n• ${missingLabels.join('\n• ')}`,
         [{ text: 'OK' }]
       );
+      return;
+    }
+
+    if (needsGuidance) {
+      await completeGuidance();
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       return;
     }
 
@@ -369,7 +388,9 @@ export default function HomeScreen({ navigation }: Props) {
             activeOpacity={isFormComplete ? 0.85 : 0.65}
           >
             <Text style={[styles.continueText, !isFormComplete && styles.continueTextDisabled]}>
-              {isFormComplete ? 'Continue  →' : `Complete All Fields (${academicFields.length - missingFields.length}/${academicFields.length})  →`}
+              {isFormComplete
+                ? (needsGuidance ? 'Go to home  →' : 'Continue  →')
+                : `Complete All Fields (${academicFields.length - missingFields.length}/${academicFields.length})  →`}
             </Text>
           </TouchableOpacity>
         </View>

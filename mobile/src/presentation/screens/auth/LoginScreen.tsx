@@ -6,8 +6,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
-import { useAuthStore } from '../../../domain/stores/authStore';
 import { loginUseCase } from '../../../domain/usecases/auth/loginUseCase';
+import { beginSession } from '../../../domain/stores/sessionGate';
 import Logo from '../../components/Logo';
 import { colors } from '../../../shared/theme';
 
@@ -15,26 +15,32 @@ type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 };
 
+const DEMOS = [
+  { key: 'student', label: 'Student', email: 'student@unimentor.dev', password: 'password123' },
+  { key: 'tutor', label: 'Tutor', email: 'tharushi.perera@unimentor.test', password: 'Password123' },
+  { key: 'admin', label: 'Admin', email: 'admin@unimentor.dev', password: 'password123' },
+  { key: 'lic', label: 'LIC', email: 'lic@unimentor.dev', password: 'password123' },
+] as const;
+
 export default function LoginScreen({ navigation }: Props) {
+  const [mode, setMode] = useState<'demo' | 'regular'>('demo');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { setUser, setToken } = useAuthStore();
+  const [loading, setLoading] = useState<string | null>(null);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
+  const signIn = async (nextEmail: string, nextPassword: string, key: string) => {
+    if (!nextEmail || !nextPassword) {
       Alert.alert('Validation', 'Please enter email and password.');
       return;
     }
-    setLoading(true);
+    setLoading(key);
     try {
-      const result = await loginUseCase({ email, password });
-      setToken(result.token);
-      setUser(result.user);
+      const result = await loginUseCase({ email: nextEmail, password: nextPassword });
+      await beginSession(result.user, result.token);
     } catch (err: any) {
       Alert.alert('Login Failed', err.message ?? 'Something went wrong.');
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   };
 
@@ -52,88 +58,76 @@ export default function LoginScreen({ navigation }: Props) {
 
         {/* Form */}
         <View style={styles.form}>
-          <Text style={styles.heading}>Welcome Back</Text>
-
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            placeholderTextColor={colors.textLight}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your password"
-            placeholderTextColor={colors.textLight}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
-          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-            {loading
-              ? <ActivityIndicator color={colors.white} />
-              : <Text style={styles.buttonText}>Login</Text>
-            }
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.link}>
-              Don't have an account? <Text style={styles.linkBold}>Register</Text>
-            </Text>
-          </TouchableOpacity>
-
-          {/* Quick Demo Switcher */}
-          <View style={styles.demoSection}>
-            <Text style={styles.demoLabel}>Demo Fast Login:</Text>
-            <View style={styles.demoButtonsRow}>
-              <TouchableOpacity
-                style={styles.demoBtn}
-                onPress={() => {
-                  setEmail('student@unimentor.dev');
-                  setPassword('password123');
-                }}
-              >
-                <Text style={styles.demoBtnText}>🎓 Student Account</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.demoBtn, styles.demoBtnMentor]}
-                onPress={() => {
-                  setEmail('kavindu.perera@unimentor.lk');
-                  setPassword('password123');
-                }}
-              >
-                <Text style={[styles.demoBtnText, styles.demoBtnTextMentor]}>⭐ Mentor Account</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.demoButtonsRow}>
-              <TouchableOpacity
-                style={[styles.demoBtn, styles.demoBtnAdmin]}
-                onPress={() => {
-                  setEmail('admin@unimentor.dev');
-                  setPassword('password123');
-                }}
-              >
-                <Text style={[styles.demoBtnText, styles.demoBtnTextAdmin]}>🛡 Admin Account</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.demoBtn, styles.demoBtnLic]}
-                onPress={() => {
-                  setEmail('lic@unimentor.dev');
-                  setPassword('password123');
-                }}
-              >
-                <Text style={[styles.demoBtnText, styles.demoBtnTextLic]}>📋 LIC Account</Text>
-              </TouchableOpacity>
-            </View>
+          <Text style={styles.heading}>Welcome</Text>
+          <Text style={styles.lead}>Demo fast login opens a ready account. Regular login uses your own email.</Text>
+          <View style={styles.modes}>
+            <TouchableOpacity style={[styles.mode, mode === 'demo' && styles.modeOn]} onPress={() => setMode('demo')}>
+              <Text style={[styles.modeText, mode === 'demo' && styles.modeTextOn]}>Demo fast login</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.mode, mode === 'regular' && styles.modeOn]} onPress={() => setMode('regular')}>
+              <Text style={[styles.modeText, mode === 'regular' && styles.modeTextOn]}>Regular login</Text>
+            </TouchableOpacity>
           </View>
+
+          {mode === 'regular' ? (
+            <>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor={colors.textLight}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.textLight}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+
+              <TouchableOpacity style={styles.button} onPress={() => signIn(email.trim(), password, 'regular')} disabled={loading !== null}>
+                {loading === 'regular'
+                  ? <ActivityIndicator color="#102B5D" />
+                  : <Text style={styles.buttonText}>Login</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                <Text style={styles.link}>
+                  Don't have an account? <Text style={styles.linkBold}>Register</Text>
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.demoSection}>
+              <Text style={styles.demoLabel}>Tap a role to enter</Text>
+              <View style={styles.demoButtonsRow}>
+                {DEMOS.map((demo) => (
+                  <TouchableOpacity
+                    key={demo.key}
+                    style={[styles.demoBtn, loading === demo.key && styles.demoBtnBusy]}
+                    onPress={() => signIn(demo.email, demo.password, demo.key)}
+                    disabled={loading !== null}
+                  >
+                    {loading === demo.key
+                      ? <ActivityIndicator color="#102B5D" />
+                      : <Text style={styles.demoBtnText}>{demo.label}</Text>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                <Text style={styles.link}>
+                  Don't have an account? <Text style={styles.linkBold}>Register</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -163,10 +157,16 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 24,
+    fontWeight: '800',
+    color: '#102B5D',
+    marginBottom: 8,
   },
+  lead: { color: colors.textLight, fontSize: 13, lineHeight: 18, marginBottom: 16 },
+  modes: { flexDirection: 'row', backgroundColor: '#E8EEF6', borderRadius: 14, padding: 4, marginBottom: 18 },
+  mode: { flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  modeOn: { backgroundColor: '#FFF' },
+  modeText: { color: '#64748B', fontWeight: '700', fontSize: 13 },
+  modeTextOn: { color: '#102B5D', fontWeight: '800' },
   label: {
     fontSize: 13,
     fontWeight: '600',
@@ -184,75 +184,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   button: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF8D28',
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 20,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  buttonText: { color: '#102B5D', fontSize: 16, fontWeight: '800' },
   link: { textAlign: 'center', color: colors.textLight, fontSize: 14 },
   linkBold: { color: colors.primary, fontWeight: '700' },
   demoSection: {
-    marginTop: 28,
-    paddingTop: 18,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    alignItems: 'center',
+    marginTop: 4,
   },
   demoLabel: {
     color: '#64748B',
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   demoButtonsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
-    width: '100%',
-    marginBottom: 10,
+    marginBottom: 16,
   },
   demoBtn: {
-    flex: 1,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: 12,
-    paddingVertical: 10,
+    width: '48%',
+    backgroundColor: '#102B5D',
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
   },
+  demoBtnBusy: { opacity: 0.7 },
   demoBtnText: {
-    color: '#1E40AF',
-    fontSize: 11,
+    color: '#FFF',
+    fontSize: 14,
     fontWeight: '800',
-  },
-  demoBtnMentor: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDE68A',
-  },
-  demoBtnTextMentor: {
-    color: '#92400E',
-  },
-  demoBtnAdmin: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#C7D2FE',
-  },
-  demoBtnTextAdmin: {
-    color: '#312E81',
-  },
-  demoBtnLic: {
-    backgroundColor: '#F5F3FF',
-    borderColor: '#DDD6FE',
-  },
-  demoBtnTextLic: {
-    color: '#5B21B6',
   },
 });

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { registerCampusUseCase } from '../../../domain/usecases/campus/registerCampusUseCase';
-import { useAuthStore } from '../../../domain/stores/authStore';
+import { beginSession } from '../../../domain/stores/sessionGate';
 import Logo from '../../components/Logo';
 import type { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { colors } from '../../../shared/theme';
@@ -35,7 +35,6 @@ export default function RegisterCampusScreen({ navigation }: Props) {
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const { setUser, setToken } = useAuthStore();
 
   const submit = async () => {
     setLoading(true);
@@ -53,8 +52,7 @@ export default function RegisterCampusScreen({ navigation }: Props) {
         adminPassword,
         adminPhone,
       });
-      setToken(result.token);
-      setUser(result.user);
+      await beginSession(result.user, result.token);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Could not register this campus.';
       Alert.alert('Campus registration failed', message);

@@ -7,7 +7,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { registerUseCase } from '../../../domain/usecases/auth/registerUseCase';
-import { useAuthStore } from '../../../domain/stores/authStore';
+import { beginSession } from '../../../domain/stores/sessionGate';
 import Logo from '../../components/Logo';
 import { colors } from '../../../shared/theme';
 
@@ -21,7 +21,6 @@ export default function RegisterScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'student' | 'mentor' | 'admin'>('student');
   const [loading, setLoading] = useState(false);
-  const { setUser, setToken } = useAuthStore();
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -31,8 +30,7 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       const result = await registerUseCase({ name, email, password, role });
-      setToken(result.token);
-      setUser(result.user);
+      await beginSession(result.user, result.token);
     } catch (err: any) {
       Alert.alert('Registration Failed', err.message ?? 'Something went wrong.');
     } finally {

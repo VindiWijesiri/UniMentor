@@ -7,6 +7,7 @@ import type { Mentor } from '../../domain/entities/Mentor';
 import type { TutorFilters } from '../../domain/entities/TutorFilters';
 import type { Review } from '../../domain/entities/Review';
 import HomeScreen from '../screens/home/HomeScreen';
+import StudentDashboardScreen from '../screens/home/StudentDashboardScreen';
 import MentorHomeScreen from '../screens/home/MentorHomeScreen';
 import SearchScreen from '../screens/search/SearchScreen';
 import SessionsScreen from '../screens/sessions/SessionsScreen';
@@ -160,7 +161,7 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={student ? HomeScreen : staff ? AdminHomeScreen : MentorHomeScreen}
+        component={student ? StudentDashboardScreen : staff ? AdminHomeScreen : MentorHomeScreen}
         options={{ headerShown: false }}
       />
       <Tab.Screen name="Sessions" component={mentor ? TutorBookingsScreen : SessionsScreen} options={{ headerShown: false }} />
@@ -177,11 +178,13 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const role = useAuthStore((state) => state.user?.role);
+  const needsGuidance = useAuthStore((state) => state.needsGuidance);
   const student = role === 'student';
   const mentor = role === 'mentor';
 
   return (
     <Stack.Navigator
+      initialRouteName={student && needsGuidance ? 'GuidanceWizard' : 'MainTabs'}
       screenOptions={{
         headerTintColor: '#102B5D',
         headerTitleStyle: { fontWeight: '800', color: '#102B5D' },
