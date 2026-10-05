@@ -60,7 +60,10 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
       Session.find({ studentId }).populate('mentorId', 'name').sort({ scheduledAt: 1 }).limit(6).lean(),
       Discussion.find({ studentId }).sort({ createdAt: -1 }).limit(6).lean(),
       Assessment.find({ studentId }).sort({ scheduledAt: 1, dueDate: 1 }).limit(6).lean(),
-      LibraryMaterial.find({ $or: [{ owner: studentId }, { savedBy: studentId }] })
+      LibraryMaterial.find({
+        seedKey: { $exists: false },
+        $or: [{ owner: studentId }, { savedBy: studentId }],
+      })
         .select('title kind moduleName moduleCode source createdAt')
         .sort({ createdAt: -1 })
         .limit(6)

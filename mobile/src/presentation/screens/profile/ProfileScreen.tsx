@@ -15,12 +15,13 @@ import {
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useUserStore } from '../../../domain/stores/userStore';
 import { useStudentStore } from '../../../domain/stores/studentStore';
+import { Pencil } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 
 export default function ProfileScreen() {
   const { logout } = useAuthStore();
   const { profile, fetchProfile, updateProfile, addSubject, removeSubject } = useUserStore();
-  const { dashboard } = useStudentStore();
+  const { dashboard, fetchDashboard } = useStudentStore();
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddInterestModal, setShowAddInterestModal] = useState(false);
@@ -38,26 +39,22 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+    void fetchDashboard();
+  }, [fetchProfile, fetchDashboard]);
 
   const user = profile || dashboard?.user;
-  const name = user?.name || 'Nethmi Silva';
-  const email = user?.email || 'nethmi.silva@student.unimentor.lk';
+  const name = user?.name || 'Student';
+  const email = user?.email || '';
   const role = user?.role || 'student';
-  const degree = user?.degreeProgramme || 'BSc (Hons) Software Engineering';
-  const academicYear = user?.academicYear || 'Year 3';
-  const semester = user?.semester || 'Sem 2';
-  const bio =
-    user?.bio ||
-    'Software Engineering undergraduate passionate about algorithms, clean architecture, and distributed systems.';
-  const subjects: string[] = user?.subjects?.length
-    ? user.subjects
-    : ['Data Structures', 'Software Architecture', 'DBMS', 'Mobile Development'];
-  const avatarUri =
-    user?.profilePicture ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
+  const degree = user?.degreeProgramme || '';
+  const academicYear = user?.academicYear || '';
+  const semester = user?.semester || '';
+  const academicLine = [degree, academicYear, semester].filter(Boolean).join(' · ');
+  const bio = user?.bio || '';
+  const subjects: string[] = user?.subjects ?? [];
+  const avatarUri = user?.profilePicture || '';
 
-  const stats = dashboard?.academicStats || { goals: 4, plans: 3, dueTests: 2, done: 18 };
+  const stats = dashboard?.academicStats || { goals: 0, plans: 0, dueTests: 0, done: 0 };
 
   const openEditModal = () => {
     setEditName(name);
@@ -125,13 +122,20 @@ export default function ProfileScreen() {
       <PageHeader title="My Student Profile" />
       <View style={styles.header}>
         <TouchableOpacity style={styles.editHeaderBtn} onPress={openEditModal}>
-          <Text style={styles.editHeaderBtnText}>✏️ Edit</Text>
+          <Pencil size={14} color="#FFFFFF" />
+          <Text style={styles.editHeaderBtnText}>Edit</Text>
         </TouchableOpacity>
 
         {/* Profile Card Summary */}
         <View style={styles.profileSummaryRow}>
           <View style={styles.avatarWrap}>
-            <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
+            ) : (
+              <View style={[styles.avatarImg, styles.avatarFallback]}>
+                <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
             <View style={styles.onlineDot} />
           </View>
 
@@ -143,7 +147,7 @@ export default function ProfileScreen() {
               </View>
             </View>
             <Text style={styles.profileEmail}>{email}</Text>
-            <Text style={styles.academicPillText}>{`${degree} • ${academicYear} ${semester}`}</Text>
+            <Text style={styles.academicPillText}>{academicLine || 'Add your programme'}</Text>
           </View>
         </View>
       </View>
@@ -349,6 +353,9 @@ const styles = StyleSheet.create({
   },
   editHeaderBtn: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#102B5D',
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -375,6 +382,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FBBF24',
   },
+  avatarFallback: { backgroundColor: '#102B5D', alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: { color: '#FFF', fontSize: 22, fontWeight: '800' },
   onlineDot: {
     position: 'absolute',
     bottom: 0,

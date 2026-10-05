@@ -1,115 +1,10 @@
 import { Response, NextFunction } from 'express';
 import User, { IEnrolledModule } from '../models/User';
+import Session from '../models/Session';
+import { GoalPlan } from '../models/goalPlan';
 import { AuthRequest } from '../middleware/auth';
-import { seedLearningData } from '../services/seedLearningData';
 
-function mapMentor(mentor: { _id: unknown; name: string; bio?: string; subjects?: string[]; rating?: number; reviewCount?: number; profilePicture?: string }) {
-  return {
-    id: String(mentor._id),
-    name: mentor.name,
-    roleTitle: 'Peer Mentor',
-    batch: "Batch '24",
-    rating: mentor.rating ?? 4.8,
-    reviewCount: mentor.reviewCount ?? 0,
-    avatar: mentor.profilePicture,
-    isVerified: true,
-    activeStudentsCount: 18,
-    subjects: mentor.subjects ?? [],
-    bio: mentor.bio ?? '',
-    hourlyRate: 2000,
-  };
-}
-
-const DEFAULT_ENROLLED_MODULES: IEnrolledModule[] = [
-  {
-    code: 'IT2040',
-    name: 'Data Structures: Graph Traversals & Algorithms',
-    credits: 4,
-    faculty: 'Computing',
-    department: 'Software Engineering',
-    progress: 75,
-    status: 'active',
-    nextSession: 'Today, 2:30 PM • Live Peer Revision',
-    mentor: {
-      id: 'mentor-tharushi-1',
-      name: 'Tharushi Perera',
-      roleTitle: 'Senior Peer Mentor',
-      batch: "Batch '24",
-      rating: 4.9,
-      reviewCount: 38,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      isVerified: true,
-      activeStudentsCount: 24,
-      hourlyRate: 2500,
-    },
-  },
-  {
-    code: 'SE3020',
-    name: 'Software Architecture & Enterprise Design',
-    credits: 4,
-    faculty: 'Computing',
-    department: 'Software Engineering',
-    progress: 60,
-    status: 'active',
-    nextSession: 'Tomorrow, 10:00 AM • Microservices Q&A',
-    mentor: {
-      id: 'mentor-kaveen-2',
-      name: 'Kaveen De Silva',
-      roleTitle: 'Lead Peer Mentor',
-      batch: "Batch '23",
-      rating: 4.8,
-      reviewCount: 29,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
-      isVerified: true,
-      activeStudentsCount: 19,
-      hourlyRate: 1800,
-    },
-  },
-  {
-    code: 'IT2030',
-    name: 'Database Management Systems & Big Data',
-    credits: 3,
-    faculty: 'Computing',
-    department: 'Information Technology',
-    progress: 85,
-    status: 'active',
-    nextSession: 'Friday, 3:00 PM • Query Optimization',
-    mentor: {
-      id: 'mentor-sanduni-3',
-      name: 'Sanduni Fernando',
-      roleTitle: 'Peer Tutor',
-      batch: "Batch '24",
-      rating: 4.95,
-      reviewCount: 44,
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80',
-      isVerified: true,
-      activeStudentsCount: 31,
-      hourlyRate: 2200,
-    },
-  },
-  {
-    code: 'MA2010',
-    name: 'Probability & Statistics for Computing',
-    credits: 3,
-    faculty: 'Humanities & Sciences',
-    department: 'Mathematics & Statistics',
-    progress: 45,
-    status: 'active',
-    nextSession: 'Saturday, 11:00 AM • Mock Exam Prep',
-    mentor: {
-      id: 'mentor-asanka-4',
-      name: 'Dr. Asanka Perera',
-      roleTitle: 'Faculty Academic Mentor',
-      batch: 'Faculty Advisor',
-      rating: 5.0,
-      reviewCount: 52,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
-      isVerified: true,
-      activeStudentsCount: 42,
-      hourlyRate: 4500,
-    },
-  },
-];
+const DEMO_MENTOR_PREFIX = 'mentor-';
 
 export async function getProfile(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -170,123 +65,90 @@ export async function updateProfile(req: AuthRequest, res: Response, next: NextF
 
 export async function getStudentDashboard(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    if (req.userRole === 'student') {
-      await seedLearningData(String(req.userId));
-    }
     const user = await User.findById(req.userId).select('-password');
     if (!user) {
       res.status(404).json({ message: 'Student account not found.' });
       return;
     }
 
-    let isModified = false;
-
-    if (!user.enrolledModules || user.enrolledModules.length === 0) {
-      user.enrolledModules = DEFAULT_ENROLLED_MODULES;
-      isModified = true;
-    }
-
-    if (!user.academicStats) {
-      user.academicStats = {
-        goals: 4,
-        plans: 3,
-        dueTests: 2,
-        done: 18,
-      };
-      isModified = true;
-    }
-
-    if (!user.degreeProgramme) {
-      user.degreeProgramme = 'BSc (Hons) Software Engineering';
-      isModified = true;
-    }
-    if (!user.academicYear) {
-      user.academicYear = 'Year 3';
-      isModified = true;
-    }
-    if (!user.semester) {
-      user.semester = 'Sem 2';
-      isModified = true;
-    }
-
-    if (isModified) {
+    const storedModules = user.enrolledModules ?? [];
+    const enrolledModules = storedModules.filter((module) => !String(module.mentor?.id ?? '').startsWith(DEMO_MENTOR_PREFIX));
+    if (enrolledModules.length !== storedModules.length) {
+      user.enrolledModules = enrolledModules;
       await user.save();
     }
 
-    // Fetch real mentors from database to offer for selection or assignment
-    const dbMentors = await User.find({ role: 'mentor' })
-      .select('name email subjects rating reviewCount profilePicture bio hourlyRate experience sessionCount availability')
-      .limit(10);
+    const [goalCount, completedSessions, openSessions, dbMentors, sessions] = await Promise.all([
+      GoalPlan.countDocuments({
+        studentId: user._id,
+        seedKey: { $nin: ['goal-weekly', 'goal-graph', 'goal-oop'] },
+      }),
+      Session.countDocuments({ studentId: user._id, status: 'completed', seedKey: { $exists: false } }),
+      Session.countDocuments({
+        studentId: user._id,
+        status: { $in: ['pending', 'confirmed'] },
+        seedKey: { $exists: false },
+      }),
+      User.find({ role: 'mentor' })
+        .select('name email subjects rating reviewCount profilePicture bio hourlyRate experience sessionCount')
+        .limit(12),
+      Session.find({
+        studentId: user._id,
+        status: { $in: ['pending', 'confirmed'] },
+        seedKey: { $exists: false },
+      }).sort({ scheduledAt: 1 }).limit(6).populate('mentorId', 'name profilePicture'),
+    ]);
 
-    const availableMentors = dbMentors.map((m) => ({
-      id: String(m._id),
-      name: m.name,
-      roleTitle: m.experience || 'Senior Peer Mentor',
-      batch: "Batch '24",
-      rating: m.rating || 4.9,
-      reviewCount: m.reviewCount || 25,
-      avatar: m.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=0D4F9E&color=fff`,
-      subjects: m.subjects || [],
+    const availableMentors = dbMentors.map((mentor) => ({
+      id: String(mentor._id),
+      name: mentor.name,
+      roleTitle: mentor.experience || 'Tutor',
+      rating: mentor.rating ?? 0,
+      reviewCount: mentor.reviewCount ?? 0,
+      avatar: mentor.profilePicture || '',
+      subjects: mentor.subjects || [],
       isVerified: true,
-      activeStudentsCount: m.sessionCount || 20 + Math.floor(Math.random() * 15),
-      hourlyRate: m.hourlyRate || 1800,
+      activeStudentsCount: mentor.sessionCount ?? 0,
+      hourlyRate: mentor.hourlyRate ?? 0,
+      email: mentor.email,
+      bio: mentor.bio || '',
     }));
 
-    const deadlineAlert = {
-      id: 'alert-prob-stat',
-      tag: 'DEADLINE APPROACHING • 2 DAYS LEFT',
-      title: 'Mock Exam: Probability & Statist',
-      moduleCode: 'MA2010',
-      daysLeft: 2,
-      reviewAction: 'Review Mock Exam',
-      tutorAction: 'Find Tutor',
-      tutorQuery: 'Probability',
-    };
-
-    const liveSession = {
-      id: 'live-ds-1',
-      tag: 'LIVE NOW',
-      timeRemaining: '35m left',
-      title: 'Data Structures: Graph Traversals',
-      moduleCode: 'IT2040',
-      sessionType: 'Peer Revision',
-      subtitle: 'Module Code: IT2040 • Peer Revision',
-      activeParticipants: 24,
-      mentor: {
-        id: 'mentor-tharushi-1',
-        name: 'Tharushi Perera',
-        roleTitle: 'Senior Peer Mentor',
-        batch: "Batch '24",
-        activeCount: 24,
-        isVerified: true,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      },
-      roomAction: 'Join Room',
-    };
-
-    const quickLaunchpad = [
-      { key: 'goal', label: 'New Goal', icon: 'check-circle-plus', isHighlighted: true },
-      { key: 'pods', label: 'Pods', icon: 'chat-bubble', badge: '3' },
-      { key: 'session', label: 'Join session', icon: 'video' },
-      { key: 'library', label: 'Library', icon: 'book-open' },
-    ];
+    const upcomingSessions = sessions.map((session) => {
+      const mentor = session.mentorId as { name?: string } | undefined;
+      return {
+        _id: session._id,
+        subject: session.subject,
+        scheduledAt: session.scheduledAt,
+        status: session.status,
+        isLive: Boolean(session.isLive),
+        moduleCode: session.moduleCode || '',
+        mentorName: mentor && typeof mentor === 'object' ? mentor.name || '' : '',
+      };
+    });
 
     res.json({
       user: {
         _id: user._id,
-        name: user.name || 'Nethmi Silva',
+        name: user.name || 'Student',
         email: user.email,
         role: user.role,
-        profilePicture: user.profilePicture || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80',
-        degreeProgramme: user.degreeProgramme,
-        academicYear: user.academicYear,
-        semester: user.semester,
+        profilePicture: user.profilePicture || '',
+        degreeProgramme: user.degreeProgramme || '',
+        academicYear: user.academicYear || '',
+        semester: user.semester || '',
       },
-      academicStats: user.academicStats,
-      deadlineAlert,
-      quickLaunchpad,
-      liveSession,
-      enrolledModules: user.enrolledModules,
+      academicStats: {
+        goals: goalCount,
+        plans: goalCount,
+        dueTests: openSessions,
+        done: completedSessions,
+      },
+      deadlineAlert: null,
+      liveSession: null,
+      upcomingSessions,
+      quickLaunchpad: [],
+      enrolledModules,
       availableMentors,
     });
   } catch (err) {
@@ -327,18 +189,8 @@ export async function registerModule(req: AuthRequest, res: Response, next: Next
       department,
       progress: 0,
       status: 'active',
-      nextSession: 'Upcoming • Schedule available soon',
-      mentor: mentor || {
-        id: 'mentor-general',
-        name: 'Assigned Peer Mentor',
-        roleTitle: 'Peer Mentor',
-        batch: "Batch '24",
-        rating: 4.85,
-        reviewCount: 20,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-        isVerified: true,
-        activeStudentsCount: 16,
-      },
+      nextSession: '',
+      ...(mentor?.id && !String(mentor.id).startsWith(DEMO_MENTOR_PREFIX) ? { mentor } : {}),
     };
 
     user.enrolledModules.push(newModule);

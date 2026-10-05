@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react-native';
 import {
   ActivityIndicator,
   Alert,
@@ -269,7 +270,7 @@ export default function ChatScreen({ route, navigation }: Props) {
     setCallSeconds(0);
 
     if (callSeconds > 2) {
-      void sendMessage(`📞 Voice call ended • Duration ${timeFormatted}`);
+      void sendMessage(`Voice call ended. Duration ${timeFormatted}`);
     }
   };
 
@@ -340,17 +341,17 @@ export default function ChatScreen({ route, navigation }: Props) {
   // Academic Icebreakers
   const icebreakers = isMentorLoggedIn
     ? [
-        '📅 Propose Mentoring Session',
-        '💡 Let me know your doubts on the module',
-        '📝 Send me your code / lab sheet',
-        '👍 Well done on completing the exercises!',
+        'Propose a mentoring session',
+        'Let me know your doubts on the module',
+        'Send me your code or lab sheet',
+        'Well done on completing the exercises',
       ]
     : [
-        '📅 Can we reschedule our session?',
-        '❓ Question on Data Structures recursion',
-        '💻 Review my code implementation',
-        '📚 Do you have past paper model answers?',
-        '⏰ Are you free for a 30m review today?',
+        'Can we reschedule our session?',
+        'Question on Data Structures recursion',
+        'Review my code implementation',
+        'Do you have past paper model answers?',
+        'Are you free for a 30 minute review today?',
       ];
 
   const formatCallDuration = (secs: number) => {
@@ -415,7 +416,7 @@ export default function ChatScreen({ route, navigation }: Props) {
           renderItem={({ item }) => {
             const mine = String(item.sender) === userId;
             const isVoice = item.messageType === 'voice';
-            const isSystem = item.messageType === 'system' || item.text.startsWith('📞 Voice call');
+            const isSystem = item.messageType === 'system' || item.text.startsWith('Voice call ended');
             const reaction = reactions[item._id];
             const isPlayingThis = playingAudioId === item._id;
             const playSec = playbackSeconds[item._id] || 0;
@@ -443,13 +444,13 @@ export default function ChatScreen({ route, navigation }: Props) {
                       item.text,
                       [
                         { text: 'Cancel', style: 'cancel' },
-                        { text: '👍 Like', onPress: () => handleReactToMessage(item._id, '👍') },
-                        { text: '💡 Helpful', onPress: () => handleReactToMessage(item._id, '💡') },
+                        { text: 'Like', onPress: () => handleReactToMessage(item._id, 'Like') },
+                        { text: 'Helpful', onPress: () => handleReactToMessage(item._id, 'Helpful') },
                         ...(mine
                           ? [
-                              { text: '✏️ Edit', onPress: () => handleEditPress(item) },
+                              { text: 'Edit', onPress: () => handleEditPress(item) },
                               {
-                                text: '🗑️ Delete',
+                                text: 'Delete',
                                 style: 'destructive' as const,
                                 onPress: () => handleDeleteMessage(item._id),
                               },
@@ -546,13 +547,13 @@ export default function ChatScreen({ route, navigation }: Props) {
                         onPress={() => handleEditPress(item)}
                         style={styles.bubbleActionBtn}
                       >
-                        <Text style={styles.bubbleActionText}>✏️</Text>
+                        <Pencil size={14} color="#102B5D" />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleDeleteMessage(item._id)}
                         style={styles.bubbleActionBtn}
                       >
-                        <Text style={styles.bubbleActionText}>🗑️</Text>
+                        <Trash2 size={14} color="#B42318" />
                       </TouchableOpacity>
                     </View>
                   )}
@@ -786,7 +787,7 @@ export default function ChatScreen({ route, navigation }: Props) {
               style={styles.sheetOption}
               onPress={() => {
                 setShowAttachmentSheet(false);
-                void sendMessage("📄 Shared Document: Past Paper Solution (June 2025 - IT2040).pdf");
+                void sendMessage('Shared document: Past Paper Solution (June 2025 - IT2040).pdf');
               }}
             >
               <View style={[styles.sheetOptionIcon, { backgroundColor: '#FEF3C7' }]}>
@@ -802,7 +803,7 @@ export default function ChatScreen({ route, navigation }: Props) {
               style={styles.sheetOption}
               onPress={() => {
                 setShowAttachmentSheet(false);
-                void sendMessage("📅 Peer Session Request: Can we schedule a 1-on-1 session for tomorrow at 10:00 AM?");
+                void sendMessage('Peer session request: can we schedule a 1-on-1 session for tomorrow at 10:00 AM?');
               }}
             >
               <View style={[styles.sheetOptionIcon, { backgroundColor: '#DCFCE7' }]}>
@@ -834,7 +835,7 @@ export default function ChatScreen({ route, navigation }: Props) {
         <Pressable style={styles.modalOverlay} onPress={() => setEditingMessage(null)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>✏️ Edit Message</Text>
+            <Text style={styles.sheetTitle}>Edit message</Text>
             <Text style={styles.sheetSubtitle}>Update your sent message text</Text>
 
             <TextInput

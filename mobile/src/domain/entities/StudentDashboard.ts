@@ -80,8 +80,17 @@ export interface StudentDashboardData {
     semester?: string;
   };
   academicStats: AcademicStats;
-  deadlineAlert: DeadlineAlert;
-  liveSession: LiveSession;
+  deadlineAlert?: DeadlineAlert | null;
+  liveSession?: LiveSession | null;
+  upcomingSessions?: {
+    _id: string;
+    subject: string;
+    scheduledAt: string;
+    status: string;
+    isLive?: boolean;
+    moduleCode?: string;
+    mentorName?: string;
+  }[];
   enrolledModules: EnrolledModule[];
   availableMentors: EnrolledMentor[];
   quickLaunchpad?: QuickLaunchpadItem[];

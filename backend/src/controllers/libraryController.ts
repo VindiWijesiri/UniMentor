@@ -39,6 +39,12 @@ function progressFor(item: LibraryView, userId: string) {
   return ((raw as Record<string, Record<string, number | boolean>> | undefined)?.[userId] ?? {});
 }
 
+function ownerIdOf(item: LibraryView) {
+  const owner = item.owner as { _id?: unknown; name?: string } | string | undefined;
+  if (owner && typeof owner === 'object') return String(owner._id ?? '');
+  return owner ? String(owner) : '';
+}
+
 function ownerNameOf(item: LibraryView) {
   const owner = item.owner as { name?: string } | string | undefined;
   return typeof owner === 'object' && owner?.name ? owner.name : undefined;
@@ -51,12 +57,13 @@ function conversationTitleOf(item: LibraryView) {
 
 function buildFromLabel(item: LibraryView) {
   if (item.fromLabel) return item.fromLabel;
-  const owner = (ownerNameOf(item) ?? 'Tutor').toUpperCase();
-  const group = (conversationTitleOf(item) ?? 'Study Group').toUpperCase();
-  if (item.source === 'live') return `FROM: LIVE KUPPIYA • ${owner} (TUTOR)`;
-  if (item.source === 'group') return `FROM: ${group} (STUDY GROUP)`;
-  if (item.source === 'session') return `FROM: POD SESSION • ${owner}`;
-  return `FROM: ${(item.moduleName || 'LIBRARY PACK').toUpperCase()}`;
+  const owner = ownerNameOf(item) ?? 'Library';
+  const group = conversationTitleOf(item);
+  if (item.source === 'live') return `Live session · ${owner}`;
+  if (item.source === 'group') return group ? `Study group · ${group}` : `Study group · ${owner}`;
+  if (item.source === 'session') return `Tutor session · ${owner}`;
+  const moduleLabel = [item.moduleCode, item.moduleName].filter(Boolean).join(' ');
+  return moduleLabel ? moduleLabel : `Library · ${owner}`;
 }
 
 function serialize(item: LibraryView, userId: string, full = false) {
@@ -70,7 +77,6 @@ function serialize(item: LibraryView, userId: string, full = false) {
     subtitle: item.subtitle,
     fromLabel: buildFromLabel(item),
     preview: item.files?.[0]?.content?.split('\n').slice(0, 4).join('\n'),
-    ownerName: ownerNameOf(item),
     conversationTitle: conversationTitleOf(item),
     description: item.description,
     moduleCode: item.moduleCode,
@@ -80,9 +86,13 @@ function serialize(item: LibraryView, userId: string, full = false) {
     pageCount: item.pageCount,
     fileCount: item.fileCount ?? item.files?.length ?? 0,
     questionCount: item.questionCount ?? item.questions?.length ?? 0,
-    downloads: item.downloads,
-    owner: item.owner,
-    conversation: item.conversation,
+    downloads: item.downloads ?? 0,
+    owner: ownerIdOf(item),
+    ownerName: ownerNameOf(item),
+    isOwner: ownerIdOf(item) === userId,
+    conversation: typeof item.conversation === 'object' && item.conversation
+      ? String((item.conversation as { _id?: unknown })._id ?? '')
+      : item.conversation ? String(item.conversation) : undefined,
     saved,
     tags: item.tags ?? [],
     createdAt: item.createdAt,
@@ -142,13 +152,16 @@ export async function listLibrary(req: AuthRequest, res: Response, next: NextFun
       { body: new RegExp(q, 'i') },
       { moduleCode: new RegExp(q, 'i') },
     ];
-    const match = Object.keys(extra).length ? { $and: [filter, extra] } : filter;
-    const items = await LibraryMaterial.find(kind === 'all' ? match : { $and: [match, { kind }] })
+    const stored = { seedKey: { $exists: false } };
+    const base = { $and: [filter, stored, ...(Object.keys(extra).length ? [extra] : [])] };
+    const match = kind === 'all' ? base : { $and: [base, { kind }] };
+    const items = await LibraryMaterial.find(match)
       .select('-files -questions -body -progress')
+      .populate('owner', 'name')
       .sort({ createdAt: -1 })
       .lean();
     const kindRows = await LibraryMaterial.aggregate<{ _id: string; count: number }>([
-      { $match: match },
+      { $match: base },
       { $group: { _id: '$kind', count: { $sum: 1 } } },
     ]);
     const kindCount = Object.fromEntries(kindRows.map((row) => [row._id, row.count]));
@@ -170,7 +183,7 @@ export async function listLibrary(req: AuthRequest, res: Response, next: NextFun
     res.json({
       saved,
       offlineItems: saved,
-      offlineSize: `${Math.max(1, saved * 28)} MB`,
+      offlineSize: '',
       kinds,
       items: items.map((item) => serialize(item, userId)),
     });
@@ -187,7 +200,11 @@ export async function getLibraryItem(req: AuthRequest, res: Response, next: Next
       return;
     }
     const access = await visibleQuery(userId);
-    const item = await LibraryMaterial.findOne({ _id: req.params.id, ...(access as object) });
+    const item = await LibraryMaterial.findOne({
+      _id: req.params.id,
+      seedKey: { $exists: false },
+      ...(access as object),
+    }).populate('owner', 'name');
     if (!item) {
       res.status(404).json({ message: 'Material not found.' });
       return;
@@ -240,7 +257,8 @@ export async function createLibraryItem(req: AuthRequest, res: Response, next: N
       files,
       tags: Array.isArray(req.body.tags) ? req.body.tags : [],
     });
-    res.status(201).json(serialize(item, userId, true));
+    const stored = await LibraryMaterial.findById(item._id).populate('owner', 'name');
+    res.status(201).json(serialize(stored ?? item, userId, true));
   } catch (error) {
     next(error);
   }
@@ -283,6 +301,29 @@ export async function progressLibraryItem(req: AuthRequest, res: Response, next:
     if (!item.savedBy.some((id) => String(id) === userId)) item.savedBy.push(new mongoose.Types.ObjectId(userId));
     await item.save();
     res.json(serialize(item, userId, true));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteLibraryItem(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = await ready(req);
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      res.status(404).json({ message: 'Material not found.' });
+      return;
+    }
+    const item = await LibraryMaterial.findById(req.params.id);
+    if (!item || item.seedKey) {
+      res.status(404).json({ message: 'Material not found.' });
+      return;
+    }
+    if (String(item.owner) !== userId) {
+      res.status(403).json({ message: 'Only the person who stored this material can remove it.' });
+      return;
+    }
+    await item.deleteOne();
+    res.json({ deleted: true });
   } catch (error) {
     next(error);
   }

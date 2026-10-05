@@ -59,6 +59,7 @@ function present(goal: IGoalPlan) {
     sessions: goal.sessions,
     credentialId: goal.credentialId,
     completed: goal.completed,
+    seedKey: goal.seedKey,
   };
 }
 

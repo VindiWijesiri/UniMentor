@@ -24,6 +24,7 @@ import { useReviewStore } from '../../../domain/stores/reviewStore';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import { Pencil, PenLine, Search, Star, Trash2 } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Reviews'>;
@@ -127,7 +128,7 @@ export default function ReviewsScreen({ navigation }: Props) {
 
       // 4. Show success notification AFTER review is updated and visible on review page
       setTimeout(() => {
-        Alert.alert('Review Updated! ⭐', 'Your review has been updated successfully.');
+        Alert.alert('Review updated', 'Your review has been updated successfully.');
       }, 350);
     } catch (err: any) {
       Alert.alert('Update Failed', err?.message || 'Could not update review.');
@@ -178,7 +179,7 @@ export default function ReviewsScreen({ navigation }: Props) {
 
         {activeTab === 'tutors' && (
           <View style={styles.searchBox}>
-            <Text style={styles.searchIcon}>🔍</Text>
+            <Search size={16} color="#8997AF" />
             <TextInput
               value={query}
               onChangeText={setQuery}
@@ -220,7 +221,7 @@ export default function ReviewsScreen({ navigation }: Props) {
                   {item.subjects.slice(0, 2).join('  •  ')}
                 </Text>
                 <View style={styles.ratingRow}>
-                  <Text style={styles.star}>★</Text>
+                  <Star size={14} color="#D97706" />
                   <Text style={styles.rating}>{item.rating ? item.rating.toFixed(1) : 'New'}</Text>
                   <Text style={styles.reviewCount}> • {item.reviewCount ?? 0} reviews</Text>
                 </View>
@@ -247,7 +248,7 @@ export default function ReviewsScreen({ navigation }: Props) {
           }
           ListEmptyComponent={
             <View style={styles.emptyStateWrap}>
-              <Text style={{ fontSize: 40, marginBottom: 8 }}>✍️</Text>
+              <PenLine size={32} color="#102B5D" />
               <Text style={styles.emptyTitle}>No Reviews Submitted Yet</Text>
               <Text style={styles.emptySub}>
                 Select a tutor from the "Review a Tutor" tab to share your feedback!
@@ -267,15 +268,12 @@ export default function ReviewsScreen({ navigation }: Props) {
                     <Text style={styles.reviewTutorName}>{tutorName}</Text>
                     <View style={styles.ratingStarsRow}>
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <Text
+                        <Star
                           key={star}
-                          style={{
-                            color: star <= item.rating ? '#F59E0B' : '#CBD5E1',
-                            fontSize: 16,
-                          }}
-                        >
-                          ★
-                        </Text>
+                          size={16}
+                          color={star <= item.rating ? '#F59E0B' : '#CBD5E1'}
+                          fill={star <= item.rating ? '#F59E0B' : 'transparent'}
+                        />
                       ))}
                       <Text style={styles.ratingNum}>({item.rating}.0)</Text>
                     </View>
@@ -287,14 +285,15 @@ export default function ReviewsScreen({ navigation }: Props) {
                       style={styles.editReviewBtn}
                       onPress={() => openEditModal(item)}
                     >
-                      <Text style={styles.editReviewBtnText}>✏️ Edit</Text>
+                      <Pencil size={12} color="#102B5D" />
+                      <Text style={styles.editReviewBtnText}>Edit</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       style={styles.deleteReviewBtn}
                       onPress={() => handleDeleteReview(item)}
                     >
-                      <Text style={styles.deleteReviewBtnText}>🗑️</Text>
+                      <Trash2 size={14} color="#B42318" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -332,9 +331,7 @@ export default function ReviewsScreen({ navigation }: Props) {
                 <View style={styles.starsPickerRow}>
                   {[1, 2, 3, 4, 5].map((s) => (
                     <TouchableOpacity key={s} onPress={() => setEditRating(s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Text style={[styles.starPick, editRating >= s && styles.starPickActive]}>
-                        ★
-                      </Text>
+                      <Star size={22} color={editRating >= s ? '#F59E0B' : '#CBD5E1'} fill={editRating >= s ? '#F59E0B' : 'transparent'} />
                     </TouchableOpacity>
                   ))}
                   <Text style={styles.starPickLabel}>{editRating} out of 5</Text>
@@ -564,6 +561,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   editReviewBtnText: {
     color: '#061E47',

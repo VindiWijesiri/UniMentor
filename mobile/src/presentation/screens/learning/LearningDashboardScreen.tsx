@@ -13,6 +13,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Play } from 'lucide-react-native';
 import { learningRepository } from '../../../data/repositories/learningRepository';
 import type { LearningDashboard } from '../../../domain/entities/Learning';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
@@ -313,7 +314,10 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                   style={styles.yellowBtn}
                   onPress={() => stack?.navigate('LearningActivity', { id: activity._id })}
                 >
-                  <Text style={styles.yellowBtnText}>▶  Continue Activity</Text>
+                  <View style={styles.continueRow}>
+                    <Play size={14} color={navy} />
+                    <Text style={styles.yellowBtnText}>Continue Activity</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             )}
@@ -537,6 +541,7 @@ const styles = StyleSheet.create({
   topic: { color: ink, fontSize: 13, fontWeight: '700', marginTop: 4 },
   yellowBtn: { backgroundColor: yellow, borderRadius: 16, paddingVertical: 13, alignItems: 'center', marginTop: 14 },
   yellowBtnText: { color: navy, fontSize: 15, fontWeight: '900' },
+  continueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   navyBtn: { backgroundColor: navy, borderRadius: 14, paddingVertical: 11, alignItems: 'center', marginTop: 12 },
   navyBtnText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
   ghostBtn: {

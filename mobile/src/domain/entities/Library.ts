@@ -20,6 +20,8 @@ export type LibraryMaterial = {
   fileCount?: number;
   questionCount?: number;
   downloads: number;
+  owner?: string;
+  isOwner?: boolean;
   conversation?: string;
   saved: boolean;
   tags: string[];

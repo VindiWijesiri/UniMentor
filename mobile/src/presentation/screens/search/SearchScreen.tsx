@@ -21,6 +21,7 @@ import { countTutorFilters } from '../../../domain/entities/TutorFilters';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { shortlistRepository } from '../../../data/repositories/shortlistRepository';
 import type { ShortlistedMentor } from '../../../domain/entities/ShortlistedMentor';
+import { Pencil, Search, Star, Trash2 } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Search'>;
@@ -75,19 +76,7 @@ export default function SearchScreen({ route, navigation }: Props) {
 
   // Shortlist CRUD state
   const [searchTab, setSearchTab] = useState<'browse' | 'shortlist'>('browse');
-  const [shortlist, setShortlist] = useState<ShortlistedMentor[]>([
-    {
-      mentorId: 'mentor-tharushi-1',
-      name: 'Tharushi Perera',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
-      hourlyRate: 1800,
-      rating: 4.9,
-      subjects: ['Data Structures', 'Algorithms'],
-      priority: 'Top Choice',
-      notes: 'Available on Wednesdays. Excellent review on Graph Traversals.',
-      savedAt: new Date().toISOString(),
-    },
-  ]);
+  const [shortlist, setShortlist] = useState<ShortlistedMentor[]>([]);
   const [showShortlistModal, setShowShortlistModal] = useState(false);
   const [modalTargetMentor, setModalTargetMentor] = useState<MentorCard | ShortlistedMentor | null>(null);
   const [isEditingShortlist, setIsEditingShortlist] = useState(false);
@@ -97,9 +86,7 @@ export default function SearchScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     shortlistRepository.getShortlist().then((data) => {
-      if (data && data.length > 0) {
-        setShortlist(data);
-      }
+      setShortlist(data ?? []);
     }).catch(() => {});
   }, []);
 
@@ -333,7 +320,7 @@ export default function SearchScreen({ route, navigation }: Props) {
             <Text style={styles.mentorName} numberOfLines={1}>{item.name}</Text>
             <Text style={styles.experience}>{item.experience ?? 'Verified senior student mentor'}</Text>
             <View style={styles.ratingRow}>
-              <Text style={styles.star}>★</Text>
+              <Star size={14} color="#D97706" />
               <Text style={styles.rating}>{item.rating?.toFixed(1) ?? 'New'}</Text>
               <Text style={styles.sessions}>  ·  {item.sessionCount ?? 0}+ sessions</Text>
             </View>
@@ -362,7 +349,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               activeOpacity={0.8}
             >
               <Text style={[styles.saveShortlistText, isShortlisted && styles.saveShortlistTextActive]}>
-                {isShortlisted ? '★ Saved' : '☆ Save'}
+                {isShortlisted ? 'Saved' : 'Save'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -410,7 +397,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               </View>
             </View>
             <View style={styles.ratingRow}>
-              <Text style={styles.star}>★</Text>
+              <Star size={14} color="#D97706" />
               <Text style={styles.rating}>{item.rating?.toFixed(1) ?? '4.8'}</Text>
               <Text style={styles.sessions}>  ·  LKR {item.hourlyRate.toLocaleString()} / hour</Text>
             </View>
@@ -441,13 +428,15 @@ export default function SearchScreen({ route, navigation }: Props) {
               style={styles.editNotesBtn}
               onPress={() => openEditShortlistModal(item)}
             >
-              <Text style={styles.editNotesBtnText}>✏️ Edit Notes</Text>
+              <Pencil size={12} color="#102B5D" />
+              <Text style={styles.editNotesBtnText}>Edit Notes</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.removeBtn}
               onPress={() => handleRemoveFromShortlist(item.mentorId, item.name)}
             >
-              <Text style={styles.removeBtnText}>🗑️ Remove</Text>
+              <Trash2 size={12} color="#B42318" />
+              <Text style={styles.removeBtnText}>Remove</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
@@ -509,7 +498,7 @@ export default function SearchScreen({ route, navigation }: Props) {
             onPress={() => setSearchTab('shortlist')}
           >
             <Text style={[styles.tabSwitchText, searchTab === 'shortlist' && styles.tabSwitchTextActive]}>
-              ★ My Shortlist ({shortlist.length})
+              My Shortlist ({shortlist.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -591,14 +580,14 @@ export default function SearchScreen({ route, navigation }: Props) {
         )}
         ListEmptyComponent={(
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>{searchTab === 'browse' ? '⌕' : '★'}</Text>
+            {searchTab === 'browse' ? <Search size={28} color="#9AA8BD" /> : <Star size={28} color="#9AA8BD" />}
             <Text style={styles.emptyTitle}>
               {searchTab === 'browse' ? 'No mentors found' : 'Your Shortlist is Empty'}
             </Text>
             <Text style={styles.emptyText}>
               {searchTab === 'browse'
                 ? 'Try another subject or search term.'
-                : 'Browse tutors in "All Tutors" and tap "☆ Save" to create your personal shortlist with custom notes and priorities.'}
+                : 'Browse tutors in All Tutors and tap Save to keep a shortlist with notes and priorities.'}
             </Text>
           </View>
         )}
@@ -953,6 +942,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   editNotesBtnText: {
     color: navy,
@@ -962,6 +954,9 @@ const styles = StyleSheet.create({
   removeBtn: {
     backgroundColor: '#FEF2F2',
     borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },

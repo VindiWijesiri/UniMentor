@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MessageCircle, Search } from 'lucide-react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -131,7 +132,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
       <PageHeader title={isMentor ? 'Student Inquiries' : 'Messages'} />
       <View style={styles.hero}>
         <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Search size={16} color="#8997AF" />
           <TextInput
             style={styles.searchInput}
             placeholder={
@@ -226,7 +227,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
                 <Text style={styles.role} numberOfLines={1}>
                   {isParticipantStudent
                     ? `🎓 ${item.participant.degreeProgramme || 'Student Peer Mentee'}`
-                    : `⭐ Senior Peer Mentor • Batch '24`}
+                    : 'Tutor'}
                 </Text>
 
                 {/* Last message preview */}
@@ -272,7 +273,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
           ) : (
             <View style={styles.state}>
               <View style={styles.emptyIcon}>
-                <Text style={styles.emptyIconText}>💬</Text>
+                <MessageCircle size={28} color="#102B5D" />
               </View>
               <Text style={styles.emptyTitle}>
                 {searchQuery || activeFilter !== 'all'

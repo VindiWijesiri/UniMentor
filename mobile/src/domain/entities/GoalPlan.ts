@@ -83,6 +83,7 @@ export type GoalPlanView = {
   sessions: { id: string; title: string; when: string }[];
   credentialId: string;
   completed: boolean;
+  seedKey?: string;
 };
 
 export type GoalBoard = {

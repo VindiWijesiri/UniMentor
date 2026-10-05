@@ -16,6 +16,7 @@ import { learningRepository } from '../../../data/repositories/learningRepositor
 import type { TutorLearningDashboard, TutorQueueStudent, TutorStudentStatus } from '../../../domain/entities/Learning';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { card, ink, muted, navy, pageBg, yellow } from './learningTheme';
+import { MessageCircle } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
 
@@ -304,7 +305,9 @@ function QueueCard({
             <TouchableOpacity style={styles.yellowBtn} onPress={onGrade}>
               <Text style={styles.yellowText}>Grade Now (PDF Diff)</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={onChat}><Text style={styles.iconBtnText}>💬</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={onChat} accessibilityLabel="Message student">
+              <MessageCircle size={16} color={navy} />
+            </TouchableOpacity>
           </View>
         </>
       )}

@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Play, Trash2 } from 'lucide-react-native';
 import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import type { LibraryMaterial, QuizResult } from '../../../domain/entities/Library';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -93,8 +94,8 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
 
           {item.kind === 'video' && (
             <View style={styles.player}>
-              <Text style={styles.playBig}>▶</Text>
-              <Text style={styles.playerMeta}>{item.durationLabel} · {item.watchedPercent ?? 0}% watched</Text>
+              <Play size={36} color={yellow} />
+              <Text style={styles.playerMeta}>{item.durationLabel || 'Video'} · {item.watchedPercent ?? 0}% watched</Text>
               <TouchableOpacity style={styles.primary} onPress={() => void markProgress({ watchedPercent: 100, completed: true })}>
                 <Text style={styles.primaryText}>Watch Now</Text>
               </TouchableOpacity>
@@ -103,8 +104,8 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
 
           {item.kind === 'audio' && (
             <View style={styles.player}>
-              <Text style={styles.playBig}>▶</Text>
-              <Text style={styles.playerMeta}>{item.durationLabel} · {item.audioSpeed ?? 1}x</Text>
+              <Play size={36} color={yellow} />
+              <Text style={styles.playerMeta}>{item.durationLabel || 'Audio'} · {item.audioSpeed ?? 1}x</Text>
               <View style={styles.row}>
                 {[1, 1.6, 2].map((speed) => (
                   <TouchableOpacity key={speed} style={styles.speed} onPress={() => void markProgress({ audioSpeed: speed, completed: true })}>
@@ -176,8 +177,30 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
           ) : null}
 
           <TouchableOpacity style={styles.secondary} onPress={() => void save()} disabled={saving}>
-            <Text style={styles.secondaryText}>{item.saved ? 'Saved to device' : saving ? 'Saving...' : 'Save / Store in library'}</Text>
+            <Text style={styles.secondaryText}>{item.saved ? 'Saved in your library' : saving ? 'Saving...' : 'Save to your library'}</Text>
           </TouchableOpacity>
+          {item.isOwner ? (
+            <TouchableOpacity
+              style={styles.remove}
+              onPress={() => {
+                Alert.alert('Remove material', 'Delete this from the library?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                      void libraryRepository.remove(item._id)
+                        .then(() => navigation.goBack())
+                        .catch(() => Alert.alert('Could not delete this material.'));
+                    },
+                  },
+                ]);
+              }}
+            >
+              <Trash2 size={16} color="#B42318" />
+              <Text style={styles.removeText}>Delete from library</Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
       )}
     </View>
@@ -207,6 +230,8 @@ const styles = StyleSheet.create({
   primaryText: { color: navy, fontWeight: '900' },
   secondary: { borderWidth: 1, borderColor: '#D7DEEA', borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 16, backgroundColor: '#FFF' },
   secondaryText: { color: navy, fontWeight: '800' },
+  remove: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12 },
+  removeText: { color: '#B42318', fontWeight: '800' },
   note: { backgroundColor: '#FFF', borderRadius: 18, padding: 14, marginTop: 14, borderWidth: 1, borderColor: '#E6EAF2' },
   noteLabel: { color: navy, fontWeight: '900', marginBottom: 8 },
   bodyText: { color: ink, lineHeight: 22, marginTop: 14 },

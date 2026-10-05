@@ -8,6 +8,7 @@ import type { Review } from '../../../domain/entities/Review';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { MessageCircle, Pencil, Star, Trash2 } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 
 type Props = any;
@@ -157,7 +158,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               onPress={() => currentRole === 'student' && navigation.navigate('WriteReview', { mentor })}
               activeOpacity={currentRole === 'student' ? 0.75 : 1}
             >
-              <Text style={styles.heroStatValue}><Text style={styles.star}>★</Text> {avgRating}</Text>
+              <View style={styles.heroRating}>
+                <Star size={14} color="#F59E0B" fill="#F59E0B" />
+                <Text style={styles.heroStatValue}>{avgRating}</Text>
+              </View>
               <Text style={styles.heroStatLabel}>
                 {totalReviews} {totalReviews === 1 ? 'Review' : 'Reviews'} {currentRole === 'student' ? '• +Rate' : ''}
               </Text>
@@ -219,7 +223,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             <View style={styles.reviewsHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={[styles.sectionIcon, { backgroundColor: '#FEF3C7' }]}>
-                  <Text style={[styles.sectionIconText, { color: '#D97706' }]}>★</Text>
+                  <Star size={16} color="#D97706" fill="#D97706" />
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>Student Reviews</Text>
@@ -246,15 +250,12 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                 <Text style={styles.ratingBigNumber}>{avgRating}</Text>
                 <View style={styles.starsRow}>
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Text
+                    <Star
                       key={s}
-                      style={[
-                        styles.starIcon,
-                        s <= Math.round(Number(avgRating) || 0) ? styles.starFilled : styles.starEmpty,
-                      ]}
-                    >
-                      ★
-                    </Text>
+                      size={14}
+                      color={s <= Math.round(Number(avgRating) || 0) ? '#F59E0B' : '#CBD5E1'}
+                      fill={s <= Math.round(Number(avgRating) || 0) ? '#F59E0B' : 'transparent'}
+                    />
                   ))}
                 </View>
                 <Text style={styles.ratingTotalText}>Based on {totalReviews} reviews</Text>
@@ -266,7 +267,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                   const pct = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
                   return (
                     <View key={starLevel} style={styles.starBarRow}>
-                      <Text style={styles.starBarLabel}>{starLevel}★</Text>
+                      <Text style={styles.starBarLabel}>{starLevel}</Text>
                       <View style={styles.starBarTrack}>
                         <View style={[styles.starBarFill, { width: `${pct}%` }]} />
                       </View>
@@ -285,7 +286,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               </View>
             ) : reviews.length === 0 ? (
               <View style={styles.emptyReviewsBox}>
-                <Text style={styles.emptyReviewsEmoji}>💬</Text>
+                <MessageCircle size={28} color="#102B5D" />
                 <Text style={styles.emptyReviewsTitle}>No reviews yet</Text>
                 <Text style={styles.emptyReviewsSubtitle}>
                   Be the first student to share your learning experience with {mentor.name}!
@@ -343,15 +344,12 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                         </View>
                         <View style={styles.reviewStarsRow}>
                           {[1, 2, 3, 4, 5].map((s) => (
-                            <Text
+                            <Star
                               key={s}
-                              style={[
-                                styles.reviewStar,
-                                s <= rev.rating ? styles.starFilled : styles.starEmpty,
-                              ]}
-                            >
-                              ★
-                            </Text>
+                              size={12}
+                              color={s <= rev.rating ? '#F59E0B' : '#CBD5E1'}
+                              fill={s <= rev.rating ? '#F59E0B' : 'transparent'}
+                            />
                           ))}
                         </View>
                       </View>
@@ -368,7 +366,8 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                             }
                             activeOpacity={0.75}
                           >
-                            <Text style={styles.reviewEditBtnText}>✏️ Edit</Text>
+                            <Pencil size={12} color="#102B5D" />
+                            <Text style={styles.reviewEditBtnText}>Edit</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -376,7 +375,8 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                             onPress={() => handleDeleteReview(rev._id)}
                             activeOpacity={0.75}
                           >
-                            <Text style={styles.reviewDeleteBtnText}>🗑️ Delete</Text>
+                            <Trash2 size={12} color="#B42318" />
+                            <Text style={styles.reviewDeleteBtnText}>Delete</Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -397,7 +397,8 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             onPress={() => navigation.navigate('Messages')}
             activeOpacity={0.84}
           >
-            <Text style={styles.mentorTabActionText}>💬 Student Messages</Text>
+            <MessageCircle size={16} color="#FFFFFF" />
+            <Text style={styles.mentorTabActionText}>Student Messages</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.mentorTabLogoutBtn}
@@ -749,6 +750,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderWidth: 1,
     borderColor: '#BFDBFE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   reviewEditBtnText: {
     color: '#1D4ED8',
@@ -758,6 +762,9 @@ const styles = StyleSheet.create({
   reviewDeleteBtn: {
     backgroundColor: '#FEF2F2',
     borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
@@ -768,6 +775,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
+  heroRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   mentorTabActionBtn: {
     flex: 1,
     height: 48,
@@ -775,6 +783,8 @@ const styles = StyleSheet.create({
     backgroundColor: navy,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
     marginRight: 8,
     shadowColor: navy,
     shadowOpacity: 0.25,

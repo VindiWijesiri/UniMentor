@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { BadgeCheck, BookOpen, MessageCircle, Pin, Search, Star, X } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 
 type FacultyFilter = 'all' | 'Computing' | 'Engineering' | 'Business' | 'Architecture';
@@ -165,7 +166,7 @@ export default function SessionsScreen() {
 
         {/* Search Bar */}
         <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Search size={16} color="#8997AF" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search selected modules, codes, or mentors..."
@@ -175,7 +176,7 @@ export default function SessionsScreen() {
           />
           {searchQuery ? (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearSearchText}>✕</Text>
+              <X size={16} color="#8997AF" />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -227,7 +228,7 @@ export default function SessionsScreen() {
             <ActivityIndicator size="large" color="#061E47" style={{ marginTop: 40 }} />
           ) : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>📚</Text>
+              <BookOpen size={28} color="#102B5D" />
               <Text style={styles.emptyTitle}>
                 {searchQuery || selectedFaculty !== 'all'
                   ? 'No Matching Modules Found'
@@ -308,7 +309,7 @@ export default function SessionsScreen() {
               {/* Next Session Agenda Highlight */}
               {item.nextSession ? (
                 <View style={styles.agendaBox}>
-                  <Text style={styles.agendaIcon}>📌</Text>
+                  <Pin size={16} color="#102B5D" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.agendaLabel}>NEXT FOCUS / AGENDA</Text>
                     <Text style={styles.agendaText}>{item.nextSession}</Text>
@@ -348,7 +349,7 @@ export default function SessionsScreen() {
                         <Text style={styles.mentorName} numberOfLines={1}>
                           {item.mentor.name}
                         </Text>
-                        <Text style={styles.verifiedCheck}> ✓</Text>
+                        <BadgeCheck size={14} color="#15803D" />
                       </TouchableOpacity>
 
                       <Text style={styles.mentorRole} numberOfLines={1}>
@@ -356,11 +357,12 @@ export default function SessionsScreen() {
                       </Text>
 
                       <View style={styles.mentorRatingRow}>
+                        <Star size={12} color="#102B5D" />
                         <Text style={styles.mentorRatingText}>
-                          ★ {item.mentor.rating || 4.9}
+                          {item.mentor.rating ? item.mentor.rating.toFixed(1) : 'New'}
                         </Text>
                         <Text style={styles.reviewCountText}>
-                          ({item.mentor.reviewCount || 25} reviews)
+                          ({item.mentor.reviewCount || 0} reviews)
                         </Text>
                         {item.mentor.hourlyRate ? (
                           <Text style={styles.hourlyRateText}>
@@ -385,7 +387,8 @@ export default function SessionsScreen() {
                         onPress={() => handleOpenChat(item.mentor!)}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.chatBtnText}>Chat 💬</Text>
+                        <MessageCircle size={14} color="#FFFFFF" />
+                        <Text style={styles.chatBtnText}>Chat</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -841,6 +844,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 4,
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
   },
   chatBtnText: {
     color: '#FFFFFF',

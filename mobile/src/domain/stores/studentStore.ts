@@ -59,14 +59,8 @@ export const useStudentStore = create<StudentState>((set, get) => ({
       department: moduleData.department,
       progress: 0,
       status: 'active',
-      nextSession: 'Upcoming • Schedule available soon',
-      mentor: moduleData.mentor || current.availableMentors[0] || {
-        name: 'Assigned Peer Mentor',
-        roleTitle: 'Senior Peer Mentor',
-        batch: "Batch '24",
-        rating: 4.9,
-        isVerified: true,
-      },
+      nextSession: '',
+      mentor: moduleData.mentor,
     };
 
     const updatedModules = [optimisticModule, ...current.enrolledModules];
@@ -150,7 +144,7 @@ export const useStudentStore = create<StudentState>((set, get) => ({
     const current = get().dashboard;
     if (!current) return;
 
-    const currentStats = current.academicStats || { goals: 4, plans: 3, dueTests: 2, done: 18 };
+    const currentStats = current.academicStats || { goals: 0, plans: 0, dueTests: 0, done: 0 };
     set({
       dashboard: {
         ...current,

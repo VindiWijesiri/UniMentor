@@ -378,7 +378,7 @@ export default function HomeScreen({ navigation }: Props) {
             <Text style={[styles.validationText, isFormComplete ? styles.validationTextComplete : styles.validationTextPending]}>
               {isFormComplete
                 ? '✓ All fields selected! Ready to find your mentor.'
-                : `⚠️ Please select all fields (${academicFields.length - missingFields.length}/${academicFields.length} selected)`}
+                : `Please select all fields (${academicFields.length - missingFields.length}/${academicFields.length} selected)`}
             </Text>
           </View>
 

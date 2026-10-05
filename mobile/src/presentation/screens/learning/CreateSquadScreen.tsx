@@ -7,6 +7,7 @@ import type { PodPerson } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import { ice, ink, muted, navy, pageBg, yellow } from './learningTheme';
+import { BookOpen } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateSquad'>;
@@ -92,7 +93,7 @@ export default function CreateSquadScreen({ navigation }: Props) {
         {step === 'details' ? (
           <>
             <View style={styles.iconBox}>
-              <Text style={styles.iconGlyph}>📘</Text>
+              <BookOpen size={28} color={navy} />
               <Text style={styles.iconHint}>SQUAD ICON{'\n'}Tap to customize avatar, color, or module badge</Text>
             </View>
             <View style={styles.labelRow}>
@@ -144,7 +145,7 @@ export default function CreateSquadScreen({ navigation }: Props) {
                 <View style={[styles.avatar, styles.avatarGold]}><Text style={[styles.avatarText, { color: navy }]}>{person.initials}</Text></View>
                 <View style={styles.copy}>
                   <Text style={styles.name}>{person.name}</Text>
-                  <Text style={styles.meta}>Verified tutor · {person.rating || 4.8} ★ · 120+ sessions</Text>
+                  <Text style={styles.meta}>Verified tutor · {person.rating || 4.8} · sessions</Text>
                 </View>
                 <View>
                   <Text style={styles.rate}>LKR 1,500</Text>

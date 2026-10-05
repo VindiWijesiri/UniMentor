@@ -16,6 +16,7 @@ import type { PodConversation, PodInboxFilter, PodInboxFilterKey } from '../../.
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
+import { MessageCircle, Settings, User, Zap } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ChatPod'>;
@@ -31,8 +32,8 @@ function FilterIcon({ name, active }: { name: PodInboxFilter['icon']; active: bo
       </View>
     );
   }
-  if (name === 'tutors') return <Text style={[styles.chipIcon, active && styles.chipIconOn]}>⚙</Text>;
-  return <Text style={[styles.chipIcon, active && styles.chipIconOn]}>👤</Text>;
+  if (name === 'tutors') return <Settings size={14} color={color} />;
+  return <User size={14} color={color} />;
 }
 
 const STACK_COLORS = ['#0B1F4C', '#F5C400', '#2F6FED', '#F97316', '#0F766E'];
@@ -162,7 +163,10 @@ export default function ChatPodScreen({ navigation }: Props) {
                   )}
                   {item.meta.actionLabel ? (
                     <View style={styles.actionRow}>
-                      <Text style={styles.flash} numberOfLines={1}>⚡ {item.meta.flashLabel ?? 'Flash Kuppiya'}</Text>
+                      <View style={styles.flashRow}>
+                        <Zap size={12} color={navy} />
+                        <Text style={styles.flash} numberOfLines={1}>{item.meta.flashLabel ?? 'Flash session'}</Text>
+                      </View>
                       <View style={styles.actionPill}><Text style={styles.actionText}>{item.meta.actionLabel}</Text></View>
                     </View>
                   ) : null}
@@ -177,7 +181,7 @@ export default function ChatPodScreen({ navigation }: Props) {
       )}
 
       <TouchableOpacity style={styles.newChat} onPress={() => setComposer(true)} activeOpacity={0.9}>
-        <Text style={styles.newChatIcon}>💬</Text>
+        <MessageCircle size={18} color={navy} />
         <Text style={styles.newChatText}>New Chat</Text>
       </TouchableOpacity>
 
@@ -206,7 +210,7 @@ export default function ChatPodScreen({ navigation }: Props) {
                 navigation.navigate('FindFriend');
               }}
             >
-              <View style={[styles.optionIcon, styles.optionIconGold]}><Text style={styles.optionGlyph}>👤</Text></View>
+              <View style={[styles.optionIcon, styles.optionIconGold]}><User size={16} color={navy} /></View>
               <View style={styles.optionCopy}>
                 <Text style={styles.optionTitle}>Chat with friend</Text>
                 <Text style={styles.optionMeta}>Search by name or user ID and start a DM</Text>
@@ -350,6 +354,7 @@ const styles = StyleSheet.create({
   tagGreen: { backgroundColor: '#DCFCE7' },
   tagGreenText: { color: '#15803D', fontSize: 10, fontWeight: '800' },
   actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 8 },
+  flashRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
   flash: { color: '#B45309', fontSize: 11, fontWeight: '800', flex: 1 },
   actionPill: { backgroundColor: '#FEE2E2', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   actionText: { color: '#B91C1C', fontSize: 10, fontWeight: '900' },

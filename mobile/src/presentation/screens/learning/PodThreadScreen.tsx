@@ -17,6 +17,7 @@ import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodConversation, PodMessage } from '../../../domain/entities/Pod';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { FileText, Play, Send, Zap } from 'lucide-react-native';
 import { ink, muted, navy, yellow } from './learningTheme';
 import PageHeader from '../../components/PageHeader';
 import ChatMaterialsBar from './ChatMaterialsBar';
@@ -152,7 +153,10 @@ export default function PodThreadScreen({ route, navigation }: Props) {
               return (
                 <View style={styles.proposal}>
                   <View style={styles.proposalHead}>
-                    <Text style={styles.proposalTitle}>⚡ Flash Kuppiya Proposed</Text>
+                    <View style={styles.proposalTitleRow}>
+                      <Zap size={14} color={navy} />
+                      <Text style={styles.proposalTitle}>Flash session proposed</Text>
+                    </View>
                     <Text style={styles.price}>{String(item.meta?.price ?? 'LKR 350')}</Text>
                   </View>
                   <Text style={styles.proposalMeta}>{conversation?.meta.scheduleLabel ?? 'Tomorrow at 7:00 PM'}</Text>
@@ -174,7 +178,10 @@ export default function PodThreadScreen({ route, navigation }: Props) {
                 <View style={[styles.row, mine && styles.rowMine]}>
                   {!mine && <Text style={styles.sender}>{item.senderName}</Text>}
                   <View style={styles.fileBubble}>
-                    <Text style={styles.fileIcon}>{item.kind === 'voice' ? `▶  ${String(item.meta?.duration ?? '0:42')}` : '📄'}</Text>
+                    <View style={styles.fileIcon}>
+                      {item.kind === 'voice' ? <Play size={14} color={navy} /> : <FileText size={14} color={navy} />}
+                      {item.kind === 'voice' ? <Text style={styles.text}>{String(item.meta?.duration ?? '')}</Text> : null}
+                    </View>
                     <Text style={styles.text}>{item.text}</Text>
                     <Text style={styles.time}>{formatTime(item.createdAt)}</Text>
                   </View>
@@ -222,7 +229,7 @@ export default function PodThreadScreen({ route, navigation }: Props) {
             onPress={() => void send()}
             disabled={!draft.trim() || sending}
           >
-            {sending ? <ActivityIndicator size="small" color={navy} /> : <Text style={styles.sendIcon}>➤</Text>}
+            {sending ? <ActivityIndicator size="small" color={navy} /> : <Send size={16} color={navy} />}
           </TouchableOpacity>
         </View>
       </View>
@@ -260,6 +267,7 @@ const styles = StyleSheet.create({
   examHint: { color: ink, fontSize: 12, marginTop: 6, lineHeight: 18 },
   proposal: { backgroundColor: '#FFF', borderRadius: 18, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E6EAF2' },
   proposalHead: { flexDirection: 'row', justifyContent: 'space-between' },
+  proposalTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   proposalTitle: { color: ink, fontWeight: '900' },
   price: { color: '#0B6B5B', fontWeight: '900' },
   proposalMeta: { color: muted, marginTop: 6, fontSize: 12 },
@@ -279,7 +287,7 @@ const styles = StyleSheet.create({
   myBubble: { backgroundColor: navy, borderBottomRightRadius: 5 },
   theirBubble: { backgroundColor: '#FFF', borderBottomLeftRadius: 5, borderWidth: 1, borderColor: '#DFE7F1' },
   fileBubble: { maxWidth: '82%', borderRadius: 18, paddingHorizontal: 12, paddingTop: 9, paddingBottom: 6, backgroundColor: '#E8F0FF', borderWidth: 1, borderColor: '#D5E3F8' },
-  fileIcon: { color: navy, fontWeight: '800', marginBottom: 4 },
+  fileIcon: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   text: { color: '#293B5B', fontSize: 13, lineHeight: 19 },
   myText: { color: '#FFF' },
   time: { color: '#8A98AC', fontSize: 9, marginTop: 4, textAlign: 'right' },

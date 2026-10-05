@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodConversation, PodFeed } from '../../../domain/entities/Pod';
+import { Flame, MessageCircle, Zap } from 'lucide-react-native';
 import { ink, muted, navy, yellow } from './learningTheme';
 
 type Props = {
@@ -57,7 +58,7 @@ export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversat
               <View style={styles.badge}><Text style={styles.badgeText}>{item.title}</Text></View>
             ) : (
               <View style={styles.kuppiyaRow}>
-                <Text style={styles.bolt}>⚡</Text>
+                <Zap size={14} color={navy} />
                 <Text style={styles.kuppiya}>{item.meta.subtitle ?? 'Flash Kuppiya Proposal'}</Text>
               </View>
             )}
@@ -77,8 +78,8 @@ export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversat
                 </View>
                 <Text style={styles.preview} numberOfLines={1}>
                   {squad
-                    ? `▶ Voice note: “${item.meta.voicePreview ?? item.lastMessageText}”`
-                    : `Proposed: “${item.lastMessageText}”`}
+                    ? `Voice note: "${item.meta.voicePreview ?? item.lastMessageText}"`
+                    : `Proposed: "${item.lastMessageText}"`}
                 </Text>
                 {!squad && (item.meta.pollVotes ?? 0) > 0 && (
                   <TouchableOpacity
@@ -91,9 +92,10 @@ export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversat
                       onOpenConversation(item);
                     }}
                   >
-                    <Text style={styles.votes}>
-                      🔥 {item.meta.pollVotes} voted Yes  <Text style={styles.join}>Join Poll →</Text>
-                    </Text>
+                    <View style={styles.voteRow}>
+                      <Flame size={14} color="#B45309" />
+                      <Text style={styles.votes}>{item.meta.pollVotes} voted yes · Join poll</Text>
+                    </View>
                   </TouchableOpacity>
                 )}
               </View>
@@ -103,7 +105,10 @@ export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversat
       })}
 
       <TouchableOpacity style={styles.cta} onPress={onOpenPod} activeOpacity={0.85}>
-        <Text style={styles.ctaText}>💬  Open Discussions POD  →</Text>
+        <View style={styles.ctaInner}>
+          <MessageCircle size={16} color={navy} />
+          <Text style={styles.ctaText}>Open discussions</Text>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -136,9 +141,11 @@ const styles = StyleSheet.create({
   newPill: { backgroundColor: yellow, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
   newText: { color: navy, fontSize: 10, fontWeight: '900' },
   preview: { color: muted, fontSize: 12, marginTop: 4 },
-  votes: { color: '#B45309', fontSize: 12, fontWeight: '700', marginTop: 6 },
+  voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  votes: { color: '#B45309', fontSize: 12, fontWeight: '700' },
   join: { color: '#2563EB', fontWeight: '800' },
   empty: { color: muted, textAlign: 'center', paddingVertical: 12 },
   cta: { backgroundColor: yellow, borderRadius: 18, paddingVertical: 14, alignItems: 'center', marginTop: 6 },
+  ctaInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ctaText: { color: navy, fontSize: 15, fontWeight: '900' },
 });

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { CircleHelp, Code, FileText, Headphones, Play, Plus, RefreshCw, Search } from 'lucide-react-native';
 import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import type { LibraryKind, LibraryKindFilter, LibraryMaterial, LibrarySource } from '../../../domain/entities/Library';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -22,29 +23,14 @@ type Props = NativeStackScreenProps<AppStackParamList, 'StudyMaterials'>;
 type KindFilter = 'all' | LibraryKind;
 type SourceFilter = 'all' | LibrarySource;
 
-const KIND_ICONS: Record<LibraryKindFilter['icon'], string> = {
-  all: '',
-  video: 'Camcorder',
-  pdf: 'Doc',
-  quiz: '⚡',
-  audio: '♪',
-  code: '</>',
-};
-
 function KindIcon({ name, active }: { name: LibraryKindFilter['icon']; active: boolean }) {
   const color = active ? '#FFF' : navy;
-  if (name === 'all') return null;
-  if (name === 'video') {
-    return (
-      <View style={[styles.glyph, { borderColor: color }]}>
-        <View style={[styles.glyphDot, { backgroundColor: color }]} />
-      </View>
-    );
-  }
-  if (name === 'pdf') {
-    return <View style={[styles.docGlyph, { borderColor: color }]} />;
-  }
-  return <Text style={[styles.chipIcon, active && styles.chipIconOn]}>{KIND_ICONS[name]}</Text>;
+  if (name === 'video') return <Play size={14} color={color} />;
+  if (name === 'pdf') return <FileText size={14} color={color} />;
+  if (name === 'quiz') return <CircleHelp size={14} color={color} />;
+  if (name === 'audio') return <Headphones size={14} color={color} />;
+  if (name === 'code') return <Code size={14} color={color} />;
+  return null;
 }
 
 export default function StudyMaterialsScreen({ navigation, route }: Props) {
@@ -56,8 +42,8 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
   const [items, setItems] = useState<LibraryMaterial[]>([]);
   const [kinds, setKinds] = useState<LibraryKindFilter[]>([]);
   const [saved, setSaved] = useState(0);
-  const [offlineSize, setOfflineSize] = useState('340 MB');
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
@@ -72,13 +58,12 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
         setItems(data.items);
         setKinds(data.kinds ?? []);
         setSaved(data.saved);
-        setOfflineSize(data.offlineSize);
         setError('');
         const available = new Set((data.kinds ?? []).map((item) => item.key));
         setKind((current) => (available.has(current) ? current : 'all'));
       })
       .catch(() => { if (active) setError('Could not load the materials library.'); })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active) { setLoading(false); setSyncing(false); } });
     return () => { active = false; };
   }, [search, source, conversationId]);
 
@@ -106,9 +91,10 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
     <View style={styles.page}>
       <PageHeader title="Learning Materials" onBack={() => navigation.goBack()} />
       <View style={styles.hero}>
-        <View style={styles.search}>
-          <Text style={styles.searchIcon}>⌕</Text>
-          <TextInput
+        <View style={styles.heroActions}>
+          <View style={styles.search}>
+            <Search size={16} color={muted} />
+            <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Search notes, videos, past papers, code..."
@@ -117,6 +103,11 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
             returnKeyType="search"
             onSubmitEditing={() => setSearch(query.trim())}
           />
+          </View>
+          <TouchableOpacity style={styles.add} onPress={() => navigation.navigate('StoreMaterial', { conversationId })}>
+            <Plus size={16} color={navy} />
+            <Text style={styles.addText}>Add</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -148,6 +139,7 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
             ['group', 'Study Groups'],
             ['session', 'Tutor Sessions'],
             ['live', 'Live'],
+            ['library', 'Library'],
           ] as const).map(([key, label]) => (
             <TouchableOpacity key={key} onPress={() => setSource(key)}>
               <Text style={[styles.sourceChip, source === key && styles.sourceOn]}>{label}</Text>
@@ -156,19 +148,30 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.offline}>
-          <View style={styles.offlineIcon}><Text style={styles.offlineGlyph}>↓</Text></View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.offlineTitle}>Offline Available: {saved || items.length} Items ({offlineSize})</Text>
-            <Text style={styles.offlineMeta}>Auto-synced with Tharushi's Kuppiya & Flash Records</Text>
+            <Text style={styles.offlineTitle}>{items.length} stored · {saved} saved on your account</Text>
+            <Text style={styles.offlineMeta}>Loaded from the UniMentor library</Text>
           </View>
-          <View style={styles.sync}><Text style={styles.syncText}>Sync All</Text></View>
+          <TouchableOpacity
+            style={styles.sync}
+            onPress={() => { setSyncing(true); setLoading(true); load(); }}
+          >
+            <RefreshCw size={14} color={navy} />
+            <Text style={styles.syncText}>{syncing ? 'Syncing' : 'Sync'}</Text>
+          </TouchableOpacity>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {loading && items.length === 0 ? (
           <ActivityIndicator color={navy} style={{ marginTop: 24 }} />
         ) : visible.length === 0 ? (
-          <Text style={styles.empty}>No materials in this filter yet.</Text>
+          <View style={styles.emptyWrap}>
+            <Text style={styles.empty}>No materials in this filter yet.</Text>
+            <TouchableOpacity style={styles.add} onPress={() => navigation.navigate('StoreMaterial', { conversationId })}>
+              <Plus size={16} color={navy} />
+              <Text style={styles.addText}>Add material</Text>
+            </TouchableOpacity>
+          </View>
         ) : visible.map((item) => (
           <MaterialCard
             key={item._id}
@@ -190,15 +193,27 @@ const styles = StyleSheet.create({
   back: { color: '#FFF', fontSize: 32, marginRight: 6, marginTop: -4 },
   heroTitle: { flex: 1, color: '#FFF', fontSize: 20, fontWeight: '900' },
   brand: { color: yellow, fontSize: 13, fontWeight: '800' },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   search: {
-    marginTop: 12,
+    flex: 1,
     backgroundColor: '#FFF',
     borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     minHeight: 42,
+    gap: 6,
   },
+  add: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: yellow,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    minHeight: 42,
+  },
+  addText: { color: navy, fontWeight: '900' },
   searchIcon: { color: muted, fontSize: 16, marginRight: 6 },
   searchInput: { flex: 1, color: ink, fontSize: 13, paddingVertical: 8 },
   filterBar: { backgroundColor: ice, paddingVertical: 12, paddingLeft: 12 },
@@ -248,8 +263,9 @@ const styles = StyleSheet.create({
   offlineGlyph: { color: navy, fontWeight: '900', fontSize: 16 },
   offlineTitle: { color: ink, fontWeight: '900', fontSize: 12 },
   offlineMeta: { color: muted, fontSize: 10, marginTop: 2 },
-  sync: { backgroundColor: yellow, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
+  sync: { backgroundColor: yellow, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
   syncText: { color: navy, fontWeight: '900', fontSize: 11 },
+  emptyWrap: { alignItems: 'center', gap: 12, marginTop: 24 },
   error: { color: '#A63838', fontWeight: '700', marginBottom: 8 },
   empty: { textAlign: 'center', color: muted, marginTop: 30 },
 });

@@ -17,6 +17,7 @@ import {
 import axios from 'axios';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pencil, Star, Trash2 } from 'lucide-react-native';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useReviewStore } from '../../../domain/stores/reviewStore';
@@ -28,7 +29,6 @@ type Props = NativeStackScreenProps<AppStackParamList, 'WriteReview'>;
 
 interface RatingOption {
   label: string;
-  emoji: string;
   badgeBg: string;
   badgeBorder: string;
   textColor: string;
@@ -37,35 +37,30 @@ interface RatingOption {
 const RATING_DETAILS: Record<number, RatingOption> = {
   1: {
     label: '1.0 • Poor Experience',
-    emoji: '⚠️',
     badgeBg: '#FEF2F2',
     badgeBorder: '#FECACA',
     textColor: '#DC2626',
   },
   2: {
     label: '2.0 • Needs Improvement',
-    emoji: '😕',
     badgeBg: '#FFF7ED',
     badgeBorder: '#FED7AA',
     textColor: '#EA580C',
   },
   3: {
     label: '3.0 • Satisfactory Session',
-    emoji: '🙂',
     badgeBg: '#F0FDF4',
     badgeBorder: '#BBF7D0',
     textColor: '#16A34A',
   },
   4: {
     label: '4.0 • Very Good & Helpful',
-    emoji: '😃',
     badgeBg: '#EFF6FF',
     badgeBorder: '#BFDBFE',
     textColor: '#2563EB',
   },
   5: {
     label: '5.0 • Outstanding Session!',
-    emoji: '⭐',
     badgeBg: '#FFFBEB',
     badgeBorder: '#FDE68A',
     textColor: '#D97706',
@@ -79,13 +74,13 @@ interface QuickPraise {
 }
 
 const QUICK_PRAISES: QuickPraise[] = [
-  { id: 'clear', text: '💡 Clear concepts', sentence: 'Explains complex concepts very clearly and simply.' },
-  { id: 'exam', text: '🎯 Great exam prep', sentence: 'Gave targeted exam tips and practice problems.' },
-  { id: 'patient', text: '🤝 Very patient', sentence: 'Extremely patient with questions and never rushed.' },
-  { id: 'punctual', text: '⏱️ Always on time', sentence: 'Well prepared and started promptly on time.' },
-  { id: 'notes', text: '📚 Helpful notes', sentence: 'Provided clear summaries and high quality study notes.' },
-  { id: 'motivating', text: '🔥 Inspiring', sentence: 'Very motivating and boosted my confidence in this subject.' },
-  { id: 'friendly', text: '✨ Friendly atmosphere', sentence: 'Welcoming, approachable, and encouraging teaching style.' },
+  { id: 'clear', text: 'Clear concepts', sentence: 'Explains complex concepts very clearly and simply.' },
+  { id: 'exam', text: 'Great exam prep', sentence: 'Gave targeted exam tips and practice problems.' },
+  { id: 'patient', text: 'Very patient', sentence: 'Extremely patient with questions and never rushed.' },
+  { id: 'punctual', text: 'Always on time', sentence: 'Well prepared and started promptly on time.' },
+  { id: 'notes', text: 'Helpful notes', sentence: 'Provided clear summaries and high quality study notes.' },
+  { id: 'motivating', text: 'Inspiring', sentence: 'Very motivating and boosted my confidence in this subject.' },
+  { id: 'friendly', text: 'Friendly atmosphere', sentence: 'Welcoming, approachable, and encouraging teaching style.' },
 ];
 
 export default function WriteReviewScreen({ route, navigation }: Props) {
@@ -228,7 +223,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
         // 4. Show notification AFTER review has been updated and shown on review page
         setTimeout(() => {
           Alert.alert(
-            'Review Updated! ⭐',
+            'Review updated',
             `Your review for ${mentor.name} has been updated successfully.`
           );
         }, 350);
@@ -242,7 +237,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
         // 4. Show notification AFTER review is published
         setTimeout(() => {
           Alert.alert(
-            'Review Published! ⭐',
+            'Review published',
             `Thank you! Your review for ${mentor.name} is now published and visible on their profile.`
           );
         }, 350);
@@ -345,7 +340,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                 ) : (
                   <View style={styles.ratingBadge}>
                     <Text style={styles.ratingBadgeText}>
-                      ★ {mentor.rating ? mentor.rating.toFixed(1) : '5.0'}
+                      {mentor.rating ? mentor.rating.toFixed(1) : 'New'}
                     </Text>
                   </View>
                 )}
@@ -383,7 +378,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
 
             {isEditing && isEditingActive && (
               <View style={styles.editingActiveBanner}>
-                <Text style={styles.editingActiveBannerIcon}>✏️</Text>
+                <Pencil size={14} color="#102B5D" />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.editingActiveBannerTitle}>Editing Previous Review</Text>
                   <Text style={styles.editingActiveBannerSub}>
@@ -434,7 +429,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                     >
-                      <Text style={[styles.starGlyph, isFilled && styles.starGlyphFilled]}>★</Text>
+                      <Star size={28} color={isFilled ? '#F59E0B' : '#CBD5E1'} fill={isFilled ? '#F59E0B' : 'transparent'} />
                     </TouchableOpacity>
                   );
                 })}
@@ -450,7 +445,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                   },
                 ]}
               >
-                <Text style={styles.moodEmoji}>{activeRating.emoji}</Text>
+                <Star size={16} color={activeRating.textColor} fill={activeRating.textColor} />
                 <Text style={[styles.moodLabel, { color: activeRating.textColor }]}>
                   {activeRating.label}
                 </Text>
@@ -547,16 +542,16 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                   <View style={styles.btnContentRow}>
                     {isEditing && !isEditingActive ? (
                       <>
-                        <Text style={styles.btnIcon}>✏️</Text>
+                        <Pencil size={14} color="#102B5D" />
                         <Text style={styles.primaryBtnText}>Update Review</Text>
-                        <Text style={styles.btnArrow}>★</Text>
+                        <Star size={12} color="#F59E0B" fill="#F59E0B" />
                       </>
                     ) : (
                       <>
                         <Text style={styles.primaryBtnText}>
                           {isEditing ? 'Update Review' : 'Submit Review'}
                         </Text>
-                        <Text style={styles.btnArrow}>★</Text>
+                        <Star size={12} color="#F59E0B" fill="#F59E0B" />
                       </>
                     )}
                   </View>
@@ -574,7 +569,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                     <ActivityIndicator color="#DC2626" size="small" />
                   ) : (
                     <View style={styles.btnContentRow}>
-                      <Text style={styles.deleteBtnIcon}>🗑️</Text>
+                      <Trash2 size={14} color="#B42318" />
                       <Text style={styles.deleteBtnText}>Delete This Review</Text>
                     </View>
                   )}
