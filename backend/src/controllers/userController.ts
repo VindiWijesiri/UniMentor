@@ -108,7 +108,7 @@ export async function getProfile(req: AuthRequest, res: Response, next: NextFunc
 
 export async function updateProfile(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const allowedFields = ['name', 'bio', 'profilePicture', 'subjects', 'degreeProgramme', 'academicYear', 'semester'];
+    const allowedFields = ['name', 'bio', 'profilePicture', 'subjects', 'degreeProgramme', 'academicYear', 'semester', 'hourlyRate'];
     const updates: Record<string, unknown> = {};
 
     for (const field of allowedFields) {

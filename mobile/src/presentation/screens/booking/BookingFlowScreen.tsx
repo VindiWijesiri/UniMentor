@@ -22,12 +22,22 @@ import { tutorSlotRepository } from '../../../data/repositories/tutorSlotReposit
 import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/repositories/tutorSettingsRepository';
 import { sessionRepository } from '../../../data/repositories/sessionRepository';
 import { bookedTutorsRepository } from '../../../data/repositories/bookedTutorsRepository';
+import { paymentRepository } from '../../../data/repositories/paymentRepository';
+import { useAuthStore } from '../../../domain/stores/authStore';
+import * as ImagePicker from 'expo-image-picker';
 import type { TutorSlot } from '../../../domain/entities/TutorSlot';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
 const { width } = Dimensions.get('window');
 
-type Step = 'book' | 'choose_time' | 'conflict' | 'alternatives' | 'finalize';
+type Step =
+  | 'book'
+  | 'choose_time'
+  | 'conflict'
+  | 'alternatives'
+  | 'finalize'
+  | 'session_verification'
+  | 'verify_booking';
 
 type Props = NativeStackScreenProps<BookingsStackParamList, 'BookSession'>;
 
@@ -92,6 +102,57 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
   const [timeUpdatedBanner, setTimeUpdatedBanner] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tutorImage, setTutorImage] = useState<string | null>(mentor.profilePicture || null);
+
+  // Student auth details
+  const user = useAuthStore((state) => state.user);
+  const studentName = user?.name || 'Vindi Wijesiri';
+  const studentEmail = user?.email || 'student@sliit.lk';
+
+  // Fee calculation matching exact user uploaded mockup
+  const rawFee = studyMode === 'group' ? hourlyRateGroup * groupSize : hourlyRate1on1;
+  const discount = 200;
+  const totalPayable = Math.max(0, rawFee - discount);
+
+  // Session Verification (Face Capture & Biometrics) state
+  const [facePhotoUri, setFacePhotoUri] = useState<string | null>(null);
+  const [faceVerificationStatus, setFaceVerificationStatus] = useState<
+    'idle' | 'capturing' | 'scanning' | 'verified' | 'failed'
+  >('idle');
+  const [antiProxyToken, setAntiProxyToken] = useState<string | null>(null);
+
+  // Payment Selection state (matches uploaded UI)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'wallet' | 'card' | 'bank'>('wallet');
+  const [walletBalance, setWalletBalance] = useState<number>(4800);
+
+  // DirectPay state
+  const [showDirectPayModal, setShowDirectPayModal] = useState<boolean>(false);
+  const [dpCardNumber, setDpCardNumber] = useState<string>('4111 2222 3333 4444');
+  const [dpCardExpiry, setDpCardExpiry] = useState<string>('12/28');
+  const [dpCardCvv, setDpCardCvv] = useState<string>('842');
+  const [dpCardholderName, setDpCardholderName] = useState<string>(studentName);
+  const [dpOtpCode, setDpOtpCode] = useState<string>('123456');
+  const [dpStep, setDpStep] = useState<'card_entry' | 'otp_verify' | 'processing'>('card_entry');
+  const [isProcessingDirectPay, setIsProcessingDirectPay] = useState<boolean>(false);
+
+  // Success Receipt Modal state
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [successReceipt, setSuccessReceipt] = useState<{
+    mentorName: string;
+    subject: string;
+    dateTime: string;
+    amount: number;
+    paymentMethod: string;
+    transactionId: string;
+    facePhoto: string | null;
+    studyMode: string;
+  } | null>(null);
+
+  // Sync wallet balance
+  useEffect(() => {
+    paymentRepository.getWalletBalance().then((bal) => {
+      setWalletBalance(bal);
+    }).catch(() => {});
+  }, []);
 
   // Load Tutor Settings (prices & subject preferences set by tutor from tutor dashboard)
   useEffect(() => {

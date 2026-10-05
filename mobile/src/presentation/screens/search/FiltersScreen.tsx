@@ -63,10 +63,24 @@ export default function FiltersScreen({ route, navigation }: Props) {
   };
 
   const applyFilters = () => {
-    navigation.navigate('MainTabs', {
-      screen: 'Search',
-      params: { ...(route.params?.searchParams ?? {}), filters },
-    });
+    try {
+      (navigation as any).navigate('FindMentor', {
+        ...(route.params?.searchParams ?? {}),
+        filters,
+      });
+    } catch {}
+    try {
+      (navigation as any).navigate('MainTabs', {
+        screen: 'Bookings',
+        params: {
+          screen: 'FindMentor',
+          params: { ...(route.params?.searchParams ?? {}), filters },
+        },
+      });
+    } catch {}
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    }
   };
 
   return (

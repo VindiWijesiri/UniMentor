@@ -22,12 +22,30 @@ import { tutorSlotRepository } from '../../../data/repositories/tutorSlotReposit
 import { tutorSettingsRepository } from '../../../data/repositories/tutorSettingsRepository';
 import type { TutorSlot } from '../../../domain/entities/TutorSlot';
 import TutorAvatar from '../../components/common/TutorAvatar';
+import apiClient from '../../../data/api/apiClient';
 
 const { width } = Dimensions.get('window');
+
+const POPULAR_CURRICULUM_MODULES = [
+  'Data Structures & Algorithms',
+  'Database Management Systems',
+  'Mobile Application Development',
+  'Software Architecture & Design',
+  'Object Oriented Programming',
+  'Web Development & Cloud',
+  'Machine Learning Systems',
+  'Artificial Intelligence',
+  'Operating Systems & System Design',
+  'Probability & Statistics',
+  'Computer Networks & Security',
+  'DevOps & CI/CD',
+];
 
 export default function TutorDashboardScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const currentUser = useAuthStore((state) => state.user);
+  const tutorMentorId = currentUser?._id || (currentUser as any)?.id || 'demo-tutor-1';
+  const tutorMentorName = currentUser?.name || 'Tharushi Perera';
 
   const [refreshing, setRefreshing] = useState(false);
   const [pulseActive, setPulseActive] = useState(true);
@@ -53,6 +71,13 @@ export default function TutorDashboardScreen({ navigation }: any) {
   const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState('');
+
+  // Offered Modules state (Used by students in Find Your Mentor)
+  const [teachingModules, setTeachingModules] = useState<string[]>([
+    'Database Management Systems',
+    'Data Structures & Algorithms',
+  ]);
+  const [newModuleInput, setNewModuleInput] = useState('');
 
   // Pricing and preferences state
   const [rate1on1, setRate1on1] = useState('2500');
@@ -81,11 +106,16 @@ export default function TutorDashboardScreen({ navigation }: any) {
       const slots = await tutorSlotRepository.getAllSlots();
       setTutorSlots(slots);
       const settings = await tutorSettingsRepository.getSettings(
-        currentUser?._id || 'mentor-alex',
-        currentUser?.name || 'Alex Ferreira'
+        tutorMentorId,
+        tutorMentorName
       );
       setRate1on1(String(settings.hourlyRate1on1));
       setRateGroup(String(settings.hourlyRateGroup));
+      setTeachingModules(
+        settings.teachingModules && settings.teachingModules.length > 0
+          ? settings.teachingModules
+          : ['Database Management Systems', 'Data Structures & Algorithms']
+      );
       setSubjectPreferences(settings.subjectPreferences);
       setProfileImageUri(settings.profileImage || null);
       if (settings.profileImage) {
@@ -96,9 +126,76 @@ export default function TutorDashboardScreen({ navigation }: any) {
     }
   };
 
+  const handleToggleCurriculumModule = async (moduleName: string) => {
+    const isSelected = teachingModules.some(
+      (m) => m.toLowerCase() === moduleName.toLowerCase()
+    );
+    let updated: string[];
+    if (isSelected) {
+      if (teachingModules.length <= 1) {
+        Alert.alert(
+          'At Least 1 Module Required',
+          'You must offer at least one module so students can find and book sessions with you in Find Your Mentor.'
+        );
+        return;
+      }
+      updated = teachingModules.filter(
+        (m) => m.toLowerCase() !== moduleName.toLowerCase()
+      );
+    } else {
+      updated = [...teachingModules, moduleName];
+    }
+    setTeachingModules(updated);
+    await tutorSettingsRepository.updateTeachingModules(tutorMentorId, updated);
+    try {
+      await apiClient.put('/users/profile', { subjects: updated });
+    } catch {}
+  };
+
+  const handleAddCustomModule = async () => {
+    const trimmed = newModuleInput.trim();
+    if (!trimmed) {
+      Alert.alert('Module Name Required', 'Please enter a module title or course code.');
+      return;
+    }
+    if (teachingModules.some((m) => m.toLowerCase() === trimmed.toLowerCase())) {
+      Alert.alert('Already Added', 'This module is already in your offered list.');
+      return;
+    }
+    const updated = [...teachingModules, trimmed];
+    setTeachingModules(updated);
+    setNewModuleInput('');
+    await tutorSettingsRepository.updateTeachingModules(tutorMentorId, updated);
+    try {
+      await apiClient.put('/users/profile', { subjects: updated });
+    } catch {}
+    Alert.alert(
+      'Module Added! 📚',
+      `"${trimmed}" added. Students searching for this module in Find Your Mentor will now find your profile.`
+    );
+  };
+
+  const handleRemoveModule = async (moduleName: string) => {
+    if (teachingModules.length <= 1) {
+      Alert.alert(
+        'At Least 1 Module Required',
+        'You must keep at least one module so students can find your profile in Find Your Mentor.'
+      );
+      return;
+    }
+    const updated = teachingModules.filter(
+      (m) => m.toLowerCase() !== moduleName.toLowerCase()
+    );
+    setTeachingModules(updated);
+    await tutorSettingsRepository.updateTeachingModules(tutorMentorId, updated);
+    try {
+      await apiClient.put('/users/profile', { subjects: updated });
+    } catch {}
+  };
+
   const handleSaveProfileImage = async (url: string | null) => {
     await tutorSettingsRepository.updateProfileImage(
-      currentUser?._id || 'mentor-alex',
+      tutorMentorId,
       url
     );
     setProfileImageUri(url);
@@ -118,10 +215,13 @@ export default function TutorDashboardScreen({ navigation }: any) {
       Alert.alert('Invalid Rates', 'Please enter valid numerical hourly rates.');
       return;
     }
-    await tutorSettingsRepository.updateRates(currentUser?._id || 'mentor-alex', {
+    await tutorSettingsRepository.updateRates(tutorMentorId, {
       hourlyRate1on1: r1,
       hourlyRateGroup: rg,
     });
+    try {
+      await apiClient.put('/users/profile', { hourlyRate: r1 });
+    } catch {}
     Alert.alert(
       'Rates Saved! 🎉',
       `1-on-1 Rate set to LKR ${r1.toLocaleString()}/hr and Group Rate set to LKR ${rg.toLocaleString()}/student/hr.`
@@ -131,7 +231,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
   const handleAddSubject = async () => {
     if (!newTopicInput.trim()) return;
     const updated = await tutorSettingsRepository.addSubjectPreference(
-      currentUser?._id || 'mentor-alex',
+      tutorMentorId,
       newTopicInput.trim()
     );
     setSubjectPreferences(updated.subjectPreferences);
@@ -140,7 +240,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
 
   const handleRemoveSubject = async (topic: string) => {
     const updated = await tutorSettingsRepository.removeSubjectPreference(
-      currentUser?._id || 'mentor-alex',
+      tutorMentorId,
       topic
     );
     setSubjectPreferences(updated.subjectPreferences);
@@ -433,6 +533,102 @@ export default function TutorDashboardScreen({ navigation }: any) {
             >
               <Ionicons name="add" size={16} color="#FFFFFF" />
               <Text style={styles.addTopicBtnText}>Add Topic</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 3.1.5 Modules Willing to Tutor (Directly Filters in Find Your Mentor) */}
+        <View style={styles.modulesOfferedCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <Ionicons name="book" size={17} color="#0D4F9E" />
+                <Text style={styles.sectionHeading}>Modules I am Willing to Tutor ({teachingModules.length})</Text>
+              </View>
+              <Text style={styles.sectionSubheading}>
+                Select the modules you are available to teach. Students in "Find Your Mentor" will filter and find your profile based on these modules.
+              </Text>
+            </View>
+          </View>
+
+          {/* Currently Selected Modules */}
+          <Text style={styles.topicsSectionTitle}>CURRENTLY OFFERED MODULES</Text>
+          <View style={styles.offeredModulesWrap}>
+            {teachingModules.map((moduleName) => (
+              <View key={moduleName} style={styles.offeredModuleChip}>
+                <Ionicons name="checkmark-circle" size={15} color="#059669" style={{ marginRight: 5 }} />
+                <Text style={styles.offeredModuleChipText}>{moduleName}</Text>
+                <TouchableOpacity
+                  onPress={() => handleRemoveModule(moduleName)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ marginLeft: 6 }}
+                >
+                  <Ionicons name="close-circle" size={16} color="#DC2626" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+
+          {/* Quick-Select from University Curriculum */}
+          <Text style={[styles.topicsSectionTitle, { marginTop: 12 }]}>
+            QUICK ADD FROM UNIVERSITY CURRICULUM
+          </Text>
+          <Text style={styles.topicsSectionDesc}>
+            Tap a module to toggle it in your teaching list:
+          </Text>
+          <View style={styles.curriculumPillsWrap}>
+            {POPULAR_CURRICULUM_MODULES.map((moduleName) => {
+              const isSelected = teachingModules.some(
+                (m) => m.toLowerCase() === moduleName.toLowerCase()
+              );
+              return (
+                <TouchableOpacity
+                  key={moduleName}
+                  style={[
+                    styles.curriculumPill,
+                    isSelected && styles.curriculumPillSelected,
+                  ]}
+                  onPress={() => handleToggleCurriculumModule(moduleName)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={isSelected ? 'checkmark' : 'add'}
+                    size={13}
+                    color={isSelected ? '#FFFFFF' : '#0D4F9E'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[
+                      styles.curriculumPillText,
+                      isSelected && styles.curriculumPillTextSelected,
+                    ]}
+                  >
+                    {moduleName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Add Custom Module Input */}
+          <Text style={[styles.topicsSectionTitle, { marginTop: 12 }]}>
+            ADD CUSTOM MODULE / COURSE CODE
+          </Text>
+          <View style={styles.addTopicRow}>
+            <TextInput
+              style={styles.addTopicInput}
+              value={newModuleInput}
+              onChangeText={setNewModuleInput}
+              placeholder="e.g. IT3020: Mobile Application Dev..."
+              placeholderTextColor="#94A3B8"
+            />
+            <TouchableOpacity
+              style={styles.addModuleBtn}
+              onPress={handleAddCustomModule}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Text style={styles.addTopicBtnText}>Add Module</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1861,6 +2057,79 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
+  },
+
+  /* Offered Modules Section Styles */
+  modulesOfferedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  offeredModulesWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  offeredModuleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  offeredModuleChipText: {
+    color: '#065F46',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  curriculumPillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  curriculumPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  curriculumPillSelected: {
+    backgroundColor: '#0D4F9E',
+    borderColor: '#0D4F9E',
+  },
+  curriculumPillText: {
+    color: '#1E40AF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  curriculumPillTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  addModuleBtn: {
+    backgroundColor: '#0D4F9E',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
 
   /* Tutor Photo Modal Styles */

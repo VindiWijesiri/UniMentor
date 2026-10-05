@@ -20,11 +20,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchMentorsUseCase } from '../../../domain/usecases/mentor/searchMentorsUseCase';
 import type { Mentor } from '../../../domain/entities/Mentor';
-import { countTutorFilters } from '../../../domain/entities/TutorFilters';
+import { countTutorFilters, TutorFilters } from '../../../domain/entities/TutorFilters';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { sessionRepository } from '../../../data/repositories/sessionRepository';
 import { shortlistRepository } from '../../../data/repositories/shortlistRepository';
 import { bookedTutorsRepository } from '../../../data/repositories/bookedTutorsRepository';
+import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/repositories/tutorSettingsRepository';
+import TutorAvatar from '../../components/common/TutorAvatar';
 import type { ShortlistedMentor } from '../../../domain/entities/ShortlistedMentor';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -35,18 +37,169 @@ type MentorCard = Mentor & {
   availability?: string;
   guidance?: string;
   hourlyRate?: number;
+  experienceYears?: '1-2 years' | '3-5 years' | '5+ years';
+  languages?: string[];
+  lessonTypes?: ('Individual' | 'Group')[];
 };
 
-const subjects = [
-  'All', 'Data Structures', 'DBMS', 'OOP', 'Calculus',
-  'Machine Learning', 'Programming', 'Web Development',
+const BASE_DEFAULT_MENTORS: MentorCard[] = [
+  {
+    _id: 'mentor-alex',
+    name: 'Alex Ferreira',
+    email: 'alex.f@unimentor.lk',
+    role: 'mentor',
+    subjects: ['Database Management Systems', 'Data Structures & Algorithms'],
+    bio: 'Senior distinction peer tutor specializing in SQL query optimization and database design.',
+    rating: 4.9,
+    reviewCount: 48,
+    hourlyRate: 2500,
+    experience: 'Senior Peer Mentor',
+    sessionCount: 38,
+    availability: 'Weekdays 3:00 - 6:00 PM',
+    experienceYears: '3-5 years',
+    languages: ['English', 'Sinhala'],
+    lessonTypes: ['Individual', 'Group'],
+  },
+  {
+    _id: 'demo-tutor-1',
+    name: 'Tharushi Perera',
+    email: 'tharushi.p@unimentor.lk',
+    role: 'mentor',
+    subjects: ['Data Structures & Algorithms', 'Object Oriented Programming'],
+    bio: 'Specialist in Graph Algorithms, BFS/DFS, and Tree Traversals.',
+    rating: 4.9,
+    reviewCount: 38,
+    hourlyRate: 2200,
+    experience: 'Senior Peer Mentor',
+    sessionCount: 24,
+    availability: 'Flexible Evenings',
+    experienceYears: '3-5 years',
+    languages: ['English', 'Sinhala'],
+    lessonTypes: ['Individual', 'Group'],
+  },
+  {
+    _id: 'mentor-shenal',
+    name: 'Shenal Perera',
+    email: 'shenal.p@unimentor.lk',
+    role: 'mentor',
+    subjects: ['Mobile Application Development', 'Web Development & Cloud'],
+    bio: 'Specialized in React Native, cross-platform apps, and cloud integration. Fluent in English, Sinhala & Tamil.',
+    rating: 4.9,
+    reviewCount: 38,
+    hourlyRate: 2400,
+    experience: 'Senior Peer Mentor',
+    sessionCount: 31,
+    availability: 'Fridays & Weekends',
+    experienceYears: '1-2 years',
+    languages: ['English', 'Sinhala', 'Tamil'],
+    lessonTypes: ['Individual', 'Group'],
+  },
+  {
+    _id: 'mentor-kaveen-2',
+    name: 'Kaveen De Silva',
+    email: 'kaveen.d@unimentor.lk',
+    role: 'mentor',
+    subjects: ['Software Architecture & Design', 'Web Development & Cloud'],
+    bio: 'Expert in Clean Architecture, Enterprise Design Patterns, and Microservices.',
+    rating: 4.8,
+    reviewCount: 29,
+    hourlyRate: 2600,
+    experience: 'Lead Peer Mentor',
+    sessionCount: 29,
+    availability: 'Weekdays & Evenings',
+    experienceYears: '3-5 years',
+    languages: ['English', 'Sinhala'],
+    lessonTypes: ['Individual'],
+  },
+  {
+    _id: 'mentor-sanduni-3',
+    name: 'Sanduni Fernando',
+    email: 'sanduni.f@unimentor.lk',
+    role: 'mentor',
+    subjects: ['Database Management Systems', 'Machine Learning Systems'],
+    bio: 'Experienced peer tutor in Database Normalization, ERDs, and ML Data Pipelines.',
+    rating: 4.95,
+    reviewCount: 44,
+    hourlyRate: 2200,
+    experience: 'Peer Tutor',
+    sessionCount: 35,
+    availability: 'Tuesdays & Thursdays',
+    experienceYears: '1-2 years',
+    languages: ['English', 'Sinhala'],
+    lessonTypes: ['Individual', 'Group'],
+  },
+  {
+    _id: 'mentor-asanka-4',
+    name: 'Dr. Asanka Perera',
+    email: 'asanka.p@unimentor.lk',
+    role: 'mentor',
+    subjects: ['Probability & Statistics', 'Discrete Mathematics'],
+    bio: 'Faculty Academic Mentor with deep expertise in Probability, Combinatorics, and Stats. Fluent in English, Sinhala and Tamil.',
+    rating: 5.0,
+    reviewCount: 52,
+    hourlyRate: 4500,
+    experience: 'Faculty Academic Mentor',
+    sessionCount: 60,
+    availability: 'Weekend Sessions',
+    experienceYears: '5+ years',
+    languages: ['English', 'Sinhala', 'Tamil'],
+    lessonTypes: ['Individual', 'Group'],
+  },
 ];
+
+function matchesModuleOrSubject(subject: string, query: string): boolean {
+  const s = subject.toLowerCase().trim();
+  const q = query.toLowerCase().trim();
+  if (!q || q === 'all') return true;
+
+  if (s.includes(q) || q.includes(s)) return true;
+
+  const acronymMap: Record<string, string[]> = {
+    dbms: ['database', 'dbms', 'sql', 'nosql', 'rdbms', 'it2020', 'it2030'],
+    database: ['database', 'dbms', 'sql', 'it2020', 'it2030'],
+    'database systems': ['database', 'dbms', 'sql', 'it2020'],
+    'data structures': ['data structures', 'dsa', 'algorithm', 'graph', 'tree', 'it2040'],
+    dsa: ['data structures', 'algorithm', 'dsa', 'it2040'],
+    'mobile app': ['mobile', 'react native', 'android', 'ios', 'it3020'],
+    'mobile app dev': ['mobile', 'react native', 'android', 'ios', 'it3020'],
+    'mobile application development': ['mobile', 'react native', 'android', 'ios', 'it3020'],
+    'software architecture': ['software architecture', 'enterprise design', 'design patterns', 'se3020'],
+    oop: ['object oriented', 'oop', 'java', 'c++'],
+    ml: ['machine learning', 'ai', 'data science'],
+    'machine learning': ['machine learning', 'ai', 'data science'],
+    'web development': ['web', 'frontend', 'backend', 'cloud'],
+    'probability & stats': ['probability', 'statistics', 'stats', 'ma2010', 'discrete'],
+    stats: ['probability', 'statistics', 'stats', 'ma2010'],
+  };
+
+  for (const [key, variants] of Object.entries(acronymMap)) {
+    if (q === key || q.includes(key)) {
+      if (variants.some((v) => s.includes(v))) return true;
+    }
+    if (s === key || s.includes(key)) {
+      if (variants.some((v) => q.includes(v))) return true;
+    }
+  }
+
+  const qTokens = q.split(/\s+/).filter((t) => t.length > 2);
+  if (qTokens.length > 0 && qTokens.some((t) => s.includes(t))) {
+    return true;
+  }
+
+  return false;
+}
 
 function matchesMentor(mentor: MentorCard, value: string): boolean {
   const normalized = value.trim().toLowerCase();
   if (!normalized || normalized === 'all') return true;
-  return [mentor.name, mentor.bio || '', ...(mentor.subjects || [])]
-    .some((item) => typeof item === 'string' && item.toLowerCase().includes(normalized));
+
+  if (mentor.name.toLowerCase().includes(normalized)) return true;
+  if (mentor.bio && mentor.bio.toLowerCase().includes(normalized)) return true;
+
+  if (Array.isArray(mentor.subjects)) {
+    return mentor.subjects.some((sub) => matchesModuleOrSubject(sub, normalized));
+  }
+  return false;
 }
 
 export function getMentorRate(mentor: { _id?: string; name: string; hourlyRate?: number }): number {
@@ -62,6 +215,79 @@ export function getMentorRate(mentor: { _id?: string; name: string; hourlyRate?:
   return rates[hash % rates.length];
 }
 
+export function matchesFilters(mentor: MentorCard, filters?: TutorFilters): boolean {
+  if (!filters) return true;
+
+  // 1. Min Rating
+  if (filters.minRating && (mentor.rating ?? 0) < filters.minRating) {
+    return false;
+  }
+
+  // 2. Price Range
+  if (filters.priceRange) {
+    const rate = getMentorRate(mentor);
+    if (filters.priceRange === '500-3000') {
+      if (rate < 500 || rate > 3000) return false;
+    } else if (filters.priceRange === '3000-5000') {
+      if (rate < 3000 || rate > 5000) return false;
+    }
+  }
+
+  // 3. Teaching Experience
+  if (filters.experience) {
+    const target = filters.experience;
+    const expYears = mentor.experienceYears;
+    const expText = (mentor.experience || '').toLowerCase();
+    const sessions = mentor.sessionCount || 0;
+
+    if (target === '1-2 years') {
+      const match =
+        expYears === '1-2 years' ||
+        expText.includes('1-2') ||
+        expText.includes('peer tutor') ||
+        expText.includes('junior') ||
+        (sessions < 30 && !expText.includes('senior') && !expText.includes('faculty') && !expText.includes('lead'));
+      if (!match) return false;
+    } else if (target === '3-5 years') {
+      const match =
+        expYears === '3-5 years' ||
+        expText.includes('3-5') ||
+        expText.includes('senior') ||
+        expText.includes('lead') ||
+        (sessions >= 20 && sessions <= 50 && !expText.includes('faculty'));
+      if (!match) return false;
+    } else if (target === '5+ years') {
+      const match =
+        expYears === '5+ years' ||
+        expText.includes('5+') ||
+        expText.includes('faculty') ||
+        expText.includes('lecturer') ||
+        expText.includes('dr.') ||
+        sessions > 50;
+      if (!match) return false;
+    }
+  }
+
+  // 4. Preferred Language
+  if (filters.language) {
+    const target = filters.language.toLowerCase();
+    const langs = mentor.languages || ['English', 'Sinhala'];
+    const bio = (mentor.bio || '').toLowerCase();
+    const match = langs.some((l) => l.toLowerCase() === target) || bio.includes(target);
+    if (!match) return false;
+  }
+
+  // 5. Lesson Type
+  if (filters.lessonType) {
+    const types = mentor.lessonTypes || ['Individual', 'Group'];
+    if (!types.includes(filters.lessonType)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export default function SearchScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const statusBarHeight =
@@ -73,13 +299,37 @@ export default function SearchScreen({ route, navigation }: Props) {
   const academicYear = route.params?.academicYear;
   const semester = route.params?.semester;
   const topic = route.params?.topic;
-  const filters = route.params?.filters;
-  const activeFilterCount = countTutorFilters(filters);
+
+  // Filter state for overlay bottom sheet
+  const [activeFilters, setActiveFilters] = useState<TutorFilters>(route.params?.filters ?? {});
+  const [draftFilters, setDraftFilters] = useState<TutorFilters>(route.params?.filters ?? {});
+  const [showFilterOverlay, setShowFilterOverlay] = useState(false);
+
+  useEffect(() => {
+    if (route.params?.filters) {
+      setActiveFilters(route.params.filters);
+      setDraftFilters(route.params.filters);
+    }
+  }, [route.params?.filters]);
+
+  const activeFilterCount = useMemo(() => countTutorFilters(activeFilters), [activeFilters]);
+  const draftFilterCount = useMemo(() => countTutorFilters(draftFilters), [draftFilters]);
   const [query, setQuery] = useState(initialQuery);
   const [selectedSubject, setSelectedSubject] = useState(initialQuery || 'All');
   const [apiMentors, setApiMentors] = useState<Mentor[]>([]);
   const [loading, setLoading] = useState(false);
   const [comparisonIds, setComparisonIds] = useState<string[]>([]);
+  const [mentorSettingsMap, setMentorSettingsMap] = useState<Record<string, TutorBookingSettings>>({});
+
+  useEffect(() => {
+    tutorSettingsRepository.getAllMentorSettings().then((map) => {
+      setMentorSettingsMap(map);
+    }).catch(() => {});
+    const unsub = tutorSettingsRepository.subscribe((map) => {
+      setMentorSettingsMap(map);
+    });
+    return unsub;
+  }, []);
 
   // Shortlist CRUD state
   const [searchTab, setSearchTab] = useState<'browse' | 'shortlist'>('browse');
@@ -217,34 +467,103 @@ export default function SearchScreen({ route, navigation }: Props) {
     setComparisonIds((current) => current.filter((id) => apiMentors.some((mentor) => mentor._id === id)));
   }, [apiMentors]);
 
+  const mergedMentors = useMemo(() => {
+    const list = apiMentors.length > 0 ? [...apiMentors] : [...BASE_DEFAULT_MENTORS];
+
+    return list.map((mentor) => {
+      const settings =
+        mentorSettingsMap[mentor._id] ||
+        Object.values(mentorSettingsMap).find(
+          (s) => s.mentorName.toLowerCase() === mentor.name.toLowerCase()
+        );
+
+      const baseExp = (mentor as MentorCard).experienceYears || (
+        (mentor.experience && mentor.experience.toLowerCase().includes('faculty')) || (mentor.sessionCount && mentor.sessionCount > 50)
+          ? '5+ years'
+          : (mentor.sessionCount && mentor.sessionCount > 20) || (mentor.experience && mentor.experience.toLowerCase().includes('senior'))
+          ? '3-5 years'
+          : '1-2 years'
+      );
+      const baseLangs = (mentor as MentorCard).languages || (
+        mentor.bio?.toLowerCase().includes('tamil')
+          ? ['English', 'Sinhala', 'Tamil']
+          : ['English', 'Sinhala']
+      );
+      const baseLessonTypes = (mentor as MentorCard).lessonTypes || ['Individual', 'Group'];
+
+      if (settings) {
+        return {
+          ...mentor,
+          subjects:
+            settings.teachingModules && settings.teachingModules.length > 0
+              ? settings.teachingModules
+              : mentor.subjects,
+          profilePicture: settings.profileImage || mentor.profilePicture,
+          hourlyRate: settings.hourlyRate1on1 || mentor.hourlyRate,
+          experienceYears: baseExp,
+          languages: baseLangs,
+          lessonTypes: baseLessonTypes,
+        };
+      }
+      return {
+        ...mentor,
+        experienceYears: baseExp,
+        languages: baseLangs,
+        lessonTypes: baseLessonTypes,
+      };
+    });
+  }, [apiMentors, mentorSettingsMap]);
+
   const visibleMentors = useMemo(() => {
     const searchValue = query.trim() || selectedSubject;
-    const remoteMatches = apiMentors.filter((mentor) => matchesMentor(mentor, searchValue));
-    const filtered = remoteMatches
-      .filter((mentor) => !filters?.minRating || (mentor.rating ?? 0) >= filters.minRating)
-      .filter((mentor) => {
-        if (!filters?.priceRange) return true;
-        const rate = getMentorRate(mentor);
-        return filters.priceRange === '500-3000'
-          ? (rate >= 500 && rate <= 3000)
-          : (rate > 3000 && rate <= 5000);
+    const remoteMatches = mergedMentors.filter((mentor) => matchesMentor(mentor, searchValue));
+    return remoteMatches.filter((mentor) => matchesFilters(mentor, activeFilters));
+  }, [mergedMentors, activeFilters, query, selectedSubject]);
+
+  const previewMatchCount = useMemo(() => {
+    const searchValue = query.trim() || selectedSubject;
+    const remoteMatches = mergedMentors.filter((mentor) => matchesMentor(mentor, searchValue));
+    return remoteMatches.filter((mentor) => matchesFilters(mentor, draftFilters)).length;
+  }, [mergedMentors, draftFilters, query, selectedSubject]);
+
+  const subjectChips = useMemo(() => {
+    const standard = [
+      'All',
+      'Data Structures',
+      'Database Systems',
+      'Mobile App Dev',
+      'Software Architecture',
+      'OOP',
+      'Machine Learning',
+      'Web Development',
+      'Probability & Stats',
+    ];
+    const custom: string[] = [];
+    Object.values(mentorSettingsMap).forEach((s) => {
+      (s.teachingModules || []).forEach((mod) => {
+        if (
+          !standard.some((st) => matchesModuleOrSubject(st, mod)) &&
+          !custom.includes(mod)
+        ) {
+          custom.push(mod);
+        }
       });
-    console.log(`[SearchScreen] 📊 Total from API: ${apiMentors.length} | Visible after filter: ${filtered.length}`);
-    return filtered;
-  }, [apiMentors, filters?.minRating, filters?.priceRange, query, selectedSubject]);
+    });
+    return [...standard, ...custom];
+  }, [mentorSettingsMap]);
 
   const handleSearch = async (searchValue = query) => {
     const value = searchValue.trim();
     setSelectedSubject(value || 'All');
-    console.log(`[SearchScreen] 🔎 Manual search triggered with value: "${value}"`);
+    setQuery(value === 'All' ? '' : value);
     setLoading(true);
     try {
       const results = await searchMentorsUseCase(value === 'All' ? '' : value);
-      console.log(`[SearchScreen] 📥 handleSearch received ${results?.length ?? 0} mentors`);
-      setApiMentors(results);
+      if (results && results.length > 0) {
+        setApiMentors(results);
+      }
     } catch (err: any) {
-      console.error(`[SearchScreen] ❌ handleSearch failed:`, err.message || err);
-      setApiMentors([]);
+      console.warn(`[SearchScreen] ⚠️ Search notice:`, err?.message || err);
     } finally {
       setLoading(false);
     }
@@ -413,10 +732,13 @@ export default function SearchScreen({ route, navigation }: Props) {
     return (
       <View style={styles.card}>
         <View style={styles.cardTopRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
-            <View style={styles.onlineDot} />
-          </View>
+          <TutorAvatar
+            name={item.name}
+            imageUrl={item.profilePicture}
+            size={46}
+            borderRadius={23}
+            showOnlineDot
+          />
           <View style={styles.mentorMain}>
             <Text style={styles.mentorName} numberOfLines={1}>{item.name}</Text>
             <Text style={styles.experience}>{item.experience ?? 'Verified senior student mentor'}</Text>
@@ -430,7 +752,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.subjectRow}>
-          {item.subjects.slice(0, 2).map((subject) => (
+          {(item.subjects || []).slice(0, 4).map((subject) => (
             <View key={subject} style={styles.subjectTag}>
               <Text style={styles.subjectTagText}>{subject}</Text>
             </View>
@@ -539,10 +861,13 @@ export default function SearchScreen({ route, navigation }: Props) {
     return (
       <View style={styles.card}>
         <View style={styles.cardTopRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
-            <View style={styles.onlineDot} />
-          </View>
+          <TutorAvatar
+            name={item.name}
+            imageUrl={item.avatar}
+            size={46}
+            borderRadius={23}
+            showOnlineDot
+          />
           <View style={styles.mentorMain}>
             <View style={styles.shortlistNameRow}>
               <Text style={styles.mentorName} numberOfLines={1}>{item.name}</Text>
@@ -724,8 +1049,10 @@ export default function SearchScreen({ route, navigation }: Props) {
               <Text style={styles.browseLabel}>Filter by module</Text>
               <TouchableOpacity
                 style={[styles.openFiltersButton, activeFilterCount > 0 && styles.openFiltersButtonActive]}
-                onPress={() => ((navigation.getParent?.() as any) || (navigation as any))
-                  ?.navigate('Filters', { filters, searchParams: route.params })}
+                onPress={() => {
+                  setDraftFilters({ ...activeFilters });
+                  setShowFilterOverlay(true);
+                }}
                 activeOpacity={0.8}
               >
                 <Ionicons
@@ -735,11 +1062,15 @@ export default function SearchScreen({ route, navigation }: Props) {
                   style={{ marginRight: 4 }}
                 />
                 <Text style={[styles.openFiltersText, activeFilterCount > 0 && styles.openFiltersTextActive]}>Filters</Text>
-                {activeFilterCount > 0 && <View style={styles.filterCount}><Text style={styles.filterCountText}>{activeFilterCount}</Text></View>}
+                {activeFilterCount > 0 && (
+                  <View style={styles.filterCount}>
+                    <Text style={styles.filterCountText}>{activeFilterCount}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-              {subjects.map((subject) => {
+              {subjectChips.map((subject) => {
                 const active = selectedSubject === subject || (!query && subject === 'All');
                 return (
                   <TouchableOpacity
@@ -752,6 +1083,71 @@ export default function SearchScreen({ route, navigation }: Props) {
                 );
               })}
             </ScrollView>
+
+            {/* Active Filters Quick Strip */}
+            {activeFilterCount > 0 && (
+              <View style={styles.activeFiltersBar}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeFiltersScroll}>
+                  <Text style={styles.activeFiltersTitle}>Active:</Text>
+                  {activeFilters.priceRange && (
+                    <TouchableOpacity
+                      style={styles.activeFilterTag}
+                      onPress={() => setActiveFilters((prev) => ({ ...prev, priceRange: undefined }))}
+                    >
+                      <Text style={styles.activeFilterTagText}>
+                        LKR {activeFilters.priceRange === '500-3000' ? '500–3K' : '3K–5K'}
+                      </Text>
+                      <Ionicons name="close" size={12} color="#061E47" />
+                    </TouchableOpacity>
+                  )}
+                  {activeFilters.minRating && (
+                    <TouchableOpacity
+                      style={styles.activeFilterTag}
+                      onPress={() => setActiveFilters((prev) => ({ ...prev, minRating: undefined }))}
+                    >
+                      <Text style={styles.activeFilterTagText}>★ {activeFilters.minRating}+</Text>
+                      <Ionicons name="close" size={12} color="#061E47" />
+                    </TouchableOpacity>
+                  )}
+                  {activeFilters.experience && (
+                    <TouchableOpacity
+                      style={styles.activeFilterTag}
+                      onPress={() => setActiveFilters((prev) => ({ ...prev, experience: undefined }))}
+                    >
+                      <Text style={styles.activeFilterTagText}>{activeFilters.experience}</Text>
+                      <Ionicons name="close" size={12} color="#061E47" />
+                    </TouchableOpacity>
+                  )}
+                  {activeFilters.lessonType && (
+                    <TouchableOpacity
+                      style={styles.activeFilterTag}
+                      onPress={() => setActiveFilters((prev) => ({ ...prev, lessonType: undefined }))}
+                    >
+                      <Text style={styles.activeFilterTagText}>{activeFilters.lessonType}</Text>
+                      <Ionicons name="close" size={12} color="#061E47" />
+                    </TouchableOpacity>
+                  )}
+                  {activeFilters.language && (
+                    <TouchableOpacity
+                      style={styles.activeFilterTag}
+                      onPress={() => setActiveFilters((prev) => ({ ...prev, language: undefined }))}
+                    >
+                      <Text style={styles.activeFilterTagText}>{activeFilters.language}</Text>
+                      <Ionicons name="close" size={12} color="#061E47" />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={styles.clearAllFilterLink}
+                    onPress={() => {
+                      setActiveFilters({});
+                      setDraftFilters({});
+                    }}
+                  >
+                    <Text style={styles.clearAllFilterText}>Clear All</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            )}
 
             <View style={styles.resultsHeader}>
               <View>
@@ -805,19 +1201,44 @@ export default function SearchScreen({ route, navigation }: Props) {
     ListEmptyComponent={(
           <View style={styles.emptyCard}>
             <Ionicons
-              name={searchTab === 'browse' ? 'search-outline' : 'star-outline'}
+              name={
+                searchTab === 'browse'
+                  ? activeFilterCount > 0
+                    ? 'filter-outline'
+                    : 'search-outline'
+                  : 'star-outline'
+              }
               size={44}
               color="#94A3B8"
               style={{ marginBottom: 10 }}
             />
             <Text style={styles.emptyTitle}>
-              {searchTab === 'browse' ? 'No mentors found' : 'Your Shortlist is Empty'}
+              {searchTab === 'browse'
+                ? activeFilterCount > 0
+                  ? 'No tutors match your active filters'
+                  : 'No mentors found'
+                : 'Your Shortlist is Empty'}
             </Text>
             <Text style={styles.emptyText}>
               {searchTab === 'browse'
-                ? 'Try another subject or search term.'
+                ? activeFilterCount > 0
+                  ? 'Try relaxing one or more filter requirements to view more verified tutors.'
+                  : 'Try another subject or search term.'
                 : 'Browse tutors in "All Tutors" and tap "☆ Save" to create your personal shortlist with custom notes and priorities.'}
             </Text>
+            {searchTab === 'browse' && activeFilterCount > 0 && (
+              <TouchableOpacity
+                style={styles.resetFiltersBtn}
+                onPress={() => {
+                  setActiveFilters({});
+                  setDraftFilters({});
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="refresh-outline" size={14} color="#061E47" style={{ marginRight: 6 }} />
+                <Text style={styles.resetFiltersBtnText}>Reset All Filters</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       />
@@ -1063,6 +1484,263 @@ export default function SearchScreen({ route, navigation }: Props) {
             >
               <Text style={styles.cancelLinkText}>Cancel</Text>
             </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ================= FILTER OVERLAY MODAL ================= */}
+      <Modal
+        visible={showFilterOverlay}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilterOverlay(false)}
+      >
+        <Pressable
+          style={styles.filterModalOverlay}
+          onPress={() => setShowFilterOverlay(false)}
+        >
+          <Pressable
+            style={[styles.filterSheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Sheet Handle */}
+            <View style={styles.sheetHandle} />
+
+            {/* Header */}
+            <View style={styles.filterSheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.filterSheetTitle}>Filter Tutors</Text>
+                <Text style={styles.filterSheetSubtitle}>
+                  Refine tutors in Find Your Mentor
+                </Text>
+              </View>
+              {draftFilterCount > 0 && (
+                <TouchableOpacity
+                  style={styles.filterResetBtn}
+                  onPress={() => setDraftFilters({})}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.filterResetBtnText}>Reset All</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Scrollable Filter Categories */}
+            <ScrollView
+              style={styles.filterScrollBody}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 16 }}
+            >
+              {/* 1. Price Range */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionTitleRow}>
+                  <View style={styles.filterSectionIconWrap}>
+                    <Ionicons name="cash-outline" size={15} color="#D97706" />
+                  </View>
+                  <Text style={styles.filterSectionTitle}>Hourly Rate (LKR)</Text>
+                </View>
+                <View style={styles.filterOptionsGrid}>
+                  {[
+                    { label: 'LKR 500 – 3,000', value: '500-3000' as const },
+                    { label: 'LKR 3,000 – 5,000', value: '3000-5000' as const },
+                  ].map((opt) => {
+                    const active = draftFilters.priceRange === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.filterPill, active && styles.filterPillActive]}
+                        onPress={() =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            priceRange: active ? undefined : opt.value,
+                          }))
+                        }
+                        activeOpacity={0.8}
+                      >
+                        {active && (
+                          <Ionicons name="checkmark" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 2. Minimum Rating */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionTitleRow}>
+                  <View style={styles.filterSectionIconWrap}>
+                    <Ionicons name="star" size={15} color="#D97706" />
+                  </View>
+                  <Text style={styles.filterSectionTitle}>Minimum Rating</Text>
+                </View>
+                <View style={styles.filterOptionsGrid}>
+                  {[
+                    { label: '4.5+ ★', value: 4.5 as const },
+                    { label: '4.0+ ★', value: 4.0 as const },
+                    { label: '3.5+ ★', value: 3.5 as const },
+                  ].map((opt) => {
+                    const active = draftFilters.minRating === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.filterPill, active && styles.filterPillActive]}
+                        onPress={() =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            minRating: active ? undefined : opt.value,
+                          }))
+                        }
+                        activeOpacity={0.8}
+                      >
+                        {active && (
+                          <Ionicons name="checkmark" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 3. Teaching Experience */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionTitleRow}>
+                  <View style={styles.filterSectionIconWrap}>
+                    <Ionicons name="briefcase-outline" size={15} color="#D97706" />
+                  </View>
+                  <Text style={styles.filterSectionTitle}>Teaching Experience</Text>
+                </View>
+                <View style={styles.filterOptionsGrid}>
+                  {(['1-2 years', '3-5 years', '5+ years'] as const).map((exp) => {
+                    const active = draftFilters.experience === exp;
+                    return (
+                      <TouchableOpacity
+                        key={exp}
+                        style={[styles.filterPill, active && styles.filterPillActive]}
+                        onPress={() =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            experience: active ? undefined : exp,
+                          }))
+                        }
+                        activeOpacity={0.8}
+                      >
+                        {active && (
+                          <Ionicons name="checkmark" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                          {exp}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 4. Lesson Type */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionTitleRow}>
+                  <View style={styles.filterSectionIconWrap}>
+                    <Ionicons name="people-outline" size={15} color="#D97706" />
+                  </View>
+                  <Text style={styles.filterSectionTitle}>Lesson Type</Text>
+                </View>
+                <View style={styles.filterOptionsGrid}>
+                  {[
+                    { label: 'Individual (1-on-1)', value: 'Individual' as const },
+                    { label: 'Group (Study Pod)', value: 'Group' as const },
+                  ].map((lt) => {
+                    const active = draftFilters.lessonType === lt.value;
+                    return (
+                      <TouchableOpacity
+                        key={lt.value}
+                        style={[styles.filterPill, active && styles.filterPillActive]}
+                        onPress={() =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            lessonType: active ? undefined : lt.value,
+                          }))
+                        }
+                        activeOpacity={0.8}
+                      >
+                        {active && (
+                          <Ionicons name="checkmark" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                          {lt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 5. Preferred Language */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionTitleRow}>
+                  <View style={styles.filterSectionIconWrap}>
+                    <Ionicons name="language-outline" size={15} color="#D97706" />
+                  </View>
+                  <Text style={styles.filterSectionTitle}>Preferred Language</Text>
+                </View>
+                <View style={styles.filterOptionsGrid}>
+                  {(['English', 'Sinhala', 'Tamil'] as const).map((lang) => {
+                    const active = draftFilters.language === lang;
+                    return (
+                      <TouchableOpacity
+                        key={lang}
+                        style={[styles.filterPill, active && styles.filterPillActive]}
+                        onPress={() =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            language: active ? undefined : lang,
+                          }))
+                        }
+                        activeOpacity={0.8}
+                      >
+                        {active && (
+                          <Ionicons name="checkmark" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                          {lang}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Bottom Actions */}
+            <View style={styles.filterSheetFooter}>
+              <TouchableOpacity
+                style={styles.filterCancelBtn}
+                onPress={() => setShowFilterOverlay(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.filterCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.filterApplyBtn}
+                onPress={() => {
+                  setActiveFilters({ ...draftFilters });
+                  setShowFilterOverlay(false);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="funnel" size={15} color="#061E47" style={{ marginRight: 6 }} />
+                <Text style={styles.filterApplyBtnText}>
+                  Apply Filters {previewMatchCount > 0 ? `(${previewMatchCount})` : ''}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1658,6 +2336,210 @@ const styles = StyleSheet.create({
   },
   gridSaveBtnTextActive: {
     color: '#92400E',
+    fontWeight: '900',
+  },
+
+  /* Active Filters Quick Strip */
+  activeFiltersBar: {
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  activeFiltersScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingRight: 16,
+  },
+  activeFiltersTitle: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginRight: 2,
+  },
+  activeFilterTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  activeFilterTagText: {
+    color: '#061E47',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  clearAllFilterLink: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  clearAllFilterText: {
+    color: '#DC2626',
+    fontSize: 11,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
+  },
+  resetFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 12,
+    marginTop: 14,
+  },
+  resetFiltersBtnText: {
+    color: '#061E47',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
+  /* Filter Modal Overlay */
+  filterModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(6,30,71,0.6)',
+    justifyContent: 'flex-end',
+  },
+  filterSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    maxHeight: '88%',
+  },
+  filterSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  filterSheetTitle: {
+    color: navy,
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  filterSheetSubtitle: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  filterResetBtn: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  filterResetBtnText: {
+    color: '#DC2626',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  filterScrollBody: {
+    maxHeight: 420,
+  },
+  filterSection: {
+    marginBottom: 16,
+  },
+  filterSectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  filterSectionIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: '#FFFDF0',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterSectionTitle: {
+    color: '#1E293B',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  filterOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  filterPillActive: {
+    backgroundColor: '#061E47',
+    borderColor: '#061E47',
+  },
+  filterPillText: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  filterPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+  filterSheetFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  filterCancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  filterCancelBtnText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  filterApplyBtn: {
+    flex: 2,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#F59E0B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  filterApplyBtnText: {
+    color: '#061E47',
+    fontSize: 13,
     fontWeight: '900',
   },
 });

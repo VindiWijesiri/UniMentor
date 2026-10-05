@@ -21,6 +21,12 @@ export interface BookedTutorItem {
   studyMode?: '1-on-1' | 'group';
   groupSize?: number;
   bookedAt: string;
+  paymentMethod?: 'DirectPay' | 'Campus Wallet' | 'Bank Transfer';
+  paymentStatus?: 'PAID' | 'PENDING';
+  paidAmount?: number;
+  transactionId?: string;
+  faceVerificationPhoto?: string;
+  isFaceVerified?: boolean;
 }
 
 const STORAGE_KEY = 'unimentor_booked_tutors_v1';
