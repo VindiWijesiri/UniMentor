@@ -17,6 +17,7 @@ import {
 import axios from 'axios';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useReviewStore } from '../../../domain/stores/reviewStore';
@@ -381,7 +382,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
 
             {isEditing && isEditingActive && (
               <View style={styles.editingActiveBanner}>
-                <Text style={styles.editingActiveBannerIcon}>✏️</Text>
+                <Ionicons name="create-outline" size={18} color="#0D4F9E" style={{ marginRight: 8, marginTop: 2 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.editingActiveBannerTitle}>Editing Previous Review</Text>
                   <Text style={styles.editingActiveBannerSub}>
@@ -545,16 +546,16 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                   <View style={styles.btnContentRow}>
                     {isEditing && !isEditingActive ? (
                       <>
-                        <Text style={styles.btnIcon}>✏️</Text>
+                        <Ionicons name="create-outline" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
                         <Text style={styles.primaryBtnText}>Update Review</Text>
-                        <Text style={styles.btnArrow}>★</Text>
+                        <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
                       </>
                     ) : (
                       <>
                         <Text style={styles.primaryBtnText}>
                           {isEditing ? 'Update Review' : 'Submit Review'}
                         </Text>
-                        <Text style={styles.btnArrow}>★</Text>
+                        <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
                       </>
                     )}
                   </View>
@@ -572,7 +573,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                     <ActivityIndicator color="#DC2626" size="small" />
                   ) : (
                     <View style={styles.btnContentRow}>
-                      <Text style={styles.deleteBtnIcon}>🗑️</Text>
+                      <Ionicons name="trash-outline" size={17} color="#DC2626" style={{ marginRight: 6 }} />
                       <Text style={styles.deleteBtnText}>Delete This Review</Text>
                     </View>
                   )}

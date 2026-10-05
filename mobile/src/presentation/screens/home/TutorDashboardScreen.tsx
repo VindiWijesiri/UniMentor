@@ -74,7 +74,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#0A2342" />
       {/* 1. Header with Dark Navy Background */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}>
+      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Tutor Dashboard</Text>
           <View style={styles.brandRow}>
@@ -465,32 +465,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F6FA',
   },
   headerContainer: {
-    backgroundColor: '#0A2342',
+    backgroundColor: '#061E47',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 36,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   brandUni: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
   },
   brandMentor: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: '#F59E0B',
   },

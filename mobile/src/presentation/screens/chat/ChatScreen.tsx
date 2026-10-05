@@ -570,13 +570,13 @@ export default function ChatScreen({ route, navigation }: Props) {
                         onPress={() => handleEditPress(item)}
                         style={styles.bubbleActionBtn}
                       >
-                        <Text style={styles.bubbleActionText}>✏️</Text>
+                        <Ionicons name="create-outline" size={13} color="#CBD5E1" />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleDeleteMessage(item._id)}
                         style={styles.bubbleActionBtn}
                       >
-                        <Text style={styles.bubbleActionText}>🗑️</Text>
+                        <Ionicons name="trash-outline" size={13} color="#FCA5A5" />
                       </TouchableOpacity>
                     </View>
                   )}
@@ -857,8 +857,10 @@ export default function ChatScreen({ route, navigation }: Props) {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setEditingMessage(null)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>✏️ Edit Message</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Ionicons name="create-outline" size={18} color="#0F172A" />
+              <Text style={styles.sheetTitle}>Edit Message</Text>
+            </View>
             <Text style={styles.sheetSubtitle}>Update your sent message text</Text>
 
             <TextInput

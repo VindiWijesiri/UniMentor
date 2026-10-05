@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacit
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
@@ -365,7 +366,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                             }
                             activeOpacity={0.75}
                           >
-                            <Text style={styles.reviewEditBtnText}>✏️ Edit</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="create-outline" size={13} color="#0D4F9E" />
+                              <Text style={styles.reviewEditBtnText}>Edit</Text>
+                            </View>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -373,7 +377,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                             onPress={() => handleDeleteReview(rev._id)}
                             activeOpacity={0.75}
                           >
-                            <Text style={styles.reviewDeleteBtnText}>🗑️ Delete</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                              <Text style={styles.reviewDeleteBtnText}>Delete</Text>
+                            </View>
                           </TouchableOpacity>
                         </View>
                       )}

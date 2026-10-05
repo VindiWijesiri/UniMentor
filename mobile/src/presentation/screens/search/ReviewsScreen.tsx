@@ -17,6 +17,8 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { mentorRepository } from '../../../data/repositories/mentorRepository';
@@ -29,6 +31,7 @@ type Props = BottomTabScreenProps<AppTabParamList, 'Reviews'>;
 type ActiveTab = 'tutors' | 'my-reviews';
 
 export default function ReviewsScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<ActiveTab>('tutors');
   const [tutors, setTutors] = useState<Mentor[]>([]);
   const [query, setQuery] = useState('');
@@ -149,11 +152,16 @@ export default function ReviewsScreen({ navigation }: Props) {
   return (
     <View style={styles.page}>
       {/* Hero Header */}
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>STUDENT FEEDBACK & RATINGS</Text>
-        <Text style={styles.title}>Tutor Reviews</Text>
+      <View style={[styles.hero, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+        <View style={styles.headerTopBar}>
+          <Text style={styles.headerTitle}>Tutor Reviews</Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
         <Text style={styles.subtitle}>
-          Share learning feedback and manage your submitted tutor reviews.
+          Share learning feedback and manage your submitted tutor reviews
         </Text>
 
         {/* Tab Switcher */}
@@ -184,7 +192,7 @@ export default function ReviewsScreen({ navigation }: Props) {
 
         {activeTab === 'tutors' && (
           <View style={styles.searchBox}>
-            <Text style={styles.searchIcon}>🔍</Text>
+            <Ionicons name="search" size={16} color="#8997AF" style={{ marginRight: 8 }} />
             <TextInput
               value={query}
               onChangeText={setQuery}
@@ -293,14 +301,17 @@ export default function ReviewsScreen({ navigation }: Props) {
                       style={styles.editReviewBtn}
                       onPress={() => openEditModal(item)}
                     >
-                      <Text style={styles.editReviewBtnText}>✏️ Edit</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="create-outline" size={13} color="#0D4F9E" />
+                        <Text style={styles.editReviewBtnText}>Edit</Text>
+                      </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       style={styles.deleteReviewBtn}
                       onPress={() => handleDeleteReview(item)}
                     >
-                      <Text style={styles.deleteReviewBtnText}>🗑️</Text>
+                      <Ionicons name="trash-outline" size={14} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -380,25 +391,41 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   hero: {
     backgroundColor: '#061E47',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
-  eyebrow: {
-    color: '#FBBF24',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+  headerTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+    marginBottom: 4,
   },
-  title: {
+  headerTitle: {
     color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    marginTop: 4,
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
   },
   subtitle: {
-    color: '#94A3B8',
-    fontSize: 12,
+    color: '#D5E3F6',
+    fontSize: 12.5,
     marginTop: 2,
     marginBottom: 12,
   },
