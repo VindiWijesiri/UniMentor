@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -78,6 +80,8 @@ function DetailRow({
 
 export default function CompareTutorsScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { width: screenWidth } = useWindowDimensions();
   const mentors = route.params.mentors.slice(0, 3);
   const [reviews, setReviews] = useState<ReviewMap>({});
@@ -121,7 +125,7 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
   return (
     <View style={styles.page}>
       {/* Top Header Bar */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeftRow}>
             <TouchableOpacity
