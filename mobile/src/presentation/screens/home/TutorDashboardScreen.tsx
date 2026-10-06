@@ -254,13 +254,18 @@ export default function TutorDashboardScreen({ navigation }: any) {
     const created = await tutorSlotRepository.addSlot({
       mentorId: currentUser?._id || 'mentor-alex',
       mentorName: currentUser?.name || 'Alex Ferreira',
+      title: `${newSlotModule} Guidance Session`,
       date: newSlotDate,
       startTime: newSlotStartTime,
       endTime: newSlotEndTime,
       timeRange: `${newSlotStartTime} - ${newSlotEndTime}`,
+      duration: '60 Mins',
+      fee: parseInt(rate1on1, 10) || 2000,
       type: newSlotType,
       maxCapacity: parseInt(newSlotCapacity, 10) || 5,
       module: newSlotModule,
+      description: `Comprehensive interactive mentoring for ${newSlotModule}.`,
+      mode: 'Online',
     });
     setTutorSlots((prev) => [created, ...prev]);
     setAddSlotModalVisible(false);
@@ -323,7 +328,23 @@ export default function TutorDashboardScreen({ navigation }: any) {
         {/* 1. Header with Dark Navy Background */}
         <View style={[styles.headerContainer, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Tutor Dashboard</Text>
+          <View>
+            <Text style={styles.headerTitle}>Tutor Dashboard</Text>
+            <TouchableOpacity
+              style={styles.switchRoleHeaderBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                useAuthStore.getState().setUser({
+                  ...(currentUser || {}),
+                  role: 'student',
+                } as any);
+                (navigation as any).navigate('MainTabs', { screen: 'Home' });
+              }}
+            >
+              <Ionicons name="swap-horizontal" size={12} color="#EAA023" />
+              <Text style={styles.switchRoleHeaderBtnText}>Student Mode ➔</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
@@ -635,6 +656,33 @@ export default function TutorDashboardScreen({ navigation }: any) {
 
         {/* 3.2 Upload & Manage Booking Slots for Students */}
         <View style={styles.slotsSection}>
+          {/* DEDICATED SLOTS PAGE HERO BANNER */}
+          <TouchableOpacity
+            style={styles.dedicatedSlotHeroCard}
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate('TutorSlotManagement')}
+          >
+            <View style={styles.dedicatedSlotHeroLeft}>
+              <View style={styles.dedicatedSlotHeroIcon}>
+                <Ionicons name="calendar" size={22} color="#061E47" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.dedicatedSlotHeroTitle}>Allocated Slots & Registrations</Text>
+                  <View style={styles.dedicatedSlotNewPill}>
+                    <Text style={styles.dedicatedSlotNewPillText}>DEDICATED PAGE</Text>
+                  </View>
+                </View>
+                <Text style={styles.dedicatedSlotHeroSubtitle}>
+                  Fill allocated slots with custom fees, durations & see registered students/groups
+                </Text>
+              </View>
+            </View>
+            <View style={styles.dedicatedSlotHeroArrow}>
+              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+
           <View style={styles.slotsSectionHeaderRow}>
             <View style={{ flex: 1, paddingRight: 6 }}>
               <Text style={styles.slotsSectionTitle}>Available Student Booking Slots</Text>
@@ -645,11 +693,11 @@ export default function TutorDashboardScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.addSlotBtn}
               activeOpacity={0.85}
-              onPress={() => setAddSlotModalVisible(true)}
+              onPress={() => navigation.navigate('TutorSlotManagement')}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="add" size={16} color="#061E47" />
-                <Text style={styles.addSlotBtnText}>Add Slot</Text>
+                <Ionicons name="settings-outline" size={15} color="#061E47" />
+                <Text style={styles.addSlotBtnText}>Manage Slots</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -661,7 +709,12 @@ export default function TutorDashboardScreen({ navigation }: any) {
             contentContainerStyle={styles.slotsHorizontalList}
           >
             {tutorSlots.map((slot) => (
-              <View key={slot.id} style={styles.tutorSlotCard}>
+              <TouchableOpacity
+                key={slot.id}
+                style={styles.tutorSlotCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('TutorSlotManagement')}
+              >
                 <View style={styles.slotCardTop}>
                   <View
                     style={[
@@ -686,20 +739,21 @@ export default function TutorDashboardScreen({ navigation }: any) {
                       {slot.type === 'both' ? '1-on-1 & Group' : slot.type.toUpperCase()}
                     </Text>
                   </View>
-                  <TouchableOpacity onPress={() => handleDeleteSlot(slot.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                    <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                  </TouchableOpacity>
+                  <View style={styles.slotCardFeeBadge}>
+                    <Text style={styles.slotCardFeeText}>LKR {(slot.fee || 2000).toLocaleString()}</Text>
+                  </View>
                 </View>
+                <Text style={styles.slotCardTitle} numberOfLines={1}>{slot.title || slot.module}</Text>
                 <Text style={styles.slotCardStartTime}>{slot.startTime}</Text>
-                <Text style={styles.slotCardRange}>{slot.timeRange}</Text>
+                <Text style={styles.slotCardRange}>{slot.timeRange} ({slot.duration || '60m'})</Text>
                 <Text style={styles.slotCardDate}>{slot.date}</Text>
                 <View style={styles.slotCapacityRow}>
-                  <Ionicons name="people-outline" size={12} color="#64748B" />
+                  <Ionicons name="people-outline" size={12} color="#0D4F9E" />
                   <Text style={styles.slotCapacityText}>
-                    {slot.bookedCount}/{slot.maxCapacity} booked
+                    {slot.bookedCount}/{slot.maxCapacity} booked • View Attendees ➔
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
@@ -2213,5 +2267,99 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#475569',
+  },
+  dedicatedSlotHeroCard: {
+    backgroundColor: '#EAA023',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    elevation: 3,
+    shadowColor: '#EAA023',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  dedicatedSlotHeroLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  dedicatedSlotHeroIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dedicatedSlotHeroTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  dedicatedSlotNewPill: {
+    backgroundColor: '#061E47',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  dedicatedSlotNewPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#EAA023',
+  },
+  dedicatedSlotHeroSubtitle: {
+    fontSize: 11,
+    color: '#334155',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  dedicatedSlotHeroArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#061E47',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  slotCardFeeBadge: {
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  slotCardFeeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  slotCardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  switchRoleHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(234, 160, 35, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  switchRoleHeaderBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#EAA023',
   },
 });

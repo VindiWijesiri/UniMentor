@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../../domain/stores/authStore';
@@ -31,6 +32,7 @@ const AVATAR_PRESETS = [
 ];
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -328,6 +330,48 @@ export default function ProfileScreen() {
 
         {/* Account Actions */}
         <View style={styles.actionCard}>
+          <TouchableOpacity
+            style={styles.tutorSlotsNavBtn}
+            onPress={() => navigation.navigate('TutorSlotManagement')}
+            activeOpacity={0.85}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View style={styles.tutorSlotsNavIconWrap}>
+                  <Ionicons name="calendar" size={18} color="#061E47" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.tutorSlotsNavTitle}>Tutor Slot Manager</Text>
+                  <Text style={styles.tutorSlotsNavSub}>Allocate slots, set fees & view attendees</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#061E47" />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.roleToggleBtn}
+            onPress={() => {
+              const nextRole = role === 'mentor' ? 'student' : 'mentor';
+              useAuthStore.getState().setUser({
+                ...(user || {}),
+                role: nextRole,
+              } as any);
+              Alert.alert(
+                'Role Switched',
+                `Switched active view to ${nextRole === 'mentor' ? 'Tutor/Mentor' : 'Student'}! Return to Home tab to see the updated dashboard.`
+              );
+            }}
+            activeOpacity={0.85}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Ionicons name="swap-horizontal" size={18} color="#061E47" />
+              <Text style={styles.roleToggleBtnText}>
+                Switch View to {role === 'mentor' ? 'Student' : 'Tutor'} Portal
+              </Text>
+            </View>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutPrompt} activeOpacity={0.85}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <Ionicons name="log-out-outline" size={18} color="#DC2626" />
@@ -994,6 +1038,45 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     color: '#64748B',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  tutorSlotsNavBtn: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    marginBottom: 10,
+  },
+  tutorSlotsNavIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FDE68A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tutorSlotsNavTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  tutorSlotsNavSub: {
+    fontSize: 11,
+    color: '#92400E',
+    marginTop: 2,
+  },
+  roleToggleBtn: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    marginBottom: 10,
+  },
+  roleToggleBtnText: {
+    color: '#061E47',
     fontSize: 13,
     fontWeight: '700',
   },

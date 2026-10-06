@@ -421,7 +421,27 @@ export default function StudentDashboardScreen({ navigation }: Props) {
       {/* Top Header Bar */}
       <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Student Dashboard</Text>
+          <View>
+            <Text style={styles.headerTitle}>Student Dashboard</Text>
+            <TouchableOpacity
+              style={styles.switchRoleHeaderBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                useAuthStore.getState().setUser({
+                  ...(authUser || {}),
+                  _id: authUser?._id || 'demo-tutor-1',
+                  id: authUser?.id || 'demo-tutor-1',
+                  name: authUser?.name || 'Alex Ferreira',
+                  email: authUser?.email || 'alex.f@unimentor.sliit.lk',
+                  role: 'mentor',
+                } as any);
+                (navigation as any).navigate('TutorDashboard');
+              }}
+            >
+              <Ionicons name="swap-horizontal" size={12} color="#EAA023" />
+              <Text style={styles.switchRoleHeaderBtnText}>Tutor Mode ➔</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
@@ -496,6 +516,33 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             </View>
           </View>
         </View>
+
+        {/* Dedicated Tutor Portal & Slot Management Card */}
+        <TouchableOpacity
+          style={styles.tutorHeroAccessCard}
+          activeOpacity={0.88}
+          onPress={() => (navigation as any).navigate('TutorSlotManagement')}
+        >
+          <View style={styles.tutorHeroAccessLeft}>
+            <View style={styles.tutorHeroAccessIcon}>
+              <Ionicons name="calendar" size={22} color="#061E47" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.tutorHeroAccessTitle}>Tutor Slot Allocation & Bookings</Text>
+                <View style={styles.tutorHeroNewPill}>
+                  <Text style={styles.tutorHeroNewPillText}>TUTOR</Text>
+                </View>
+              </View>
+              <Text style={styles.tutorHeroAccessSubtitle}>
+                Schedule slots, set session fees & view registered students and groups
+              </Text>
+            </View>
+          </View>
+          <View style={styles.tutorHeroAccessArrow}>
+            <Ionicons name="arrow-forward" size={16} color="#061E47" />
+          </View>
+        </TouchableOpacity>
 
         {/* Deadline Approaching Alert Card */}
         {/* Deadline Approaching Alert Card */}
@@ -4027,5 +4074,82 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  switchRoleHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(234, 160, 35, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  switchRoleHeaderBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#EAA023',
+  },
+  tutorHeroAccessCard: {
+    backgroundColor: '#061E47',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: '#EAA023',
+    elevation: 3,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+  },
+  tutorHeroAccessLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  tutorHeroAccessIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EAA023',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tutorHeroAccessTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  tutorHeroNewPill: {
+    backgroundColor: '#EAA023',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tutorHeroNewPillText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#061E47',
+  },
+  tutorHeroAccessSubtitle: {
+    fontSize: 11,
+    color: '#CBD5E1',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  tutorHeroAccessArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#EAA023',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
 });

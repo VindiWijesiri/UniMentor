@@ -239,6 +239,13 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
   // ONLY when user selects a conflicting/unavailable slot, it displays the conflict warning!
   const handleSelectSlot = (slot: TutorSlot) => {
     setSelectedSlot(slot);
+    if (slot.fee) {
+      if (studyMode === 'group') {
+        setHourlyRateGroup(slot.fee);
+      } else {
+        setHourlyRate1on1(slot.fee);
+      }
+    }
   };
 
   const handleContinueFromSlots = () => {
@@ -568,7 +575,15 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
       }
 
       if (selectedSlot) {
-        await tutorSlotRepository.markSlotBooked(selectedSlot.id, studyMode === 'group');
+        await tutorSlotRepository.markSlotBooked(selectedSlot.id, studyMode === 'group', {
+          name: studentName,
+          email: studentEmail,
+          avatar: user?.profilePicture,
+          groupName: studyMode === 'group' ? `Study Pod (${studentName})` : undefined,
+          groupSize: studyMode === 'group' ? groupSize : 1,
+          notes: sessionNotes,
+          feePaid: totalPayable,
+        });
       }
 
       setSuccessReceipt({
@@ -949,46 +964,137 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
               <Text style={styles.sectionTitle}>AVAILABLE TIME SLOTS</Text>
             </View>
 
-            {/* Slots Grid */}
-            {/* Slots are displayed as normal clean pills upfront. */}
-            {/* ONLY when the student selects a slot that has conflict, it displays as conflict! */}
+            {/* Rich Allocated Slots Cards */}
             {isLoadingSlots ? (
               <ActivityIndicator size="small" color="#F59E0B" style={{ marginVertical: 20 }} />
             ) : (
-              <View style={styles.slotsGrid}>
-                {availableSlots
-                  .filter((s) => s.startTime !== '10:00 AM' && s.startTime !== '04:00 PM' && s.startTime !== '11:30 AM' && s.startTime !== '05:30 PM' || s.hasConflict)
-                  .map((slot) => {
-                    const isSelected = selectedSlot?.id === slot.id;
-                    const showConflictState = isSelected && slot.hasConflict;
+              <View style={styles.richSlotsContainer}>
+                {availableSlots.map((slot) => {
+                  const isSelected = selectedSlot?.id === slot.id;
+                  const showConflictState = isSelected && slot.hasConflict;
+                  const isFull = (slot.bookedCount || 0) >= slot.maxCapacity && !slot.isAvailable;
+                  const attendees = slot.registeredAttendees || [];
 
-                    return (
-                      <TouchableOpacity
-                        key={slot.id}
-                        style={[
-                          styles.slotPill,
-                          isSelected && (showConflictState ? styles.slotPillConflictSelected : styles.slotPillSelected),
-                        ]}
-                        onPress={() => handleSelectSlot(slot)}
-                        activeOpacity={0.85}
-                      >
-                        <Text
-                          style={[
-                            styles.slotTextNormal,
-                            isSelected && (showConflictState ? styles.slotTextConflict : styles.slotTextSelected),
-                          ]}
-                        >
-                          {slot.startTime}
+                  return (
+                    <TouchableOpacity
+                      key={slot.id}
+                      style={[
+                        styles.richSlotCard,
+                        isSelected && (showConflictState ? styles.richSlotCardConflict : styles.richSlotCardSelected),
+                        isFull && styles.richSlotCardFull,
+                      ]}
+                      onPress={() => !isFull && handleSelectSlot(slot)}
+                      activeOpacity={isFull ? 1 : 0.85}
+                    >
+                      {/* Top Row: Module + Format Badge + Fee */}
+                      <View style={styles.richSlotTopRow}>
+                        <View style={styles.richSlotModulePill}>
+                          <Text style={styles.richSlotModuleText} numberOfLines={1}>
+                            {slot.module || 'Mentoring'}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View
+                            style={[
+                              styles.richSlotTypePill,
+                              slot.type === 'group'
+                                ? { backgroundColor: '#ECFDF5' }
+                                : { backgroundColor: '#EFF6FF' },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.richSlotTypeText,
+                                slot.type === 'group'
+                                  ? { color: '#059669' }
+                                  : { color: '#1D4ED8' },
+                              ]}
+                            >
+                              {slot.type === 'group' ? 'GROUP' : '1-ON-1'}
+                            </Text>
+                          </View>
+                          <View style={styles.richSlotFeePill}>
+                            <Text style={styles.richSlotFeeText}>
+                              LKR {(slot.fee || 2000).toLocaleString()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Slot Title */}
+                      <Text style={styles.richSlotTitleText}>
+                        {slot.title || `${slot.module} Session`}
+                      </Text>
+
+                      {/* Time, Duration & Location */}
+                      <View style={styles.richSlotMetaRow}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="time" size={13} color="#0D4F9E" />
+                          <Text style={styles.richSlotTimeText}>{slot.timeRange}</Text>
+                        </View>
+                        <View style={styles.richSlotDurationBadge}>
+                          <Text style={styles.richSlotDurationText}>{slot.duration || '60 Mins'}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
+                          <Ionicons
+                            name={slot.mode === 'In-Person' ? 'location-outline' : 'videocam-outline'}
+                            size={13}
+                            color="#64748B"
+                          />
+                          <Text style={styles.richSlotLocationText} numberOfLines={1}>
+                            {slot.mode || 'Online'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Description */}
+                      {!!slot.description && (
+                        <Text style={styles.richSlotDescText} numberOfLines={2}>
+                          {slot.description}
                         </Text>
-                        {showConflictState && (
-                          <View style={styles.conflictAlertRow}>
-                            <Ionicons name="warning" size={10} color="#DC2626" />
-                            <Text style={styles.conflictAlertText}>CONFLICT</Text>
+                      )}
+
+                      {/* Capacity & Selection Status */}
+                      <View style={styles.richSlotFooterRow}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <Ionicons
+                            name="people-outline"
+                            size={14}
+                            color={isFull ? '#EF4444' : '#059669'}
+                          />
+                          <Text style={[styles.richSlotCapacityText, isFull && { color: '#EF4444' }]}>
+                            {isFull
+                              ? 'Fully Booked'
+                              : `${slot.bookedCount}/${slot.maxCapacity} Booked • ${Math.max(0, slot.maxCapacity - slot.bookedCount)} Spots Left`}
+                          </Text>
+                        </View>
+                        {isSelected && !showConflictState && (
+                          <View style={styles.selectedCheckBadge}>
+                            <Ionicons name="checkmark-circle" size={15} color="#D97706" />
+                            <Text style={styles.selectedCheckText}>Selected</Text>
                           </View>
                         )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                      </View>
+
+                      {/* Display registered attendees snippet if any students/groups already joined */}
+                      {attendees.length > 0 && (
+                        <View style={styles.attendeesSnippetBox}>
+                          <Ionicons name="people" size={12} color="#0D4F9E" />
+                          <Text style={styles.attendeesSnippetText} numberOfLines={1}>
+                            Joined: {attendees.map((a) => a.studentName).join(', ')}
+                          </Text>
+                        </View>
+                      )}
+
+                      {showConflictState && (
+                        <View style={styles.conflictAlertRow}>
+                          <Ionicons name="warning" size={12} color="#DC2626" />
+                          <Text style={styles.conflictAlertText}>SCHEDULE CONFLICT DETECTED</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
 
@@ -1002,7 +1108,9 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
               </View>
             ) : (
               <Text style={styles.slotHelperText}>
-                Select an available slot above to continue with your booking.
+                {selectedSlot
+                  ? `Selected: ${selectedSlot.title} (${selectedSlot.timeRange}, LKR ${(selectedSlot.fee || 2000).toLocaleString()})`
+                  : 'Select an available slot above to continue with your booking.'}
               </Text>
             )}
 
@@ -2559,6 +2667,157 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 16,
+  },
+  richSlotsContainer: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  richSlotCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+  },
+  richSlotCardSelected: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFDF5',
+  },
+  richSlotCardConflict: {
+    borderColor: '#DC2626',
+    backgroundColor: '#FEF2F2',
+  },
+  richSlotCardFull: {
+    opacity: 0.65,
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+  },
+  richSlotTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  richSlotModulePill: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    maxWidth: '52%',
+  },
+  richSlotModuleText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#061E47',
+  },
+  richSlotTypePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+  },
+  richSlotTypeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  richSlotFeePill: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+  },
+  richSlotFeeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  richSlotTitleText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+  richSlotMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 8,
+  },
+  richSlotTimeText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0D4F9E',
+  },
+  richSlotDurationBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  richSlotDurationText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  richSlotLocationText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  richSlotDescText: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  richSlotFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  richSlotCapacityText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  selectedCheckBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  selectedCheckText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#D97706',
+  },
+  attendeesSnippetBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  attendeesSnippetText: {
+    fontSize: 10.5,
+    color: '#0D4F9E',
+    fontWeight: '600',
+    flex: 1,
   },
   conflictInlineText: {
     color: '#DC2626',

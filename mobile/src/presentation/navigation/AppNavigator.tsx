@@ -23,6 +23,7 @@ import { useAuthStore } from '../../domain/stores/authStore';
 import { colors } from '../../shared/theme';
 
 import TutorDashboardScreen from '../screens/home/TutorDashboardScreen';
+import TutorSlotManagementScreen from '../screens/home/TutorSlotManagementScreen';
 import SessionsScreen from '../screens/sessions/SessionsScreen';
 import BookingFlowScreen from '../screens/booking/BookingFlowScreen';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,6 +75,8 @@ export type AppStackParamList = {
   RecommendedTutor: { mentor: Mentor; reviews: Review[]; comparedCount: number; isBestMatch: boolean };
   Chat: { mentor: Mentor };
   GuidanceWizard: undefined;
+  TutorDashboard: undefined;
+  TutorSlotManagement: undefined;
   BookSession: {
     mentor: any;
     initialMode?: '1-on-1' | 'group';
@@ -243,6 +246,8 @@ export default function AppNavigator() {
       <Stack.Screen name="RecommendedTutor" component={RecommendedTutorScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="GuidanceWizard" component={HomeScreen} />
+      <Stack.Screen name="TutorDashboard" component={TutorDashboardScreen} />
+      <Stack.Screen name="TutorSlotManagement" component={TutorSlotManagementScreen} />
     </Stack.Navigator>
   );
 }
