@@ -18,13 +18,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchMentorsUseCase } from '../../../domain/usecases/mentor/searchMentorsUseCase';
 import type { Mentor } from '../../../domain/entities/Mentor';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { countTutorFilters } from '../../../domain/entities/TutorFilters';
-import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { shortlistRepository } from '../../../data/repositories/shortlistRepository';
 import type { ShortlistedMentor } from '../../../domain/entities/ShortlistedMentor';
 import { Ionicons } from '@expo/vector-icons';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Search'>;
+type Props = NativeStackScreenProps<AppStackParamList, 'Search'>;
 type MentorCard = Mentor & {
   experience?: string;
   sessionCount?: number;
@@ -301,12 +302,12 @@ export default function SearchScreen({ route, navigation }: Props) {
       if (parent) {
         parent.navigate('GuidanceWizard');
       } else {
-        navigation.navigate('Home');
+        (navigation as any).navigate('Home');
       }
     } else if (parent && parent.canGoBack()) {
       parent.goBack();
     } else {
-      navigation.navigate('Home');
+      (navigation as any).navigate('Home');
     }
   };
 

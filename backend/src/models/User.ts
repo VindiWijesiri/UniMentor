@@ -66,6 +66,14 @@ export interface IUser extends Document {
   teachingMode?: string;
   lessonTypes?: string[];
   campusId?: mongoose.Types.ObjectId;
+  isVerified?: boolean;
+  verificationStatus?: 'unverified' | 'pending' | 'under_review' | 'verified' | 'approved' | 'rejected';
+  faceVerifiedAt?: Date;
+  idPhoto?: string;
+  referenceFaceImage?: string;
+  passwordResetCode?: string;
+  passwordResetExpires?: Date;
+  passwordResetVerified?: boolean;
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -142,6 +150,18 @@ const userSchema = new Schema<IUser>(
     teachingMode: { type: String, default: 'Online / Hybrid' },
     lessonTypes: [{ type: String, default: 'Individual' }],
     campusId: { type: Schema.Types.ObjectId, ref: 'Campus' },
+    isVerified: { type: Boolean, default: false },
+    verificationStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'under_review', 'verified', 'approved', 'rejected'],
+      default: 'unverified',
+    },
+    faceVerifiedAt: { type: Date },
+    idPhoto: { type: String },
+    referenceFaceImage: { type: String },
+    passwordResetCode: { type: String },
+    passwordResetExpires: { type: Date },
+    passwordResetVerified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

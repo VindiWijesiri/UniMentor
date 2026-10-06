@@ -17,15 +17,14 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { mentorRepository } from '../../../data/repositories/mentorRepository';
 import { useReviewStore } from '../../../domain/stores/reviewStore';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
-import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import type { AppStackParamList } from '../../navigation/AppNavigator';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Reviews'>;
+type Props = NativeStackScreenProps<AppStackParamList, 'Reviews'>;
 type ActiveTab = 'tutors' | 'my-reviews';
 
 export default function ReviewsScreen({ navigation }: Props) {

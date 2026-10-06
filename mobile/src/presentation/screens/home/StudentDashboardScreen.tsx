@@ -19,10 +19,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import type { NavigationProp } from '@react-navigation/native';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import { Ionicons } from '@expo/vector-icons';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
+type Props = {
+  navigation: NavigationProp<any>;
+  route?: any;
+};
 
 const academicCatalogData: Record<string, Record<string, string[]>> = {
   Computing: {

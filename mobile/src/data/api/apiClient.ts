@@ -91,8 +91,14 @@ apiClient.interceptors.response.use(
     });
 
     if (error.response?.status === 401) {
-      console.warn('[MOBILE CLIENT] ⚠️ 401 Unauthorized received — clearing session');
-      useAuthStore.getState().logout();
+      const currentToken = useAuthStore.getState().token;
+      const isDemoToken = currentToken === 'demo_jwt_token' || currentToken?.startsWith('demo_') || currentToken?.startsWith('mock_');
+      if (!isDemoToken) {
+        console.warn('[MOBILE CLIENT] ⚠️ 401 Unauthorized received — clearing session');
+        useAuthStore.getState().logout();
+      } else {
+        console.warn('[MOBILE CLIENT] ⚠️ 401 Unauthorized received for demo session — keeping session active');
+      }
     }
 
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {

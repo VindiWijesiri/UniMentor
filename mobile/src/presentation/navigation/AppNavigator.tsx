@@ -46,6 +46,27 @@ import AssessmentDetailScreen from '../screens/learning/AssessmentDetailScreen';
 import LearningActivityScreen from '../screens/learning/LearningActivityScreen';
 import DiscussionsScreen from '../screens/learning/DiscussionsScreen';
 import LiveSessionScreen from '../screens/learning/LiveSessionScreen';
+import RoleSelectionScreen from '../screens/auth/RoleSelectionScreen';
+import StudentRegistrationScreen from '../screens/auth/StudentRegistrationScreen';
+import TutorRegistrationScreen from '../screens/auth/TutorRegistrationScreen';
+import EmailVerificationScreen from '../screens/verification/EmailVerificationScreen';
+import VerifyIdentityScreen from '../screens/verification/VerifyIdentityScreen';
+import FaceVerificationScreen from '../screens/verification/FaceVerificationScreen';
+import VerificationResultScreen from '../screens/verification/VerificationResultScreen';
+import TutorVerificationStatusScreen from '../screens/verification/TutorVerificationStatusScreen';
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import TutorApplicationsScreen from '../screens/admin/TutorApplicationsScreen';
+import TutorApplicationDetailsScreen from '../screens/admin/TutorApplicationDetailsScreen';
+import DocumentReviewScreen from '../screens/admin/DocumentReviewScreen';
+import UserManagementScreen from '../screens/admin/UserManagementScreen';
+import TutorDashboardScreen from '../screens/tutor/TutorDashboardScreen';
+import TutorProfileManageScreen from '../screens/tutor/TutorProfileManageScreen';
+import EditProfileScreen from '../screens/tutor/EditProfileScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
+import SecurityScreen from '../screens/settings/SecurityScreen';
+import NotificationSettingsScreen from '../screens/settings/NotificationSettingsScreen';
+import HelpSupportScreen from '../screens/settings/HelpSupportScreen';
+import AccountStatusScreen from '../screens/settings/AccountStatusScreen';
 import type { AssessmentKind } from '../../domain/entities/AssessmentWork';
 import { useAuthStore } from '../../domain/stores/authStore';
 import { colors } from '../../shared/theme';
@@ -56,6 +77,9 @@ export type SearchParams = {
   faculty?: string;
   department?: string;
   programme?: string;
+  academicYear?: string;
+  semester?: string;
+  topic?: string;
   filters?: TutorFilters;
 } | undefined;
 
@@ -103,6 +127,40 @@ export type AppStackParamList = {
   TutorStudent: { id: string };
   PackDispatcher: undefined;
   TutorTools: { tool: 'bank' | 'voice' | 'squads' | 'export' };
+  TutorDashboard: undefined;
+  TutorProfileManage: undefined;
+  EditProfile: undefined;
+  TutorVerificationStatus: undefined;
+  VerifyIdentity: { email?: string; role?: 'student' | 'mentor' } | undefined;
+  FaceVerification: { role?: 'student' | 'mentor' } | undefined;
+  VerificationResult: {
+    success: boolean;
+    role?: 'student' | 'mentor';
+    reason?: string;
+    message?: string;
+  };
+  EmailVerification: {
+    email: string;
+    role?: 'student' | 'mentor';
+    name?: string;
+    faculty?: string;
+    degree?: string;
+    hourlyRate?: number;
+    selectedModules?: string[];
+  };
+  AdminDashboard: undefined;
+  TutorApplications: undefined;
+  TutorApplicationDetails: { applicationId: string };
+  DocumentReview: { documentType?: string; fileName?: string } | undefined;
+  UserManagement: undefined;
+  Settings: undefined;
+  Security: undefined;
+  NotificationSettings: undefined;
+  HelpSupport: undefined;
+  AccountStatus: undefined;
+  RoleSelection: undefined;
+  StudentRegistration: undefined;
+  TutorRegistration: undefined;
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
@@ -211,6 +269,27 @@ export default function AppNavigator() {
       <Stack.Screen name="StudyMaterials" component={StudyMaterialsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="StudyMaterialDetail" component={StudyMaterialDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="StoreMaterial" component={StoreMaterialScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TutorDashboard" component={TutorDashboardScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TutorProfileManage" component={TutorProfileManageScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TutorVerificationStatus" component={TutorVerificationStatusScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="VerifyIdentity" component={VerifyIdentityScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="FaceVerification" component={FaceVerificationScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="VerificationResult" component={VerificationResultScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TutorApplications" component={TutorApplicationsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TutorApplicationDetails" component={TutorApplicationDetailsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="DocumentReview" component={DocumentReviewScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="UserManagement" component={UserManagementScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Security" component={SecurityScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="AccountStatus" component={AccountStatusScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="StudentRegistration" component={StudentRegistrationScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TutorRegistration" component={TutorRegistrationScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
