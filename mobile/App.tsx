@@ -7,7 +7,8 @@ import RootNavigator from './src/presentation/navigation/RootNavigator';
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="auto" />
+      <RNStatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      <StatusBar style="light" />
       <RootNavigator />
     </SafeAreaProvider>
   );
