@@ -4,11 +4,13 @@ import {
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView,
   Platform, ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { loginUseCase } from '../../../domain/usecases/auth/loginUseCase';
 import { beginSession } from '../../../domain/stores/sessionGate';
 import Logo from '../../components/Logo';
+import { useDeviceFrame } from '../../components/DeviceFrame';
 import { colors } from '../../../shared/theme';
 
 type Props = {
@@ -23,9 +25,12 @@ const DEMOS = [
 ] as const;
 
 export default function LoginScreen({ navigation }: Props) {
+  const frame = useDeviceFrame();
+  const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'demo' | 'regular'>('demo');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
 
   const signIn = async (nextEmail: string, nextPassword: string, key: string) => {
@@ -49,7 +54,7 @@ export default function LoginScreen({ navigation }: Props) {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.container, frame.frame, { paddingTop: insets.top + 24, paddingBottom: frame.bottom + 24 }]} keyboardShouldPersistTaps="handled">
         {/* Logo */}
         <View style={styles.logoSection}>
           <Logo size="large" />
@@ -83,14 +88,22 @@ export default function LoginScreen({ navigation }: Props) {
               />
 
               <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                placeholderTextColor={colors.textLight}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
+              <View style={styles.passwordRow}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Enter your password"
+                  placeholderTextColor={colors.textLight}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword((value) => !value)} hitSlop={8}>
+                  <Text style={styles.eye}>{showPassword ? 'Hide' : 'Show'}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotWrap}>
+                <Text style={styles.forgot}>Forgot password?</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity style={styles.button} onPress={() => signIn(email.trim(), password, 'regular')} disabled={loading !== null}>
                 {loading === 'regular'
@@ -98,10 +111,13 @@ export default function LoginScreen({ navigation }: Props) {
                   : <Text style={styles.buttonText}>Login</Text>}
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+              <TouchableOpacity onPress={() => navigation.navigate('RoleSelection')}>
                 <Text style={styles.link}>
                   Don't have an account? <Text style={styles.linkBold}>Register</Text>
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('AdminLogin')} style={styles.staffWrap}>
+                <Text style={styles.staff}>Staff / admin portal</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -121,7 +137,7 @@ export default function LoginScreen({ navigation }: Props) {
                   </TouchableOpacity>
                 ))}
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+              <TouchableOpacity onPress={() => navigation.navigate('RoleSelection')}>
                 <Text style={styles.link}>
                   Don't have an account? <Text style={styles.linkBold}>Register</Text>
                 </Text>
@@ -143,8 +159,8 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: 'center',
-    paddingTop: 72,
-    paddingBottom: 40,
+    paddingTop: 16,
+    paddingBottom: 28,
   },
   tagline: {
     fontSize: 14,
@@ -183,6 +199,21 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.surface,
   },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    marginBottom: 8,
+  },
+  passwordInput: { flex: 1, padding: 14, fontSize: 15, color: colors.text },
+  eye: { color: colors.primary, fontWeight: '800', fontSize: 13, paddingHorizontal: 14 },
+  forgotWrap: { alignSelf: 'flex-end', marginBottom: 8 },
+  forgot: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  staffWrap: { marginTop: 14, alignItems: 'center' },
+  staff: { color: '#102B5D', fontWeight: '700', fontSize: 13 },
   button: {
     backgroundColor: '#FF8D28',
     padding: 16,
@@ -210,7 +241,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   demoBtn: {
-    width: '48%',
+    flexGrow: 1,
+    flexBasis: '46%',
+    minWidth: 140,
     backgroundColor: '#102B5D',
     borderRadius: 14,
     paddingVertical: 16,

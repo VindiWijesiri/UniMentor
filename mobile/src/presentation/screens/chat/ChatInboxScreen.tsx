@@ -13,6 +13,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MessageCircle, Search } from 'lucide-react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import PageHeader, { PageSubbar } from '../../components/PageHeader';
@@ -22,7 +23,10 @@ import type { Mentor } from '../../../domain/entities/Mentor';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'Messages'>;
+type Props = {
+  navigation: NavigationProp<any>;
+  route?: any;
+};
 type FilterTab = 'all' | 'unread' | 'voice';
 
 const formatDate = (date: string) =>

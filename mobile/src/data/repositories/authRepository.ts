@@ -10,7 +10,17 @@ interface RegisterInput {
   name: string;
   email: string;
   password: string;
-  role: 'student' | 'mentor' | 'admin';
+  role: 'student' | 'mentor' | 'admin' | 'lic';
+  degreeProgramme?: string;
+  academicYear?: string;
+  university?: string;
+  faculty?: string;
+  department?: string;
+  studentId?: string;
+  phone?: string;
+  hourlyRate?: number;
+  subjects?: string[];
+  bio?: string;
 }
 
 export const authRepository = {
@@ -20,6 +30,26 @@ export const authRepository = {
   },
   async register(input: RegisterInput): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/register', input);
+    return response.data;
+  },
+  async forgotPassword(email: string): Promise<{ message: string; emailSent?: boolean; devCode?: string }> {
+    const response = await apiClient.post<{ message: string; emailSent?: boolean; devCode?: string }>('/auth/forgot-password', { email });
+    return response.data;
+  },
+  async verifyResetCode(email: string, code: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/auth/verify-reset-code', { email, code });
+    return response.data;
+  },
+  async resetPassword(email: string, password: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/auth/reset-password', { email, password });
+    return response.data;
+  },
+  async sendVerificationOtp(email: string): Promise<{ message: string; emailSent?: boolean; devCode?: string }> {
+    const response = await apiClient.post<{ message: string; emailSent?: boolean; devCode?: string }>('/auth/send-verification-otp', { email });
+    return response.data;
+  },
+  async verifyEmailOtp(email: string, code: string): Promise<{ message: string; verified?: boolean }> {
+    const response = await apiClient.post<{ message: string; verified?: boolean }>('/auth/verify-email-otp', { email, code });
     return response.data;
   },
 };

@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useUserStore } from '../../../domain/stores/userStore';
 import { useStudentStore } from '../../../domain/stores/studentStore';
@@ -19,7 +20,9 @@ import { Pencil } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<any>();
   const { logout } = useAuthStore();
+  const authUser = useAuthStore((state) => state.user);
   const { profile, fetchProfile, updateProfile, addSubject, removeSubject } = useUserStore();
   const { dashboard, fetchDashboard } = useStudentStore();
 
@@ -218,6 +221,29 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionHeading}>ACCOUNT</Text>
+          {[
+            ['Settings', 'Settings'],
+            ['Security', 'Security'],
+            ['Notifications', 'NotificationSettings'],
+            ['Help & support', 'HelpSupport'],
+            ['Account status', 'AccountStatus'],
+            ['Verify identity', 'VerifyIdentity'],
+          ].map(([label, screen]) => (
+            <TouchableOpacity key={screen} style={styles.menuRow} onPress={() => navigation.navigate(screen, authUser?.role === 'mentor' ? { role: 'mentor' } : { role: 'student' })}>
+              <Text style={styles.menuLabel}>{label}</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+          ))}
+          {authUser?.role === 'admin' || authUser?.role === 'lic' ? (
+            <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('AdminDashboard')}>
+              <Text style={styles.menuLabel}>Admin console</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Account Actions */}
@@ -522,6 +548,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
+  menuRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8EEF6' },
+  menuLabel: { color: '#102B5D', fontSize: 15, fontWeight: '700' },
+  menuArrow: { color: '#94A3B8', fontSize: 22, fontWeight: '400' },
   actionCard: {
     marginTop: 8,
   },

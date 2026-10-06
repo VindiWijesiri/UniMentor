@@ -1,0 +1,370 @@
+import React, { useState } from 'react';
+import { useDeviceFrame } from '../../components/DeviceFrame';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Platform,
+  Switch,
+  Alert,
+} from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { colors } from '../../../shared/theme';
+
+type Props = {
+  navigation: NativeStackNavigationProp<any>;
+};
+
+export default function SecurityScreen({ navigation }: Props) {
+  const device = useDeviceFrame();
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
+  const [biometricEnabled, setBiometricEnabled] = useState(true);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleChangePassword = () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Validation', 'Please fill in all password fields.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Validation', 'New passwords do not match.');
+      return;
+    }
+    Alert.alert('Password Changed', 'Your security password has been updated across all devices.');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const handleRevokeSessions = () => {
+    Alert.alert('Sessions Terminated', 'All other active web and mobile device sessions have been revoked.');
+  };
+
+  return (
+    <View style={[styles.page, device.frame, { paddingTop: device.top, paddingBottom: device.bottom }]}>
+      {/* Top Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backArrow}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Security & Privacy</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Security Shield Banner */}
+        <View style={styles.shieldBanner}>
+          <Text style={styles.shieldIcon}>🛡️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.shieldTitle}>Account Protection Level: High</Text>
+            <Text style={styles.shieldSub}>
+              2FA enabled • Biometric authentication active
+            </Text>
+          </View>
+        </View>
+
+        {/* Change Password Card */}
+        <Text style={styles.sectionHeader}>CHANGE PASSWORD</Text>
+        <View style={styles.card}>
+          <Text style={styles.label}>Current Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter current password"
+            placeholderTextColor={colors.textLight}
+            secureTextEntry
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+          />
+
+          <Text style={styles.label}>New Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="At least 8 characters"
+            placeholderTextColor={colors.textLight}
+            secureTextEntry
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+
+          <Text style={styles.label}>Confirm New Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm new password"
+            placeholderTextColor={colors.textLight}
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+
+          <TouchableOpacity
+            style={styles.updatePassBtn}
+            onPress={handleChangePassword}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.updatePassText}>Update Password</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Biometrics & 2FA */}
+        <Text style={styles.sectionHeader}>AUTHENTICATION PREFERENCES</Text>
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleTextWrap}>
+              <Text style={styles.toggleTitle}>Two-Factor Authentication (2FA)</Text>
+              <Text style={styles.toggleSub}>
+                Require an authenticator app code on every login
+              </Text>
+            </View>
+            <Switch
+              value={twoFactorEnabled}
+              onValueChange={setTwoFactorEnabled}
+              trackColor={{ false: '#D1D5DB', true: colors.primary }}
+            />
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleTextWrap}>
+              <Text style={styles.toggleTitle}>Biometric Face ID / Fingerprint</Text>
+              <Text style={styles.toggleSub}>
+                Fast sign-in using verified device biometrics
+              </Text>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={setBiometricEnabled}
+              trackColor={{ false: '#D1D5DB', true: colors.primary }}
+            />
+          </View>
+        </View>
+
+        {/* Active Device Sessions */}
+        <Text style={styles.sectionHeader}>ACTIVE DEVICE SESSIONS</Text>
+        <View style={styles.card}>
+          <View style={styles.sessionItem}>
+            <Text style={styles.deviceIcon}>📱</Text>
+            <View style={styles.sessionDetails}>
+              <View style={styles.deviceTitleRow}>
+                <Text style={styles.deviceName}>Android Mobile App (This Device)</Text>
+                <View style={styles.currentBadge}>
+                  <Text style={styles.currentBadgeText}>CURRENT</Text>
+                </View>
+              </View>
+              <Text style={styles.deviceMeta}>Active Now • Colombo, Sri Lanka</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.sessionItem}>
+            <Text style={styles.deviceIcon}>💻</Text>
+            <View style={styles.sessionDetails}>
+              <Text style={styles.deviceName}>Chrome Web Browser (MacBook Pro)</Text>
+              <Text style={styles.deviceMeta}>Last active 2 days ago • Kandy, Sri Lanka</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.revokeBtn} onPress={handleRevokeSessions}>
+            <Text style={styles.revokeText}>Terminate All Other Sessions  ✕</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: '#F4F7FB',
+  },
+  header: {
+    backgroundColor: colors.white,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  backArrow: {
+    fontSize: 24,
+    color: colors.navy,
+    fontWeight: '700',
+    marginTop: -2,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+  headerSpacer: {
+    width: 38,
+  },
+  container: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  shieldBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 20,
+  },
+  shieldIcon: {
+    fontSize: 24,
+  },
+  shieldTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  shieldSub: {
+    fontSize: 11,
+    color: '#047857',
+    marginTop: 2,
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textLight,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    padding: 16,
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.navy,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 14,
+    color: colors.text,
+    backgroundColor: colors.surface,
+  },
+  updatePassBtn: {
+    backgroundColor: colors.secondary,
+    paddingVertical: 13,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  updatePassText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  toggleTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  toggleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  toggleSub: {
+    fontSize: 11,
+    color: colors.textLight,
+    marginTop: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.divider,
+    marginVertical: 12,
+  },
+  sessionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  deviceIcon: {
+    fontSize: 22,
+  },
+  sessionDetails: {
+    flex: 1,
+  },
+  deviceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deviceName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  currentBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  currentBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  deviceMeta: {
+    fontSize: 11,
+    color: colors.textLight,
+    marginTop: 2,
+  },
+  revokeBtn: {
+    marginTop: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  revokeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.error,
+  },
+});
