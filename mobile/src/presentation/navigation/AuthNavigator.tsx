@@ -63,7 +63,7 @@ export type AuthStackParamList = {
   AdminDashboard: undefined;
   TutorApplications: undefined;
   TutorApplicationDetails: { applicationId: string };
-  DocumentReview: { documentType?: string; fileName?: string } | undefined;
+  DocumentReview: { userId?: string; kind?: 'front' | 'back' | 'transcript'; documentType?: string; fileName?: string } | undefined;
   UserManagement: undefined;
   TutorDashboard: undefined;
   TutorProfileManage: undefined;

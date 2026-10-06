@@ -21,6 +21,7 @@ type Props = {
 interface ApplicationItem {
   id: string;
   name: string;
+  email: string;
   university: string;
   faculty: string;
   degree: string;
@@ -28,6 +29,7 @@ interface ApplicationItem {
   status: 'pending' | 'under_review' | 'approved' | 'rejected';
   submittedDate: string;
   studentId: string;
+  hourlyRate?: number;
 }
 
 function mapApplication(user: User): ApplicationItem {
@@ -42,13 +44,15 @@ function mapApplication(user: User): ApplicationItem {
   return {
     id: user._id,
     name: user.name,
+    email: user.email,
     university: user.university || '—',
     faculty: user.faculty || '—',
     degree: user.degree || user.degreeProgramme || '—',
     requestedModules: user.subjects?.length ? user.subjects : user.approvedModules ?? [],
     status,
-    submittedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—',
+    submittedDate: user.createdAt ? new Date(user.createdAt).toLocaleString() : '—',
     studentId: user.studentId || '—',
+    hourlyRate: user.hourlyRate,
   };
 }
 
@@ -157,6 +161,9 @@ export default function TutorApplicationsScreen({ navigation }: Props) {
                   faculty: item.faculty,
                   studentId: item.studentId,
                   modules: item.requestedModules,
+                  email: item.email,
+                  hourlyRate: item.hourlyRate,
+                  submittedDate: item.submittedDate,
                 })
               }
               activeOpacity={0.88}

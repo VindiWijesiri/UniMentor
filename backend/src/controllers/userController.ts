@@ -1,8 +1,11 @@
 import { Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import User, { IEnrolledModule } from '../models/User';
+import UserDocument, { DocumentKind } from '../models/UserDocument';
 import Session from '../models/Session';
 import { GoalPlan } from '../models/goalPlan';
 import { AuthRequest } from '../middleware/auth';
+import { notify } from '../services/notify';
 
 const DEMO_MENTOR_PREFIX = 'mentor-';
 
@@ -536,6 +539,123 @@ export async function setVerificationStatus(req: AuthRequest, res: Response, nex
       return;
     }
     res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+const DOCUMENT_KINDS: DocumentKind[] = ['front', 'back', 'transcript'];
+
+function documentLabel(kind: DocumentKind): string {
+  if (kind === 'front') return 'university ID (front)';
+  if (kind === 'back') return 'university ID (back)';
+  return 'academic transcript';
+}
+
+function isDocumentKind(value: unknown): value is DocumentKind {
+  return DOCUMENT_KINDS.includes(value as DocumentKind);
+}
+
+export async function saveDocument(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const kind = req.body.kind;
+    const image = String(req.body.image || '');
+    if (!isDocumentKind(kind) || !image.startsWith('data:image/')) {
+      res.status(400).json({ message: 'Upload a photo of the document.' });
+      return;
+    }
+    if (image.length > 8_000_000) {
+      res.status(400).json({ message: 'That photo is too large. Try a smaller image.' });
+      return;
+    }
+    const user = await User.findById(req.userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    const fileName = String(req.body.fileName || `${kind}.jpg`).replace(/[^\w.\- ]/g, '').slice(0, 80) || `${kind}.jpg`;
+    const saved = await UserDocument.findOneAndUpdate(
+      { userId: user._id, kind },
+      { image, fileName, status: 'pending' },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    if (kind === 'front') user.idPhoto = image;
+    if (user.verificationStatus === 'unverified' || user.verificationStatus === 'rejected') {
+      user.verificationStatus = 'pending';
+      if (user.accountStatus === 'rejected' || user.accountStatus === 'expired') user.accountStatus = 'pending';
+    }
+    await user.save();
+    res.json({ kind: saved.kind, fileName: saved.fileName, status: saved.status });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getDocuments(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      res.status(400).json({ message: 'Unknown user.' });
+      return;
+    }
+    const staff = req.userRole === 'admin' || req.userRole === 'lic';
+    const self = String(req.userId) === String(req.params.id);
+    if (!staff && !self) {
+      res.status(403).json({ message: 'Forbidden — staff access is required.' });
+      return;
+    }
+    const user = await User.findById(req.params.id).select(
+      'name email studentId university faculty degreeProgramme verificationStatus hourlyRate createdAt',
+    );
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    const full = req.query.full === '1';
+    const docs = await UserDocument.find({ userId: user._id }).select(full ? 'kind image fileName status' : 'kind fileName status');
+    res.json({
+      user,
+      documents: docs.map((doc) => ({
+        kind: doc.kind,
+        fileName: doc.fileName,
+        status: doc.status,
+        ...(full ? { image: doc.image } : {}),
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reviewDocument(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!assertStaff(req, res)) return;
+    if (!mongoose.isValidObjectId(req.params.id) || !isDocumentKind(req.params.kind)) {
+      res.status(400).json({ message: 'Unknown document.' });
+      return;
+    }
+    const status = req.body.status;
+    if (status !== 'approved' && status !== 'reupload') {
+      res.status(400).json({ message: 'Choose approve or re-upload.' });
+      return;
+    }
+    const doc = await UserDocument.findOneAndUpdate(
+      { userId: req.params.id, kind: req.params.kind },
+      { status },
+      { new: true },
+    );
+    if (!doc) {
+      res.status(404).json({ message: 'No upload for this document yet.' });
+      return;
+    }
+    if (status === 'reupload') {
+      await notify(req.params.id, {
+        kind: 'review',
+        title: 'Upload a clearer document',
+        body: `Please send a new photo of your ${documentLabel(req.params.kind)}.`,
+        refId: String(doc._id),
+      });
+    }
+    res.json({ kind: doc.kind, status: doc.status });
   } catch (err) {
     next(err);
   }

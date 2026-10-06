@@ -71,7 +71,10 @@ export async function getTutorDashboard(req: AuthRequest, res: Response, next: N
       },
       stats: {
         activeStudents: students.length,
-        newStudents: 3,
+        newStudents: students.filter((item) => {
+          const created = (item as { createdAt?: Date }).createdAt;
+          return created ? Date.now() - created.getTime() < 7 * 24 * 60 * 60 * 1000 : false;
+        }).length,
         pendingGrading: review.length,
         assignedPacks: workspace?.assignedPacks ?? packs.reduce((sum, pack) => sum + pack.assignedCount, 0),
         classMastery: workspace?.classMastery ?? 0,

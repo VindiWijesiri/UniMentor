@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDeviceFrame } from '../../components/DeviceFrame';
 import {
   View,
@@ -8,37 +8,91 @@ import {
   ScrollView,
   Platform,
   Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors } from '../../../shared/theme';
+import { documentRepository, DocumentKind, DocumentReviewStatus } from '../../../data/repositories/documentRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
   route?: RouteProp<any, any>;
 };
 
+const KIND_LABEL: Record<DocumentKind, string> = {
+  front: 'University ID Card (Front)',
+  back: 'University ID Card (Back)',
+  transcript: 'Academic Transcript',
+};
+
+function statusLabel(status?: DocumentReviewStatus) {
+  if (status === 'approved') return 'Approved';
+  if (status === 'reupload') return 'Re-upload requested';
+  if (status === 'pending') return 'Waiting for review';
+  return 'Not uploaded';
+}
+
 export default function DocumentReviewScreen({ navigation, route }: Props) {
   const device = useDeviceFrame();
-  const docType = route?.params?.documentType || 'University ID Card (Front)';
-  const fileName = route?.params?.fileName || 'id_card_front.jpg';
+  const userId = String(route?.params?.userId || '');
+  const kind: DocumentKind = route?.params?.kind === 'back' || route?.params?.kind === 'transcript' ? route.params.kind : 'front';
+  const docType = route?.params?.documentType || KIND_LABEL[kind];
   const [zoomLevel, setZoomLevel] = useState(100);
   const [rotation, setRotation] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [image, setImage] = useState<string | null>(null);
+  const [fileName, setFileName] = useState('No file');
+  const [status, setStatus] = useState<DocumentReviewStatus | undefined>();
+  const [profile, setProfile] = useState({ name: '—', studentId: '—', university: '—', faculty: '—', email: '—' });
 
-  const handleApprove = () => {
-    Alert.alert(
-      'Document Verified',
-      `Document "${fileName}" marked as authentic by compliance officer.`,
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
-    );
-  };
+  useEffect(() => {
+    if (!/^[a-f\d]{24}$/i.test(userId)) {
+      setLoading(false);
+      return;
+    }
+    documentRepository.get(userId, true)
+      .then((bundle) => {
+        const doc = bundle.documents.find((item) => item.kind === kind);
+        setImage(doc?.image || null);
+        setFileName(doc?.fileName || 'No file');
+        setStatus(doc?.status);
+        setProfile({
+          name: bundle.user.name || '—',
+          studentId: bundle.user.studentId || '—',
+          university: bundle.user.university || '—',
+          faculty: bundle.user.faculty || bundle.user.degreeProgramme || '—',
+          email: bundle.user.email || '—',
+        });
+      })
+      .catch(() => Alert.alert('Could not load', 'The uploaded document did not come back from the server.'))
+      .finally(() => setLoading(false));
+  }, [userId, kind]);
 
-  const handleFlagReupload = () => {
-    Alert.alert(
-      'Re-upload Requested',
-      `A notification was sent requesting the applicant to submit a clearer copy of "${fileName}".`,
-      [{ text: 'Done', onPress: () => navigation.goBack() }]
-    );
+  const saveReview = async (next: 'approved' | 'reupload') => {
+    if (!/^[a-f\d]{24}$/i.test(userId)) {
+      Alert.alert('No applicant', 'Open this from a tutor application.');
+      return;
+    }
+    if (!image) {
+      Alert.alert('Nothing to review', 'This applicant has not uploaded that document.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await documentRepository.review(userId, kind, next);
+      Alert.alert(
+        next === 'approved' ? 'Document approved' : 'Re-upload requested',
+        next === 'approved' ? `${fileName} is marked approved.` : 'The applicant was asked to send a clearer photo.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
+    } catch {
+      Alert.alert('Not saved', 'The review did not reach the server.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -49,7 +103,7 @@ export default function DocumentReviewScreen({ navigation, route }: Props) {
           <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
         <View style={styles.headerTextWrap}>
-          <Text style={styles.headerTitle}>Document Inspection</Text>
+          <Text style={styles.headerTitle}>{docType}</Text>
           <Text style={styles.headerSub}>{fileName}</Text>
         </View>
         <View style={styles.headerSpacer} />
@@ -81,96 +135,71 @@ export default function DocumentReviewScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* Document Simulation Box */}
           <View
             style={[
               styles.documentViewport,
               { transform: [{ scale: zoomLevel / 100 }, { rotate: `${rotation}deg` }] },
             ]}
           >
-            {/* Realistic University ID Card Layout */}
-            <View style={styles.cardHeader}>
-              <Text style={styles.uniCrest}>🏛️</Text>
-              <View>
-                <Text style={styles.uniName}>UNIVERSITY OF MORATUWA</Text>
-                <Text style={styles.facultySub}>Faculty of Information Technology & Computing</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardBody}>
-              <View style={styles.photoBox}>
-                <Text style={styles.photoSilhouette}>👩‍🏫</Text>
-              </View>
-              <View style={styles.cardData}>
-                <Text style={styles.studentName}>DR. SARAH DE SILVA</Text>
-                <Text style={styles.cardField}>REG: TUT/2021/042</Text>
-                <Text style={styles.cardField}>ROLE: Peer Mentor / MSc Scholar</Text>
-                <Text style={styles.cardField}>EXPIRY: DEC 2025</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardFooter}>
-              <Text style={styles.barcode}>||| | |||| | ||||| || | |||| ||</Text>
-              <View style={styles.officialStamp}>
-                <Text style={styles.stampText}>FACULTY SEAL</Text>
-              </View>
-            </View>
+            {loading ? <ActivityIndicator color={colors.primary} /> : image ? (
+              <Image source={{ uri: image }} style={styles.photo} resizeMode="contain" />
+            ) : (
+              <Text style={styles.emptyPhoto}>
+                {/^[a-f\d]{24}$/i.test(userId) ? 'No photo uploaded for this document.' : 'Open a tutor application to review a real upload.'}
+              </Text>
+            )}
           </View>
         </View>
 
-        {/* OCR Auto-Extraction Summary */}
         <View style={styles.ocrSection}>
           <View style={styles.ocrHeader}>
-            <Text style={styles.ocrIcon}>🤖</Text>
             <View>
-              <Text style={styles.ocrTitle}>OCR Extraction & Authenticity</Text>
-              <Text style={styles.ocrSub}>AI verification against university registrar database</Text>
-            </View>
-            <View style={styles.confidenceBadge}>
-              <Text style={styles.confidenceText}>99.1% Confidence</Text>
+              <Text style={styles.ocrTitle}>Account on file</Text>
+              <Text style={styles.ocrSub}>{statusLabel(status)} • compare this with the photo</Text>
             </View>
           </View>
 
           <View style={styles.ocrTable}>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Verified Name</Text>
-              <Text style={styles.ocrVal}>Dr. Sarah De Silva</Text>
+              <Text style={styles.ocrKey}>Name</Text>
+              <Text style={styles.ocrVal}>{profile.name}</Text>
             </View>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Registration Number</Text>
-              <Text style={styles.ocrVal}>TUT/2021/042</Text>
+              <Text style={styles.ocrKey}>Registration number</Text>
+              <Text style={styles.ocrVal}>{profile.studentId}</Text>
             </View>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Enrollment Institution</Text>
-              <Text style={styles.ocrVal}>University of Moratuwa</Text>
+              <Text style={styles.ocrKey}>University</Text>
+              <Text style={styles.ocrVal}>{profile.university}</Text>
             </View>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Enrollment Status</Text>
-              <Text style={[styles.ocrVal, { color: colors.success }]}>Active / Enrolled (Year 4)</Text>
+              <Text style={styles.ocrKey}>Faculty</Text>
+              <Text style={styles.ocrVal}>{profile.faculty}</Text>
             </View>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Tampering Detection</Text>
-              <Text style={[styles.ocrVal, { color: colors.success }]}>0 Modifications Detected (Clean)</Text>
+              <Text style={styles.ocrKey}>Email</Text>
+              <Text style={styles.ocrVal}>{profile.email}</Text>
             </View>
           </View>
         </View>
 
-        {/* Audit Actions */}
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.flagBtn}
-            onPress={handleFlagReupload}
+            onPress={() => saveReview('reupload')}
             activeOpacity={0.85}
+            disabled={saving}
           >
             <Text style={styles.flagBtnText}>Flag for Re-upload</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.approveBtn}
-            onPress={handleApprove}
+            onPress={() => saveReview('approved')}
             activeOpacity={0.85}
+            disabled={saving}
           >
-            <Text style={styles.approveBtnText}>Approve Document  ✓</Text>
+            {saving ? <ActivityIndicator color={colors.white} /> : <Text style={styles.approveBtnText}>Approve Document</Text>}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -273,6 +302,19 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
     padding: 16,
     marginVertical: 10,
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photo: {
+    width: '100%',
+    height: 280,
+  },
+  emptyPhoto: {
+    fontSize: 13,
+    color: colors.textLight,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   cardHeader: {
     flexDirection: 'row',

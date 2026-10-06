@@ -12,6 +12,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { adminRepository } from '../../../data/repositories/adminRepository';
+import type { User } from '../../../domain/entities/User';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -23,12 +24,18 @@ export default function AdminDashboardScreen({ navigation }: Props) {
   const admin = user ?? { name: 'Admin', email: '' };
   const [userCount, setUserCount] = useState(0);
   const [pendingTutors, setPendingTutors] = useState(0);
+  const [joinedWeek, setJoinedWeek] = useState(0);
+  const [recent, setRecent] = useState<User[]>([]);
 
   useEffect(() => {
     adminRepository.directory()
       .then((users) => {
         setUserCount(users.length);
-        setPendingTutors(users.filter((item) => item.role === 'mentor' && item.verificationStatus !== 'approved').length);
+        const pending = users.filter((item) => item.role === 'mentor' && item.verificationStatus !== 'approved');
+        setPendingTutors(pending.length);
+        setRecent(pending.filter((item) => item.verificationStatus !== 'rejected').slice(0, 5));
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        setJoinedWeek(users.filter((item) => item.createdAt && new Date(item.createdAt).getTime() >= weekAgo).length);
       })
       .catch(() => {});
   }, []);
@@ -61,7 +68,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
           <View style={styles.systemStatusRow}>
             <View style={styles.onlineDot} />
             <Text style={styles.systemStatusText}>
-              Platform Health: Normal • All Services Operational (99.9% Uptime)
+              {userCount} accounts in the directory
             </Text>
           </View>
         </View>
@@ -78,7 +85,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
             </View>
             <Text style={styles.statNumber}>{userCount}</Text>
             <Text style={styles.statLabel}>Active University Users</Text>
-            <Text style={styles.statSub}>+85 joined this week</Text>
+            <Text style={styles.statSub}>{joinedWeek} joined this week</Text>
           </TouchableOpacity>
 
           {/* Stat 2 */}
@@ -154,7 +161,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
 
           <TouchableOpacity
             style={styles.actionRow}
-            onPress={() => navigation.navigate('DocumentReview', { documentType: 'Transcript' })}
+            onPress={() => navigation.navigate('TutorApplications')}
           >
             <View style={styles.actionLeft}>
               <View style={[styles.actionIconWrap, { backgroundColor: '#FEF3C7' }]}>
@@ -162,7 +169,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
               </View>
               <View>
                 <Text style={styles.actionTitle}>Document Inspection Viewer</Text>
-                <Text style={styles.actionSub}>High-resolution zoom & OCR transcript analysis</Text>
+                <Text style={styles.actionSub}>Open a tutor application to review uploaded photos</Text>
               </View>
             </View>
             <Text style={styles.actionArrow}>→</Text>
@@ -174,49 +181,46 @@ export default function AdminDashboardScreen({ navigation }: Props) {
           <View style={styles.recentHeader}>
             <Text style={styles.recentTitle}>Pending Verification Queue</Text>
             <TouchableOpacity onPress={() => navigation.navigate('TutorApplications')}>
-              <Text style={styles.viewAllText}>View All (24)</Text>
+              <Text style={styles.viewAllText}>View All ({pendingTutors})</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Queue Item 1 */}
-          <TouchableOpacity
-            style={styles.queueItem}
-            onPress={() =>
-              navigation.navigate('TutorApplicationDetails', { applicationId: 'APP-8421' })
-            }
-          >
-            <View style={styles.queueAvatar}>
-              <Text style={styles.queueAvatarText}>S</Text>
-            </View>
-            <View style={styles.queueDetails}>
-              <Text style={styles.queueName}>Dr. Sarah De Silva</Text>
-              <Text style={styles.queueMeta}>Computing • 3 Modules requested</Text>
-              <Text style={styles.queueTime}>Submitted 2 hours ago</Text>
-            </View>
-            <View style={styles.reviewBadge}>
-              <Text style={styles.reviewBadgeText}>REVIEW</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Queue Item 2 */}
-          <TouchableOpacity
-            style={styles.queueItem}
-            onPress={() =>
-              navigation.navigate('TutorApplicationDetails', { applicationId: 'APP-8422' })
-            }
-          >
-            <View style={[styles.queueAvatar, { backgroundColor: '#0D4F9E' }]}>
-              <Text style={styles.queueAvatarText}>M</Text>
-            </View>
-            <View style={styles.queueDetails}>
-              <Text style={styles.queueName}>Malith Gunawardena</Text>
-              <Text style={styles.queueMeta}>Engineering • 2 Modules requested</Text>
-              <Text style={styles.queueTime}>Submitted 4 hours ago</Text>
-            </View>
-            <View style={styles.reviewBadge}>
-              <Text style={styles.reviewBadgeText}>REVIEW</Text>
-            </View>
-          </TouchableOpacity>
+          {recent.length === 0 ? (
+            <Text style={styles.queueMeta}>No tutors are waiting for review.</Text>
+          ) : recent.map((item) => (
+            <TouchableOpacity
+              key={item._id}
+              style={styles.queueItem}
+              onPress={() =>
+                navigation.navigate('TutorApplicationDetails', {
+                  applicationId: item._id,
+                  name: item.name,
+                  degree: item.degree || item.degreeProgramme,
+                  university: item.university,
+                  faculty: item.faculty,
+                  studentId: item.studentId,
+                  modules: item.subjects?.length ? item.subjects : item.approvedModules,
+                  email: item.email,
+                  hourlyRate: item.hourlyRate,
+                  submittedDate: item.createdAt ? new Date(item.createdAt).toLocaleString() : '—',
+                })
+              }
+            >
+              <View style={styles.queueAvatar}>
+                <Text style={styles.queueAvatarText}>{item.name.charAt(0)}</Text>
+              </View>
+              <View style={styles.queueDetails}>
+                <Text style={styles.queueName}>{item.name}</Text>
+                <Text style={styles.queueMeta}>
+                  {(item.faculty || item.university || 'Campus')} • {(item.subjects?.length || item.approvedModules?.length || 0)} modules
+                </Text>
+                <Text style={styles.queueTime}>{item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Submitted'}</Text>
+              </View>
+              <View style={styles.reviewBadge}>
+                <Text style={styles.reviewBadgeText}>REVIEW</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
     </View>

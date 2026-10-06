@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDeviceFrame } from '../../components/DeviceFrame';
 import {
   View,
@@ -11,15 +11,119 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { useAuthStore } from '../../../domain/stores/authStore';
+import { learningRepository } from '../../../data/repositories/learningRepository';
+import { sessionRepository } from '../../../data/repositories/sessionRepository';
+import { tutorPortalRepository } from '../../../data/repositories/tutorPortalRepository';
+import type { Session } from '../../../domain/entities/Session';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
+function money(amount: number) {
+  return `LKR ${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+}
+
+function dayLabel(iso: string) {
+  const date = new Date(iso);
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const that = new Date(date);
+  that.setHours(0, 0, 0, 0);
+  const diff = Math.round((that.getTime() - start.getTime()) / 86400000);
+  if (diff === 0) return 'TODAY';
+  if (diff === 1) return 'TOMORROW';
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
+}
+
+function timeLabel(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function studentName(session: Session) {
+  return typeof session.studentId === 'object' && session.studentId?.name ? session.studentId.name : 'Student';
+}
+
 export default function TutorDashboardScreen({ navigation }: Props) {
   const device = useDeviceFrame();
   const { user } = useAuthStore();
-  const tutor = user ?? { name: 'Tutor', email: '', university: '', completedSessions: 0, rating: 0, totalReviews: 0 };
+  const tutor = user ?? { name: 'Tutor', email: '', university: '', completedSessions: 0, rating: 0, totalReviews: 0, reviewCount: 0 };
+  const [earnings, setEarnings] = useState(0);
+  const [monthNote, setMonthNote] = useState('');
+  const [completed, setCompleted] = useState(0);
+  const [upcoming, setUpcoming] = useState<Session[]>([]);
+  const [activeStudents, setActiveStudents] = useState(0);
+  const [pendingGrading, setPendingGrading] = useState(0);
+  const [classMastery, setClassMastery] = useState<number | null>(null);
+  const [repeatClients, setRepeatClients] = useState(0);
+
+  useEffect(() => {
+    learningRepository.getTutorDashboard()
+      .then((board) => {
+        setActiveStudents(board.stats.activeStudents);
+        setPendingGrading(board.stats.pendingGrading);
+        setClassMastery(board.stats.classMastery);
+      })
+      .catch(() => {});
+    tutorPortalRepository.payments()
+      .then((payload) => {
+        setEarnings(payload.totalLkr || 0);
+        const now = new Date();
+        const thisKey = `${now.getFullYear()}-${now.getMonth()}`;
+        const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastKey = `${previous.getFullYear()}-${previous.getMonth()}`;
+        let thisMonth = 0;
+        let lastMonth = 0;
+        (payload.items ?? []).forEach((item) => {
+          const date = new Date(item.createdAt);
+          const key = `${date.getFullYear()}-${date.getMonth()}`;
+          if (key === thisKey) thisMonth += item.amountLkr;
+          if (key === lastKey) lastMonth += item.amountLkr;
+        });
+        if (lastMonth > 0) {
+          const delta = Math.round(((thisMonth - lastMonth) / lastMonth) * 100);
+          setMonthNote(`${delta >= 0 ? '+' : ''}${delta}% vs last month`);
+        } else if (thisMonth > 0) {
+          setMonthNote(`${money(thisMonth)} this month`);
+        }
+      })
+      .catch(() => {});
+    sessionRepository.getMySessions()
+      .then((sessions) => {
+        const done = sessions.filter((session) => session.status === 'completed');
+        setCompleted(done.length);
+        const counts = new Map<string, number>();
+        done.forEach((session) => {
+          const id = typeof session.studentId === 'object' ? session.studentId._id : session.studentId;
+          counts.set(id, (counts.get(id) || 0) + 1);
+        });
+        setRepeatClients([...counts.values()].filter((count) => count > 1).length);
+        setUpcoming(
+          sessions
+            .filter((session) => (session.status === 'pending' || session.status === 'confirmed') && new Date(session.scheduledAt).getTime() >= Date.now())
+            .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+            .slice(0, 3),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  const checks = [
+    Boolean(tutor.name),
+    Boolean(user?.bio),
+    Boolean(user?.degree || user?.degreeProgramme),
+    Boolean(user?.university),
+    typeof user?.hourlyRate === 'number' && user.hourlyRate > 0,
+    Boolean((user?.subjects?.length || 0) + (user?.approvedModules?.length || 0)),
+    Boolean(user?.availability),
+    Boolean(user?.phone),
+  ];
+  const readiness = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  const verification = String(user?.verificationStatus || 'unverified');
+  const verified = verification === 'approved' || verification === 'verified';
+  const moduleCount = (user?.subjects?.length || 0) || (user?.approvedModules?.length || 0);
+  const rating = typeof user?.rating === 'number' ? user.rating : 0;
+  const reviews = user?.reviewCount || user?.totalReviews || 0;
 
   return (
     <View style={[styles.page, device.frame, { paddingTop: device.top, paddingBottom: device.bottom }]}>
@@ -35,7 +139,7 @@ export default function TutorDashboardScreen({ navigation }: Props) {
                 <Text style={styles.roleTagText}>PEER TUTOR DASHBOARD</Text>
               </View>
               <Text style={styles.heroName}>{tutor.name}</Text>
-              <Text style={styles.heroFaculty}>🏛️ {tutor.university || 'University of Moratuwa'}</Text>
+              <Text style={styles.heroFaculty}>{user?.university || user?.faculty || 'Campus not added'}</Text>
             </View>
             <TouchableOpacity
               style={styles.settingsIconBtn}
@@ -49,10 +153,10 @@ export default function TutorDashboardScreen({ navigation }: Props) {
           <View style={styles.completionCard}>
             <View style={styles.compHeader}>
               <Text style={styles.compTitle}>Tutor Profile Readiness</Text>
-              <Text style={styles.compPercent}>90% Complete</Text>
+              <Text style={styles.compPercent}>{readiness}% Complete</Text>
             </View>
             <View style={styles.compBarBg}>
-              <View style={[styles.compBarFill, { width: '90%' }]} />
+              <View style={[styles.compBarFill, { width: `${readiness}%` }]} />
             </View>
           </View>
         </View>
@@ -68,8 +172,10 @@ export default function TutorDashboardScreen({ navigation }: Props) {
               <Text style={styles.verCheckMark}>✓</Text>
             </View>
             <View>
-              <Text style={styles.verStatusText}>Faculty Verified • Active on Catalog</Text>
-              <Text style={styles.verSubText}>3 Approved Modules • Re-check status anytime</Text>
+              <Text style={styles.verStatusText}>
+                {verified ? 'Faculty verified • Active on catalog' : verification === 'rejected' ? 'Application rejected' : 'Verification in progress'}
+              </Text>
+              <Text style={styles.verSubText}>{moduleCount} module{moduleCount === 1 ? '' : 's'} on the profile</Text>
             </View>
           </View>
           <Text style={styles.verArrow}>→</Text>
@@ -81,40 +187,43 @@ export default function TutorDashboardScreen({ navigation }: Props) {
           {/* Card 1 */}
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>💰</Text>
-            <Text style={styles.metricValue}>LKR 185,000</Text>
+            <Text style={styles.metricValue}>{money(earnings)}</Text>
             <Text style={styles.metricLabel}>Total Earnings</Text>
-            <View style={styles.trendPill}>
-              <Text style={styles.trendText}>+14% this month</Text>
-            </View>
+            {monthNote ? (
+              <View style={styles.trendPill}>
+                <Text style={styles.trendText}>{monthNote}</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Card 2 */}
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>⏳</Text>
-            <Text style={styles.metricValue}>{tutor.completedSessions || 74} hrs</Text>
-            <Text style={styles.metricLabel}>Sessions Conducted</Text>
-            <View style={[styles.trendPill, { backgroundColor: '#E0F2FE' }]}>
-              <Text style={[styles.trendText, { color: colors.primary }]}>Top 5% Tutor</Text>
-            </View>
+            <Text style={styles.metricValue}>{completed}</Text>
+            <Text style={styles.metricLabel}>Sessions completed</Text>
+            {classMastery !== null ? (
+              <View style={[styles.trendPill, { backgroundColor: '#E0F2FE' }]}>
+                <Text style={[styles.trendText, { color: colors.primary }]}>Class mastery {classMastery}%</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Card 3 */}
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>⭐</Text>
-            <Text style={styles.metricValue}>{tutor.rating || '4.9'} / 5.0</Text>
-            <Text style={styles.metricLabel}>{tutor.totalReviews || 38} Student Reviews</Text>
-            <View style={[styles.trendPill, { backgroundColor: '#FEF3C7' }]}>
-              <Text style={[styles.trendText, { color: '#B45309' }]}>98% Positive</Text>
-            </View>
+            <Text style={styles.metricValue}>{rating.toFixed(1)} / 5.0</Text>
+            <Text style={styles.metricLabel}>{reviews} student review{reviews === 1 ? '' : 's'}</Text>
           </View>
 
           {/* Card 4 */}
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>👥</Text>
-            <Text style={styles.metricValue}>19 Students</Text>
-            <Text style={styles.metricLabel}>Active Learners</Text>
+            <Text style={styles.metricValue}>{activeStudents}</Text>
+            <Text style={styles.metricLabel}>Active learners</Text>
             <View style={[styles.trendPill, { backgroundColor: '#ECFDF5' }]}>
-              <Text style={[styles.trendText, { color: colors.success }]}>6 Repeat Clients</Text>
+              <Text style={[styles.trendText, { color: colors.success }]}>
+                {pendingGrading} to grade • {repeatClients} repeat
+              </Text>
             </View>
           </View>
         </View>
@@ -123,42 +232,31 @@ export default function TutorDashboardScreen({ navigation }: Props) {
         <View style={styles.sessionsSection}>
           <View style={styles.sessionHeaderRow}>
             <Text style={styles.sectionTitle}>Upcoming Sessions</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Sessions')}>
+            <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Sessions' })}>
               <Text style={styles.seeAllText}>View All</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Session 1 */}
-          <View style={styles.sessionItem}>
-            <View style={styles.sessionDateBadge}>
-              <Text style={styles.sessionDateDay}>TODAY</Text>
-              <Text style={styles.sessionDateTime}>5:30 PM</Text>
+          {upcoming.length === 0 ? (
+            <Text style={styles.emptySessions}>No upcoming sessions yet.</Text>
+          ) : upcoming.map((session) => (
+            <View key={session._id} style={styles.sessionItem}>
+              <View style={styles.sessionDateBadge}>
+                <Text style={styles.sessionDateDay}>{dayLabel(session.scheduledAt)}</Text>
+                <Text style={styles.sessionDateTime}>{timeLabel(session.scheduledAt)}</Text>
+              </View>
+              <View style={styles.sessionDetails}>
+                <Text style={styles.sessionStudent}>{studentName(session)}</Text>
+                <Text style={styles.sessionModule}>{session.subject}{session.moduleCode ? ` • ${session.moduleCode}` : ''}</Text>
+                <Text style={styles.sessionLocation}>{session.status === 'pending' ? 'Waiting for confirmation' : 'Confirmed'}</Text>
+              </View>
+              {user?.hourlyRate ? (
+                <View style={styles.sessionRateBadge}>
+                  <Text style={styles.sessionRate}>{money(user.hourlyRate)}</Text>
+                </View>
+              ) : null}
             </View>
-            <View style={styles.sessionDetails}>
-              <Text style={styles.sessionStudent}>Kavindu Perera</Text>
-              <Text style={styles.sessionModule}>Data Structures • Binary Search Trees</Text>
-              <Text style={styles.sessionLocation}>📍 University Library, Study Pod 3</Text>
-            </View>
-            <View style={styles.sessionRateBadge}>
-              <Text style={styles.sessionRate}>LKR 2,500</Text>
-            </View>
-          </View>
-
-          {/* Session 2 */}
-          <View style={styles.sessionItem}>
-            <View style={[styles.sessionDateBadge, { backgroundColor: '#E0F2FE' }]}>
-              <Text style={[styles.sessionDateDay, { color: colors.primary }]}>TOMORROW</Text>
-              <Text style={[styles.sessionDateTime, { color: colors.primary }]}>6:00 PM</Text>
-            </View>
-            <View style={styles.sessionDetails}>
-              <Text style={styles.sessionStudent}>Minoli Silva</Text>
-              <Text style={styles.sessionModule}>OOP • Polymorphism & Inheritance</Text>
-              <Text style={styles.sessionLocation}>🌐 Online Zoom Meeting Room</Text>
-            </View>
-            <View style={styles.sessionRateBadge}>
-              <Text style={styles.sessionRate}>LKR 2,500</Text>
-            </View>
-          </View>
+          ))}
         </View>
 
         {/* Quick Action Shortcuts */}
@@ -174,7 +272,7 @@ export default function TutorDashboardScreen({ navigation }: Props) {
 
           <TouchableOpacity
             style={styles.shortcutBtn}
-            onPress={() => navigation.navigate('EditProfile')}
+            onPress={() => navigation.navigate('TutorAvailability')}
           >
             <Text style={styles.shortcutIcon}>✏️</Text>
             <Text style={styles.shortcutLabel}>Edit Schedule</Text>
@@ -190,7 +288,7 @@ export default function TutorDashboardScreen({ navigation }: Props) {
 
           <TouchableOpacity
             style={styles.shortcutBtn}
-            onPress={() => navigation.navigate('Settings')}
+            onPress={() => navigation.navigate('Security')}
           >
             <Text style={styles.shortcutIcon}>🛡️</Text>
             <Text style={styles.shortcutLabel}>Security</Text>
@@ -442,6 +540,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.primary,
+  },
+  emptySessions: {
+    fontSize: 13,
+    color: colors.textLight,
+    paddingVertical: 12,
   },
   sessionItem: {
     flexDirection: 'row',

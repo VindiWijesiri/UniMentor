@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDeviceFrame } from '../../components/DeviceFrame';
 import {
   View,
@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors } from '../../../shared/theme';
 import { adminRepository } from '../../../data/repositories/adminRepository';
+import { documentRepository, DocumentKind, StoredDocument } from '../../../data/repositories/documentRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -27,12 +28,6 @@ interface ModuleDecision {
   grade: string;
   decision: 'approved' | 'rejected' | 'pending';
 }
-
-const initialModules: ModuleDecision[] = [
-  { module: 'Data Structures & Algorithms', code: 'CS201', grade: 'A+', decision: 'approved' },
-  { module: 'Object-Oriented Programming (OOP)', code: 'CS204', grade: 'A', decision: 'approved' },
-  { module: 'Software Architecture & Design', code: 'SE302', grade: 'A-', decision: 'pending' },
-];
 
 const rejectionReasons = [
   'Transcript grade in module does not meet A/A- university threshold',
@@ -49,14 +44,37 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
   const applicantDegree = route?.params?.degree || '—';
   const applicantUni = [route?.params?.university, route?.params?.faculty].filter(Boolean).join(' • ') || '—';
   const applicantCode = route?.params?.studentId || '—';
+  const applicantEmail = route?.params?.email || '—';
+  const applicantRate = typeof route?.params?.hourlyRate === 'number' ? `LKR ${route.params.hourlyRate} / hr` : '—';
+  const submittedDate = route?.params?.submittedDate || '—';
+  const realApplication = /^[a-f\d]{24}$/i.test(applicationId);
+  const [documents, setDocuments] = useState<StoredDocument[]>([]);
   const [modules, setModules] = useState<ModuleDecision[]>(
-    Array.isArray(route?.params?.modules) && route.params.modules.length
-      ? route.params.modules.map((name: string) => ({ module: name, code: '—', grade: '—', decision: 'pending' as const }))
-      : initialModules,
+    Array.isArray(route?.params?.modules)
+      ? route.params.modules.map((name: string, index: number) => ({ module: name, code: `module-${index}`, grade: '—', decision: 'pending' as const }))
+      : [],
   );
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState(rejectionReasons[0]);
   const [customNote, setCustomNote] = useState('');
+
+  useEffect(() => {
+    if (!realApplication) return;
+    documentRepository.get(applicationId)
+      .then((bundle) => setDocuments(bundle.documents))
+      .catch(() => setDocuments([]));
+  }, [applicationId, realApplication]);
+
+  const documentLine = (kind: DocumentKind) => {
+    const doc = documents.find((item) => item.kind === kind);
+    if (!doc) return 'Not uploaded yet';
+    const status = doc.status === 'approved' ? 'Approved' : doc.status === 'reupload' ? 'Re-upload requested' : 'Waiting for review';
+    return `${doc.fileName || 'Photo'} • ${status}`;
+  };
+
+  const openDocument = (kind: DocumentKind, documentType: string) => {
+    navigation.navigate('DocumentReview', { userId: applicationId, kind, documentType });
+  };
 
   const toggleModuleDecision = (index: number, newDecision: 'approved' | 'rejected') => {
     const updated = [...modules];
@@ -65,9 +83,13 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
   };
 
   const handleCommitApproval = async () => {
+    if (!realApplication) {
+      Alert.alert('No application', 'Open a tutor from the applications list.');
+      return;
+    }
     const approvedCount = modules.filter((m) => m.decision === 'approved').length;
     try {
-      if (applicationId) await adminRepository.setVerification(applicationId, 'approved');
+      await adminRepository.setVerification(applicationId, 'approved');
       Alert.alert(
         'Tutor approved',
         `${approvedCount} of ${modules.length} modules marked for ${applicantName}.`,
@@ -80,8 +102,12 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
 
   const handleConfirmRejection = async () => {
     setRejectModalVisible(false);
+    if (!realApplication) {
+      Alert.alert('No application', 'Open a tutor from the applications list.');
+      return;
+    }
     try {
-      if (applicationId) await adminRepository.setVerification(applicationId, 'rejected');
+      await adminRepository.setVerification(applicationId, 'rejected');
       Alert.alert(
         'Application rejected',
         `${applicantName} was marked rejected. ${selectedReason}`,
@@ -108,7 +134,7 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
         <View style={styles.applicantCard}>
           <View style={styles.applicantTop}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>S</Text>
+              <Text style={styles.avatarText}>{applicantName.charAt(0)}</Text>
             </View>
             <View style={styles.applicantMeta}>
               <View style={styles.statusPill}>
@@ -129,15 +155,15 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Hourly Rate</Text>
-              <Text style={styles.detailVal}>LKR 2,500 / hr</Text>
+              <Text style={styles.detailVal}>{applicantRate}</Text>
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Official Email</Text>
-              <Text style={styles.detailVal}>sarah.d@campus.ac.lk</Text>
+              <Text style={styles.detailVal}>{applicantEmail}</Text>
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Submitted</Text>
-              <Text style={styles.detailVal}>12 May, 10:30 AM</Text>
+              <Text style={styles.detailVal}>{submittedDate}</Text>
             </View>
           </View>
         </View>
@@ -150,44 +176,37 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
           </Text>
 
           <View style={styles.docsList}>
-            {/* Doc 1 */}
-            <TouchableOpacity
-              style={styles.docItem}
-              onPress={() =>
-                navigation.navigate('DocumentReview', {
-                  documentType: 'Student ID Card (Front)',
-                  fileName: 'id_card_front.jpg',
-                })
-              }
-            >
+            <TouchableOpacity style={styles.docItem} onPress={() => openDocument('front', 'University ID Card (Front)')}>
               <View style={styles.docIconWrap}>
                 <Text style={styles.docIcon}>🪪</Text>
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.docName}>University ID Card (Front)</Text>
-                <Text style={styles.docMeta}>id_card_front.jpg • Verified 98.4% Match</Text>
+                <Text style={styles.docMeta}>{documentLine('front')}</Text>
               </View>
-              <Text style={styles.viewDocArrow}>Review 🔍</Text>
+              <Text style={styles.viewDocArrow}>Review</Text>
             </TouchableOpacity>
 
-            {/* Doc 2 */}
-            <TouchableOpacity
-              style={styles.docItem}
-              onPress={() =>
-                navigation.navigate('DocumentReview', {
-                  documentType: 'Official Academic Transcript',
-                  fileName: 'transcript_se_2023.pdf',
-                })
-              }
-            >
+            <TouchableOpacity style={styles.docItem} onPress={() => openDocument('back', 'University ID Card (Back)')}>
+              <View style={styles.docIconWrap}>
+                <Text style={styles.docIcon}>💳</Text>
+              </View>
+              <View style={styles.docInfo}>
+                <Text style={styles.docName}>University ID Card (Back)</Text>
+                <Text style={styles.docMeta}>{documentLine('back')}</Text>
+              </View>
+              <Text style={styles.viewDocArrow}>Review</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.docItem} onPress={() => openDocument('transcript', 'Academic Transcript')}>
               <View style={[styles.docIconWrap, { backgroundColor: '#E0F2FE' }]}>
                 <Text style={styles.docIcon}>📜</Text>
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.docName}>Faculty Academic Transcript</Text>
-                <Text style={styles.docMeta}>transcript_se_2023.pdf • 4.2 MB Official PDF</Text>
+                <Text style={styles.docMeta}>{documentLine('transcript')}</Text>
               </View>
-              <Text style={styles.viewDocArrow}>Review 🔍</Text>
+              <Text style={styles.viewDocArrow}>Review</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -207,6 +226,9 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
           </View>
 
           <View style={styles.moduleDecisionList}>
+            {modules.length === 0 ? (
+              <Text style={styles.sectionSubtitle}>No teaching modules on this application.</Text>
+            ) : null}
             {modules.map((m, idx) => (
               <View key={m.code} style={styles.decisionCard}>
                 <View style={styles.decisionTop}>

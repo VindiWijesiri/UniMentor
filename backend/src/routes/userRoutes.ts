@@ -16,6 +16,9 @@ import {
   listDirectory,
   setAccountStatus,
   setVerificationStatus,
+  saveDocument,
+  getDocuments,
+  reviewDocument,
 } from '../controllers/userController';
 import { authenticate } from '../middleware/auth';
 
@@ -39,6 +42,9 @@ router.post('/shortlist', authenticate, addToShortlist);
 router.put('/shortlist/:mentorId', authenticate, updateShortlist);
 router.delete('/shortlist/:mentorId', authenticate, removeFromShortlist);
 router.get('/directory', authenticate, listDirectory);
+router.post('/documents', authenticate, saveDocument);
+router.get('/:id/documents', authenticate, getDocuments);
+router.patch('/:id/documents/:kind', authenticate, reviewDocument);
 router.patch('/:id/account-status', authenticate, setAccountStatus);
 router.patch('/:id/verification', authenticate, setVerificationStatus);
 
