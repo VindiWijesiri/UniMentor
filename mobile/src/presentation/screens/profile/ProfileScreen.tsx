@@ -1,617 +1,424 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  Alert,
-  Image,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../../domain/stores/authStore';
-import { useUserStore } from '../../../domain/stores/userStore';
-import { useStudentStore } from '../../../domain/stores/studentStore';
+import { colors } from '../../../shared/theme';
+import DemoSwitcherModal from '../../components/DemoSwitcherModal';
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
-  const { logout } = useAuthStore();
-  const { profile, fetchProfile, updateProfile, addSubject, removeSubject } = useUserStore();
-  const { dashboard } = useStudentStore();
+  const navigation = useNavigation<any>();
+  const { user, logout, switchDemoRole } = useAuthStore();
+  const [demoModalVisible, setDemoModalVisible] = useState(false);
 
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddInterestModal, setShowAddInterestModal] = useState(false);
-
-  // Edit form state
-  const [editName, setEditName] = useState('');
-  const [editBio, setEditBio] = useState('');
-  const [editDegree, setEditDegree] = useState('');
-  const [editYear, setEditYear] = useState('Year 3');
-  const [editSem, setEditSem] = useState('Sem 2');
-  const [editAvatar, setEditAvatar] = useState('');
-
-  // Add interest tag
-  const [newInterest, setNewInterest] = useState('');
-
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
-  const user = profile || dashboard?.user;
-  const name = user?.name || 'Nethmi Silva';
-  const email = user?.email || 'nethmi.silva@student.unimentor.lk';
-  const role = user?.role || 'student';
-  const degree = user?.degreeProgramme || 'BSc (Hons) Software Engineering';
-  const academicYear = user?.academicYear || 'Year 3';
-  const semester = user?.semester || 'Sem 2';
-  const bio =
-    user?.bio ||
-    'Software Engineering undergraduate passionate about algorithms, clean architecture, and distributed systems.';
-  const subjects: string[] = user?.subjects?.length
-    ? user.subjects
-    : ['Data Structures', 'Software Architecture', 'DBMS', 'Mobile Development'];
-  const avatarUri =
-    user?.profilePicture ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
-
-  const stats = dashboard?.academicStats || { goals: 4, plans: 3, dueTests: 2, done: 18 };
-
-  const openEditModal = () => {
-    setEditName(name);
-    setEditBio(bio);
-    setEditDegree(degree);
-    setEditYear(academicYear);
-    setEditSem(semester);
-    setEditAvatar(avatarUri);
-    setShowEditModal(true);
-  };
-
-  const handleSaveProfile = async () => {
-    if (!editName.trim()) {
-      Alert.alert('Required', 'Name cannot be empty.');
-      return;
-    }
-
-    await updateProfile({
-      name: editName.trim(),
-      bio: editBio.trim(),
-      degreeProgramme: editDegree.trim(),
-      academicYear: editYear,
-      semester: editSem,
-      profilePicture: editAvatar.trim(),
-    });
-
-    setShowEditModal(false);
-    Alert.alert('Profile Updated', 'Your profile changes have been saved.');
-  };
-
-  const handleAddInterest = async () => {
-    if (!newInterest.trim()) return;
-    await addSubject(newInterest.trim());
-    setNewInterest('');
-    setShowAddInterestModal(false);
-  };
-
-  const handleRemoveInterest = (item: string) => {
-    Alert.alert('Remove Subject', `Remove "${item}" from your academic interests?`, [
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeSubject(item) },
-    ]);
-  };
-
-  const handleClearBio = () => {
-    Alert.alert('Clear Bio', 'Reset your bio to blank?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => updateProfile({ bio: '' }),
-      },
-    ]);
-  };
-
-  const handleLogoutPrompt = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out of UniMentor?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: logout },
+      { text: 'Sign Out', style: 'destructive', onPress: logout },
     ]);
   };
 
   return (
-    <View style={styles.screen}>
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>My Student Profile</Text>
-          <TouchableOpacity style={styles.editHeaderBtn} onPress={openEditModal}>
-            <Text style={styles.editHeaderBtnText}>✏️ Edit</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Profile Card Summary */}
-        <View style={styles.profileSummaryRow}>
+    <View style={styles.page}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* User Profile Card */}
+        <View style={styles.profileHero}>
           <View style={styles.avatarWrap}>
-            <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
-            <View style={styles.onlineDot} />
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitial}>{user?.name?.charAt(0) || 'U'}</Text>
+            </View>
+            <View style={styles.statusBadgeDot}>
+              <Text style={styles.statusDotText}>✓</Text>
+            </View>
           </View>
 
-          <View style={styles.profileCopyWrap}>
-            <View style={styles.roleRow}>
-              <Text style={styles.profileName}>{name}</Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleBadgeText}>{role.toUpperCase()}</Text>
-              </View>
-            </View>
-            <Text style={styles.profileEmail}>{email}</Text>
-            <Text style={styles.academicPillText}>{`${degree} • ${academicYear} ${semester}`}</Text>
-          </View>
-        </View>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Academic Stats */}
-        <View style={styles.statsCard}>
-          <Text style={styles.sectionHeading}>ACADEMIC SUMMARY</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={[styles.statVal, { color: '#FBBF24' }]}>{stats.goals}</Text>
-              <Text style={styles.statLbl}>Goals</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statVal, { color: '#38BDF8' }]}>{stats.plans}</Text>
-              <Text style={styles.statLbl}>Plans</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statVal, { color: '#FB7185' }]}>{stats.dueTests}</Text>
-              <Text style={styles.statLbl}>Due Tests</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statVal, { color: '#34D399' }]}>{stats.done}</Text>
-              <Text style={styles.statLbl}>Done</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Bio Section with Update & Delete */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeading}>ABOUT & ACADEMIC BIO</Text>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity onPress={openEditModal}>
-                <Text style={styles.actionLink}>Edit</Text>
-              </TouchableOpacity>
-              {bio ? (
-                <TouchableOpacity onPress={handleClearBio}>
-                  <Text style={[styles.actionLink, { color: '#EF4444' }]}>Clear</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-          <Text style={styles.bioText}>
-            {bio || 'No bio provided. Tap "Edit" to tell your mentors and peers about your goals!'}
+          <Text style={styles.userName}>{user?.name || 'Kavindu Perera'}</Text>
+          <Text style={styles.userEmail}>{user?.email}</Text>
+          <Text style={styles.userDegree}>
+            {user?.degree || 'BSc (Hons) in Computer Science'}
           </Text>
+          <Text style={styles.userUni}>
+            🏛️ {user?.university || 'University of Colombo'}
+          </Text>
+
+          {/* Quick Demo Switcher Bar */}
+          <View style={styles.demoBar}>
+            <Text style={styles.demoBarTitle}>ACTIVE FLOW: {user?.role?.toUpperCase() || 'STUDENT'}</Text>
+            <View style={styles.demoBtnRow}>
+              <TouchableOpacity
+                style={[styles.demoPill, user?.role === 'student' && styles.demoPillActive]}
+                onPress={() => switchDemoRole('student')}
+              >
+                <Text style={[styles.demoPillText, user?.role === 'student' && styles.demoPillTextActive]}>
+                  🎓 Student
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.demoPill, user?.role === 'mentor' && styles.demoPillActive]}
+                onPress={() => switchDemoRole('mentor')}
+              >
+                <Text style={[styles.demoPillText, user?.role === 'mentor' && styles.demoPillTextActive]}>
+                  👨‍🏫 Tutor
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.demoPill, user?.role === 'admin' && styles.demoPillActive]}
+                onPress={() => switchDemoRole('admin')}
+              >
+                <Text style={[styles.demoPillText, user?.role === 'admin' && styles.demoPillTextActive]}>
+                  🛡️ Admin
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
-        {/* Interests & Subjects Tags (Create, Read, Delete) */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeading}>INTERESTS & FOCUS SUBJECTS</Text>
-            <TouchableOpacity onPress={() => setShowAddInterestModal(true)}>
-              <Text style={styles.actionLink}>+ Add Subject</Text>
-            </TouchableOpacity>
+        {/* Academic Details Card */}
+        <Text style={styles.sectionHeader}>ACADEMIC ENROLLMENT</Text>
+        <View style={styles.card}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoKey}>Student Registration ID</Text>
+            <Text style={styles.infoVal}>{user?.studentId || 'CS/2023/089'}</Text>
           </View>
-
-          <View style={styles.tagsGrid}>
-            {subjects.map((sub: string) => (
-              <View key={sub} style={styles.tagPill}>
-                <Text style={styles.tagPillText}>{sub}</Text>
-                <TouchableOpacity
-                  onPress={() => handleRemoveInterest(sub)}
-                  style={styles.removeTagBtn}
-                >
-                  <Text style={styles.removeTagBtnText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+          <View style={styles.divider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoKey}>Faculty & Department</Text>
+            <Text style={styles.infoVal}>
+              {user?.faculty || 'Computing'} • {user?.department || 'Computer Science'}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoKey}>Account Standing</Text>
+            <View style={styles.standingBadge}>
+              <Text style={styles.standingText}>
+                {(user?.accountStatus || 'active').toUpperCase()}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Account Actions */}
-        <View style={styles.actionCard}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutPrompt}>
-            <Text style={styles.logoutBtnText}>Log Out</Text>
+        {/* Platform Services & Shortcuts */}
+        <Text style={styles.sectionHeader}>SERVICES & AUDIT</Text>
+        <View style={styles.menuGroup}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('AccountStatus')}
+          >
+            <Text style={styles.menuIcon}>📜</Text>
+            <Text style={styles.menuLabel}>Account Status & Standing</Text>
+            <Text style={styles.menuArrow}>→</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('TutorVerificationStatus')}
+          >
+            <Text style={styles.menuIcon}>🛡️</Text>
+            <Text style={styles.menuLabel}>Tutor Verification Status (6 States)</Text>
+            <Text style={styles.menuArrow}>→</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Text style={styles.menuIcon}>⚙️</Text>
+            <Text style={styles.menuLabel}>Settings & Platform Preferences</Text>
+            <Text style={styles.menuArrow}>→</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('HelpSupport')}
+          >
+            <Text style={styles.menuIcon}>💬</Text>
+            <Text style={styles.menuLabel}>Campus Help & Support Center</Text>
+            <Text style={styles.menuArrow}>→</Text>
           </TouchableOpacity>
         </View>
+
+        {/* 24-Screen Demo Navigator */}
+        <TouchableOpacity
+          style={styles.allScreensBtn}
+          onPress={() => setDemoModalVisible(true)}
+          activeOpacity={0.88}
+        >
+          <Text style={styles.allScreensIcon}>⚡</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.allScreensTitle}>Browse All 24 Screens</Text>
+            <Text style={styles.allScreensSub}>
+              Jump to any screen in Student, Tutor, or Admin flows
+            </Text>
+          </View>
+          <Text style={styles.allScreensArrow}>→</Text>
+        </TouchableOpacity>
+
+        {/* Logout */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* ================= EDIT PROFILE MODAL ================= */}
-      <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowEditModal(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Edit Student Profile</Text>
-            <Text style={styles.sheetSubtitle}>Update your degree and academic information.</Text>
-
-            <Text style={styles.inputLabel}>Full Name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={editName}
-              onChangeText={setEditName}
-              placeholder="Your name"
-            />
-
-            <Text style={styles.inputLabel}>Degree Programme</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={editDegree}
-              onChangeText={setEditDegree}
-              placeholder="e.g. BSc (Hons) Software Engineering"
-            />
-
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Year</Text>
-                <View style={styles.chipsWrap}>
-                  {['Year 1', 'Year 2', 'Year 3', 'Year 4'].map((yr) => (
-                    <TouchableOpacity
-                      key={yr}
-                      style={[styles.smallChip, editYear === yr && styles.smallChipActive]}
-                      onPress={() => setEditYear(yr)}
-                    >
-                      <Text style={[styles.smallChipText, editYear === yr && styles.smallChipTextActive]}>
-                        {yr}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Semester</Text>
-                <View style={styles.chipsWrap}>
-                  {['Sem 1', 'Sem 2'].map((sm) => (
-                    <TouchableOpacity
-                      key={sm}
-                      style={[styles.smallChip, editSem === sm && styles.smallChipActive]}
-                      onPress={() => setEditSem(sm)}
-                    >
-                      <Text style={[styles.smallChipText, editSem === sm && styles.smallChipTextActive]}>
-                        {sm}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            <Text style={styles.inputLabel}>Bio</Text>
-            <TextInput
-              style={[styles.modalInput, { height: 75, textAlignVertical: 'top' }]}
-              value={editBio}
-              onChangeText={setEditBio}
-              multiline
-              placeholder="Tell us about your academic goals..."
-            />
-
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile}>
-              <Text style={styles.saveBtnText}>Save Profile</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* ================= ADD SUBJECT / INTEREST MODAL ================= */}
-      <Modal visible={showAddInterestModal} animationType="slide" transparent onRequestClose={() => setShowAddInterestModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowAddInterestModal(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Add Academic Interest</Text>
-            <Text style={styles.sheetSubtitle}>Add subjects you want mentoring in.</Text>
-
-            <TextInput
-              style={styles.modalInput}
-              value={newInterest}
-              onChangeText={setNewInterest}
-              placeholder="e.g. Artificial Intelligence, Cryptography"
-              placeholderTextColor="#94A3B8"
-            />
-
-            <TouchableOpacity style={styles.saveBtn} onPress={handleAddInterest}>
-              <Text style={styles.saveBtnText}>+ Add Interest</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* Demo Modal */}
+      <DemoSwitcherModal
+        visible={demoModalVisible}
+        onClose={() => setDemoModalVisible(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F7FB' },
-  header: {
-    backgroundColor: '#061E47',
-    paddingHorizontal: 16,
-    paddingBottom: 18,
+  page: {
+    flex: 1,
+    backgroundColor: '#F4F7FB',
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  container: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 52 : 24,
+    paddingBottom: 40,
+  },
+  profileHero: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 20,
     alignItems: 'center',
-    marginBottom: 14,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  editHeaderBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  editHeaderBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  profileSummaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginBottom: 20,
+    shadowColor: '#244369',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   avatarWrap: {
     position: 'relative',
-    marginRight: 14,
+    marginBottom: 12,
   },
-  avatarImg: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: '#FBBF24',
+  avatarCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#416FA7',
   },
-  onlineDot: {
+  avatarInitial: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  statusBadgeDot: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#22C55E',
-    borderWidth: 2,
-    borderColor: '#061E47',
-  },
-  profileCopyWrap: {
-    flex: 1,
-  },
-  roleRow: {
-    flexDirection: 'row',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.success,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
   },
-  profileName: {
-    color: '#FFFFFF',
-    fontSize: 18,
+  statusDotText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  userName: {
+    fontSize: 20,
     fontWeight: '800',
+    color: colors.navy,
+    marginBottom: 2,
   },
-  roleBadge: {
-    backgroundColor: '#F59E0B',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
+  userEmail: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginBottom: 4,
   },
-  roleBadgeText: {
-    color: '#FFFFFF',
+  userDegree: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  userUni: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  demoBar: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    padding: 10,
+    borderRadius: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  demoBarTitle: {
     fontSize: 9,
     fontWeight: '800',
+    color: colors.textLight,
+    letterSpacing: 0.8,
+    textAlign: 'center',
+    marginBottom: 6,
   },
-  profileEmail: {
-    color: '#94A3B8',
-    fontSize: 12,
-    marginTop: 2,
+  demoBtnRow: {
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
   },
-  academicPillText: {
-    color: '#FBBF24',
+  demoPill: {
+    flex: 1,
+    paddingVertical: 6,
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    alignItems: 'center',
+  },
+  demoPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  demoPillText: {
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 3,
+    color: colors.navy,
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 36,
+  demoPillTextActive: {
+    color: colors.white,
   },
-  statsCard: {
-    backgroundColor: '#0B2754',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
-  },
-  sectionHeading: {
-    color: '#94A3B8',
-    fontSize: 10,
+  sectionHeader: {
+    fontSize: 11,
     fontWeight: '800',
+    color: colors.textLight,
     letterSpacing: 0.8,
     marginBottom: 8,
+    marginLeft: 4,
   },
-  statsRow: {
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginBottom: 20,
+  },
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  statBox: {
     alignItems: 'center',
-    flex: 1,
+    paddingVertical: 2,
   },
-  statVal: {
-    fontSize: 18,
-    fontWeight: '800',
+  infoKey: {
+    fontSize: 12,
+    color: colors.textLight,
   },
-  statLbl: {
-    color: '#94A3B8',
+  infoVal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.divider,
+    marginVertical: 10,
+  },
+  standingBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  standingText: {
     fontSize: 10,
+    fontWeight: '800',
+    color: colors.success,
+  },
+  menuGroup: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  menuIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  menuLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  menuArrow: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  allScreensBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF4FF',
+    borderWidth: 1.5,
+    borderColor: '#C7D9FA',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 20,
+    gap: 10,
+  },
+  allScreensIcon: {
+    fontSize: 22,
+  },
+  allScreensTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+  allScreensSub: {
+    fontSize: 11,
+    color: colors.primary,
     marginTop: 2,
   },
-  sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  actionLink: {
-    color: '#061E47',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  bioText: {
-    color: '#334155',
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  tagsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tagPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EEF2F8',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 12,
-    paddingLeft: 10,
-    paddingRight: 6,
-    paddingVertical: 4,
-  },
-  tagPillText: {
-    color: '#061E47',
-    fontSize: 11,
-    fontWeight: '700',
-    marginRight: 4,
-  },
-  removeTagBtn: {
-    padding: 3,
-  },
-  removeTagBtnText: {
-    color: '#EF4444',
-    fontSize: 11,
+  allScreensArrow: {
+    fontSize: 18,
     fontWeight: '800',
-  },
-  actionCard: {
-    marginTop: 8,
+    color: colors.primary,
   },
   logoutBtn: {
     backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  logoutBtnText: {
-    color: '#DC2626',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-
-  /* Modals */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(6, 26, 60, 0.55)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-  },
-  sheetHandle: {
-    width: 38,
-    height: 4,
-    backgroundColor: '#CBD5E1',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  sheetTitle: {
-    color: '#0F172A',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  sheetSubtitle: {
-    color: '#64748B',
-    fontSize: 11,
-    marginTop: 2,
-    marginBottom: 14,
-  },
-  inputLabel: {
-    color: '#334155',
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 5,
-  },
-  modalInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingVertical: 14,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 13,
-    color: '#0F172A',
-    marginBottom: 10,
-  },
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
-  },
-  smallChip: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  smallChipActive: {
-    backgroundColor: '#F59E0B',
-  },
-  smallChipText: {
-    color: '#475569',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  smallChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  saveBtn: {
-    backgroundColor: '#F59E0B',
-    borderRadius: 14,
-    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
-  saveBtnText: {
-    color: '#FFFFFF',
+  logoutText: {
+    color: colors.error,
     fontSize: 14,
     fontWeight: '800',
   },
