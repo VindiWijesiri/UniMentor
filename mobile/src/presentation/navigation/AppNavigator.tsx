@@ -24,6 +24,7 @@ import { colors } from '../../shared/theme';
 
 import TutorDashboardScreen from '../screens/home/TutorDashboardScreen';
 import TutorSlotManagementScreen from '../screens/home/TutorSlotManagementScreen';
+import TutorSessionsScreen from '../screens/home/TutorSessionsScreen';
 import SessionsScreen from '../screens/sessions/SessionsScreen';
 import BookingFlowScreen from '../screens/booking/BookingFlowScreen';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,6 +64,8 @@ export type AppTabParamList = {
   Profile: undefined;
   Reviews?: undefined;
   TutorProfileTab?: undefined;
+  Scheduling?: undefined;
+  Sessions?: undefined;
 };
 
 export type AppStackParamList = {
@@ -77,6 +80,7 @@ export type AppStackParamList = {
   GuidanceWizard: undefined;
   TutorDashboard: undefined;
   TutorSlotManagement: undefined;
+  TutorSessions: undefined;
   BookSession: {
     mentor: any;
     initialMode?: '1-on-1' | 'group';
@@ -156,75 +160,127 @@ function MainTabs() {
         },
       }}
     >
-      {/* 1. Home */}
-      <Tab.Screen
-        name="Home"
-        component={isStudent ? StudentDashboardScreen : TutorDashboardScreen}
-        options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="home-outline" size={24} color={color} />
-          ),
-        }}
-      />
+      {isStudent ? (
+        <>
+          {/* 1. Student Home */}
+          <Tab.Screen
+            name="Home"
+            component={StudentDashboardScreen}
+            options={{
+              tabBarLabel: 'Home',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="home-outline" size={24} color={color} />
+              ),
+            }}
+          />
 
-      {/* 2. Bookings */}
-      <Tab.Screen
-        name="Bookings"
-        component={isStudent ? BookingsNavigator : TutorProfileScreen}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            if (isStudent) {
-              e.preventDefault();
-              (navigation as any).navigate('Bookings', {
-                screen: 'SessionsList',
-              });
-            }
-          },
-        })}
-        options={{
-          tabBarLabel: 'Bookings',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="calendar-outline" size={24} color={color} />
-          ),
-        }}
-      />
+          {/* 2. Bookings */}
+          <Tab.Screen
+            name="Bookings"
+            component={BookingsNavigator}
+            listeners={({ navigation }) => ({
+              tabPress: (e) => {
+                e.preventDefault();
+                (navigation as any).navigate('Bookings', {
+                  screen: 'SessionsList',
+                });
+              },
+            })}
+            options={{
+              tabBarLabel: 'Bookings',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="calendar-outline" size={24} color={color} />
+              ),
+            }}
+          />
 
-      {/* 3. Learning */}
-      <Tab.Screen
-        name="Search"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Learning',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="book-outline" size={24} color={color} />
-          ),
-        }}
-      />
+          {/* 3. Learning */}
+          <Tab.Screen
+            name="Search"
+            component={HomeScreen}
+            options={{
+              tabBarLabel: 'Learning',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="book-outline" size={24} color={color} />
+              ),
+            }}
+          />
 
-      {/* 4. Alerts */}
-      <Tab.Screen
-        name="Messages"
-        component={ChatInboxScreen}
-        options={{
-          tabBarLabel: 'Alerts',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="notifications-outline" size={24} color={color} />
-          ),
-        }}
-      />
+          {/* 4. Alerts */}
+          <Tab.Screen
+            name="Messages"
+            component={ChatInboxScreen}
+            options={{
+              tabBarLabel: 'Alerts',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="notifications-outline" size={24} color={color} />
+              ),
+            }}
+          />
 
-      {/* 5. Profile */}
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="person-outline" size={24} color={color} />
-          ),
-        }}
-      />
+          {/* 5. Profile */}
+          <Tab.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{
+              tabBarLabel: 'Profile',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="person-outline" size={24} color={color} />
+              ),
+            }}
+          />
+        </>
+      ) : (
+        <>
+          {/* 1. Tutor Home */}
+          <Tab.Screen
+            name="Home"
+            component={TutorDashboardScreen}
+            options={{
+              tabBarLabel: 'Home',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="home-outline" size={24} color={color} />
+              ),
+            }}
+          />
+
+          {/* 2. Scheduling */}
+          <Tab.Screen
+            name="Scheduling"
+            component={TutorSlotManagementScreen}
+            options={{
+              tabBarLabel: 'Scheduling',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="calendar-outline" size={24} color={color} />
+              ),
+            }}
+          />
+
+          {/* 3. Sessions */}
+          <Tab.Screen
+            name="Sessions"
+            component={TutorSessionsScreen}
+            options={{
+              tabBarLabel: 'Sessions',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="videocam-outline" size={24} color={color} />
+              ),
+            }}
+          />
+
+          {/* 4. Profile */}
+          <Tab.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{
+              tabBarLabel: 'Profile',
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="person-outline" size={24} color={color} />
+              ),
+            }}
+          />
+        </>
+      )}
     </Tab.Navigator>
   );
 }

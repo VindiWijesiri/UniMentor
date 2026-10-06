@@ -425,7 +425,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <Text style={styles.headerTitle}>Student Dashboard</Text>
             <TouchableOpacity
               style={styles.switchRoleHeaderBtn}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               onPress={() => {
                 useAuthStore.getState().setUser({
                   ...(authUser || {}),
@@ -435,10 +435,11 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                   email: authUser?.email || 'alex.f@unimentor.sliit.lk',
                   role: 'mentor',
                 } as any);
+                Alert.alert('Tutor Mode Active 👨‍🏫', 'Switched to Tutor Dashboard & bottom navigation.');
                 (navigation as any).navigate('TutorDashboard');
               }}
             >
-              <Ionicons name="swap-horizontal" size={12} color="#EAA023" />
+              <Ionicons name="swap-horizontal" size={12} color="#061E47" />
               <Text style={styles.switchRoleHeaderBtnText}>Tutor Mode ➔</Text>
             </TouchableOpacity>
           </View>
@@ -525,11 +526,11 @@ export default function StudentDashboardScreen({ navigation }: Props) {
         >
           <View style={styles.tutorHeroAccessLeft}>
             <View style={styles.tutorHeroAccessIcon}>
-              <Ionicons name="calendar" size={22} color="#061E47" />
+              <Ionicons name="calendar" size={20} color="#FFFFFF" />
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.tutorHeroAccessTitle}>Tutor Slot Allocation & Bookings</Text>
+                <Text style={styles.tutorHeroAccessTitle}>Tutor Slot Allocation & Fees</Text>
                 <View style={styles.tutorHeroNewPill}>
                   <Text style={styles.tutorHeroNewPillText}>TUTOR</Text>
                 </View>
@@ -545,11 +546,10 @@ export default function StudentDashboardScreen({ navigation }: Props) {
         </TouchableOpacity>
 
         {/* Deadline Approaching Alert Card */}
-        {/* Deadline Approaching Alert Card */}
         {alert && (
           <View style={styles.alertCard}>
             <View style={styles.alertClockIconWrap}>
-              <Ionicons name="time" size={22} color="#FFFFFF" />
+              <Ionicons name="time" size={20} color="#D97706" />
             </View>
 
             <View style={styles.alertCopyWrap}>
@@ -557,27 +557,14 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               <Text style={styles.alertTitle}>{alert.title}</Text>
             </View>
 
-            <View style={styles.alertActionsColumn}>
-              <TouchableOpacity
-                style={styles.alertActionBtn}
-                onPress={() => navigation.navigate('Reviews')}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <Text style={styles.alertActionBtnText}>Review</Text>
-                  <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.alertActionBtn, { marginTop: 6 }]}
-                onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor', params: { initialQuery: 'Probability' } })}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <Text style={styles.alertActionBtnText}>Find Tutor</Text>
-                  <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.alertActionBtnPill}
+              onPress={() => setShowExamReviewModal(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.alertActionBtnPillText}>Exam Prep</Text>
+              <Ionicons name="chevron-forward" size={12} color="#061E47" />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -589,34 +576,34 @@ export default function StudentDashboardScreen({ navigation }: Props) {
         <View style={styles.launchpadGrid}>
           {/* New Goal */}
           <TouchableOpacity
-            style={styles.launchpadCardOrange}
+            style={styles.launchpadCardUnified}
             activeOpacity={0.85}
             onPress={() => setShowGoalModal(true)}
           >
-            <View style={styles.launchpadIconCircle}>
-              <Ionicons name="add-circle" size={22} color="#FFFFFF" />
+            <View style={[styles.launchpadIconSquare, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="add-circle" size={20} color="#D97706" />
             </View>
-            <Text style={styles.launchpadOrangeLabel}>New Goal</Text>
+            <Text style={styles.launchpadCardLabel}>New Goal</Text>
           </TouchableOpacity>
 
           {/* Pods */}
           <TouchableOpacity
-            style={styles.launchpadCardWhite}
+            style={styles.launchpadCardUnified}
             activeOpacity={0.85}
             onPress={() => setShowPodsModal(true)}
           >
-            <View style={styles.podsIconWrapper}>
-              <Ionicons name="chatbubbles" size={24} color="#0D4F9E" />
+            <View style={[styles.launchpadIconSquare, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="chatbubbles" size={20} color="#1D4ED8" />
               <View style={styles.badgeRed}>
                 <Text style={styles.badgeRedText}>3</Text>
               </View>
             </View>
-            <Text style={styles.launchpadWhiteLabel}>Pods</Text>
+            <Text style={styles.launchpadCardLabel}>Pods</Text>
           </TouchableOpacity>
 
           {/* Join session */}
           <TouchableOpacity
-            style={styles.launchpadCardWhite}
+            style={styles.launchpadCardUnified}
             activeOpacity={0.85}
             onPress={() => {
               if (bookedPods.length > 0 && !activePodSession) {
@@ -625,18 +612,22 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               setShowLiveRoom(true);
             }}
           >
-            <Ionicons name="videocam" size={24} color="#0D4F9E" />
-            <Text style={styles.launchpadWhiteLabel}>Join session</Text>
+            <View style={[styles.launchpadIconSquare, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="videocam" size={20} color="#059669" />
+            </View>
+            <Text style={styles.launchpadCardLabel}>Kuppiya</Text>
           </TouchableOpacity>
 
           {/* Library */}
           <TouchableOpacity
-            style={styles.launchpadCardWhite}
+            style={styles.launchpadCardUnified}
             activeOpacity={0.85}
             onPress={() => setShowLibraryModal(true)}
           >
-            <Ionicons name="folder-open" size={24} color="#0D4F9E" />
-            <Text style={styles.launchpadWhiteLabel}>Library</Text>
+            <View style={[styles.launchpadIconSquare, { backgroundColor: '#F5F3FF' }]}>
+              <Ionicons name="folder-open" size={20} color="#7C3AED" />
+            </View>
+            <Text style={styles.launchpadCardLabel}>Library</Text>
           </TouchableOpacity>
         </View>
 
@@ -4078,34 +4069,35 @@ const styles = StyleSheet.create({
   switchRoleHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(234, 160, 35, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    gap: 5,
+    backgroundColor: '#EAA023',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginTop: 4,
   },
   switchRoleHeaderBtnText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#EAA023',
+    color: '#061E47',
   },
   tutorHeroAccessCard: {
-    backgroundColor: '#061E47',
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     padding: 14,
+    marginHorizontal: 16,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
-    borderWidth: 1.5,
-    borderColor: '#EAA023',
-    elevation: 3,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
   },
   tutorHeroAccessLeft: {
     flexDirection: 'row',
@@ -4116,40 +4108,87 @@ const styles = StyleSheet.create({
   tutorHeroAccessIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EAA023',
+    borderRadius: 12,
+    backgroundColor: '#061E47',
     alignItems: 'center',
     justifyContent: 'center',
   },
   tutorHeroAccessTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#0F172A',
   },
   tutorHeroNewPill: {
-    backgroundColor: '#EAA023',
+    backgroundColor: '#FEF3C7',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
   },
   tutorHeroNewPillText: {
     fontSize: 9,
     fontWeight: '900',
-    color: '#061E47',
+    color: '#B45309',
   },
   tutorHeroAccessSubtitle: {
     fontSize: 11,
-    color: '#CBD5E1',
+    color: '#64748B',
     marginTop: 2,
     lineHeight: 15,
   },
   tutorHeroAccessArrow: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#EAA023',
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
+  },
+  alertActionBtnPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FDE68A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  alertActionBtnPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  launchpadCardUnified: {
+    width: '23%',
+    height: 86,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    paddingVertical: 8,
+  },
+  launchpadIconSquare: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    position: 'relative',
+  },
+  launchpadCardLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1E293B',
+    textAlign: 'center',
   },
 });

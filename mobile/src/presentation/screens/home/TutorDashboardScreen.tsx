@@ -332,16 +332,21 @@ export default function TutorDashboardScreen({ navigation }: any) {
             <Text style={styles.headerTitle}>Tutor Dashboard</Text>
             <TouchableOpacity
               style={styles.switchRoleHeaderBtn}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               onPress={() => {
                 useAuthStore.getState().setUser({
                   ...(currentUser || {}),
+                  _id: currentUser?._id || 'demo-student-1',
+                  id: currentUser?.id || 'demo-student-1',
+                  name: currentUser?.name || 'Nethmi Silva',
+                  email: currentUser?.email || 'nethmi.silva@student.unimentor.lk',
                   role: 'student',
                 } as any);
+                Alert.alert('Student Mode Active 🎓', 'Switched to Student Dashboard & bottom navigation.');
                 (navigation as any).navigate('MainTabs', { screen: 'Home' });
               }}
             >
-              <Ionicons name="swap-horizontal" size={12} color="#EAA023" />
+              <Ionicons name="swap-horizontal" size={12} color="#061E47" />
               <Text style={styles.switchRoleHeaderBtnText}>Student Mode ➔</Text>
             </TouchableOpacity>
           </View>
@@ -2349,17 +2354,17 @@ const styles = StyleSheet.create({
   switchRoleHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(234, 160, 35, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    gap: 5,
+    backgroundColor: '#EAA023',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginTop: 4,
   },
   switchRoleHeaderBtnText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#EAA023',
+    color: '#061E47',
   },
 });
