@@ -328,6 +328,62 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* University Credentials Card */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionHeading}>ACADEMIC CREDENTIALS & CAMPUS</Text>
+          <View style={styles.credentialsRow}>
+            <View style={styles.credItem}>
+              <Text style={styles.credLabel}>Student / Staff ID</Text>
+              <Text style={styles.credValue}>IT22384910</Text>
+            </View>
+            <View style={styles.credItem}>
+              <Text style={styles.credLabel}>Campus</Text>
+              <Text style={styles.credValue}>SLIIT Malabe Campus</Text>
+            </View>
+          </View>
+          <View style={[styles.credentialsRow, { marginTop: 10 }]}>
+            <View style={styles.credItem}>
+              <Text style={styles.credLabel}>Faculty</Text>
+              <Text style={styles.credValue}>Faculty of Computing</Text>
+            </View>
+            <View style={styles.credItem}>
+              <Text style={styles.credLabel}>Academic Standing</Text>
+              <View style={styles.deansPill}>
+                <Ionicons name="ribbon" size={12} color="#B45309" />
+                <Text style={styles.deansPillText}>Dean's Honor List • 3.78 GPA</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Mentorship & Tutor Recognition Card */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionHeading}>TUTORING & PEER RECOGNITION</Text>
+          <View style={styles.recognitionGrid}>
+            <View style={styles.recogBox}>
+              <View style={[styles.recogIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="star" size={16} color="#D97706" />
+              </View>
+              <Text style={styles.recogVal}>4.9 ★</Text>
+              <Text style={styles.recogLbl}>Tutor Rating</Text>
+            </View>
+            <View style={styles.recogBox}>
+              <View style={[styles.recogIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="people" size={16} color="#1D4ED8" />
+              </View>
+              <Text style={styles.recogVal}>48</Text>
+              <Text style={styles.recogLbl}>Students Helped</Text>
+            </View>
+            <View style={styles.recogBox}>
+              <View style={[styles.recogIconWrap, { backgroundColor: '#ECFDF5' }]}>
+                <Ionicons name="school" size={16} color="#059669" />
+              </View>
+              <Text style={styles.recogVal}>18</Text>
+              <Text style={styles.recogLbl}>Kuppiyas Held</Text>
+            </View>
+          </View>
+        </View>
+
         {/* Account Actions */}
         <View style={styles.actionCard}>
           <TouchableOpacity
@@ -1079,5 +1135,68 @@ const styles = StyleSheet.create({
     color: '#061E47',
     fontSize: 13,
     fontWeight: '700',
+  },
+  credentialsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  credItem: {
+    flex: 1,
+  },
+  credLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  credValue: {
+    fontSize: 13,
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  deansPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  deansPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  recognitionGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 8,
+  },
+  recogBox: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  recogIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  recogVal: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  recogLbl: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 2,
   },
 });
