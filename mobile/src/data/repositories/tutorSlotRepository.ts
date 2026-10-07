@@ -1,5 +1,6 @@
 import { TutorSlot, RegisteredAttendee } from '../../domain/entities/TutorSlot';
 import apiClient from '../api/apiClient';
+import { getDynamicDate } from './tutorSettingsRepository';
 
 const INITIAL_SLOTS: TutorSlot[] = [
   {
@@ -8,7 +9,7 @@ const INITIAL_SLOTS: TutorSlot[] = [
     mentorName: 'Alex Ferreira',
     title: 'Database Normalization & Query Tuning Deep-Dive',
     module: 'Database Management Systems',
-    date: 'Friday, 19 Sep 2025',
+    date: getDynamicDate(0),
     startTime: '09:00 AM',
     endTime: '10:30 AM',
     duration: '90 Mins',
@@ -53,7 +54,7 @@ const INITIAL_SLOTS: TutorSlot[] = [
     mentorName: 'Alex Ferreira',
     title: 'Tree & Graph Traversals Algorithm Revision Pod',
     module: 'Data Structures & Algorithms',
-    date: 'Friday, 19 Sep 2025',
+    date: getDynamicDate(0),
     startTime: '11:00 AM',
     endTime: '12:30 PM',
     duration: '90 Mins',
@@ -90,7 +91,7 @@ const INITIAL_SLOTS: TutorSlot[] = [
     mentorName: 'Alex Ferreira',
     title: 'B+ Trees & Query Execution Plans Mentoring',
     module: 'Database Management Systems',
-    date: 'Friday, 19 Sep 2025',
+    date: getDynamicDate(0),
     startTime: '10:00 AM',
     endTime: '11:00 AM',
     duration: '60 Mins',
@@ -114,7 +115,7 @@ const INITIAL_SLOTS: TutorSlot[] = [
     mentorName: 'Alex Ferreira',
     title: 'Relational Schema Design & Normalization Lab',
     module: 'Database Management Systems',
-    date: 'Friday, 19 Sep 2025',
+    date: getDynamicDate(0),
     startTime: '02:00 PM',
     endTime: '03:00 PM',
     duration: '60 Mins',
@@ -134,7 +135,7 @@ const INITIAL_SLOTS: TutorSlot[] = [
     conflictDetails: {
       existingSessionTitle: 'Data Structures',
       existingWith: 'with Prof. Kumar',
-      time: '19 Sep 2025, 2:00 PM – 3:00 PM',
+      time: `${getDynamicDate(0)}, 2:00 PM – 3:00 PM`,
     },
     isAvailable: false,
   },
@@ -144,7 +145,7 @@ const INITIAL_SLOTS: TutorSlot[] = [
     mentorName: 'Alex Ferreira',
     title: 'Advanced Query Optimization & Indexing Practice',
     module: 'Database Management Systems',
-    date: 'Friday, 19 Sep 2025',
+    date: getDynamicDate(0),
     startTime: '04:00 PM',
     endTime: '05:00 PM',
     duration: '60 Mins',
@@ -168,7 +169,7 @@ const INITIAL_SLOTS: TutorSlot[] = [
     mentorName: 'Alex Ferreira',
     title: 'Database Transactions & ACID Properties Revision',
     module: 'Database Management Systems',
-    date: 'Friday, 19 Sep 2025',
+    date: getDynamicDate(0),
     startTime: '05:30 PM',
     endTime: '06:30 PM',
     duration: '60 Mins',
@@ -457,6 +458,74 @@ export function normalizeDateKey(dateStr: string): string {
   return withoutDay.replace(/[,\.]/g, '').replace(/\s+/g, ' ');
 }
 
+export function isSameOrMatchingDate(slotDate: string, queryDate: string): boolean {
+  if (!slotDate || !queryDate) return false;
+  const s = slotDate.trim().toLowerCase();
+  const q = queryDate.trim().toLowerCase();
+  if (s === q) return true;
+
+  const todayStr = getDynamicDate(0).toLowerCase();
+  const tomorrowStr = getDynamicDate(1).toLowerCase();
+
+  const isQueryToday = q.includes('today') || q === todayStr || todayStr.includes(normalizeDateKey(q));
+  const isSlotToday = s.includes('today') || s === todayStr || todayStr.includes(normalizeDateKey(s));
+  if (isQueryToday && isSlotToday) return true;
+
+  const isQueryTmrw = q.includes('tomorrow') || q.includes('tmrw') || q === tomorrowStr || tomorrowStr.includes(normalizeDateKey(q));
+  const isSlotTmrw = s.includes('tomorrow') || s.includes('tmrw') || s === tomorrowStr || tomorrowStr.includes(normalizeDateKey(s));
+  if (isQueryTmrw && isSlotTmrw) return true;
+
+  // Extract day, month, year
+  const extractParts = (str: string) => {
+    const iso = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      return {
+        year: parseInt(iso[1], 10),
+        month: parseInt(iso[2], 10),
+        day: parseInt(iso[3], 10),
+      };
+    }
+    const dmy = str.match(/(\d{1,2})\s+([a-zA-Z]{3,9})(?:\s+(\d{4}))?/);
+    if (dmy) {
+      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const mIdx = monthNames.findIndex((m) => dmy[2].toLowerCase().startsWith(m));
+      return {
+        day: parseInt(dmy[1], 10),
+        month: mIdx >= 0 ? mIdx + 1 : 0,
+        year: dmy[3] ? parseInt(dmy[3], 10) : null,
+      };
+    }
+    const mdy = str.match(/([a-zA-Z]{3,9})\s+(\d{1,2})(?:,?\s+(\d{4}))?/);
+    if (mdy) {
+      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const mIdx = monthNames.findIndex((m) => mdy[1].toLowerCase().startsWith(m));
+      return {
+        day: parseInt(mdy[2], 10),
+        month: mIdx >= 0 ? mIdx + 1 : 0,
+        year: mdy[3] ? parseInt(mdy[3], 10) : null,
+      };
+    }
+    return null;
+  };
+
+  const p1 = extractParts(s);
+  const p2 = extractParts(q);
+  if (p1 && p2 && p1.day === p2.day && p1.month === p2.month) {
+    if (!p1.year || !p2.year || p1.year === p2.year) {
+      return true;
+    }
+  }
+
+  // Normalized substring check
+  const ns = normalizeDateKey(s);
+  const nq = normalizeDateKey(q);
+  if (ns.length >= 4 && nq.length >= 4 && (ns.includes(nq) || nq.includes(ns))) {
+    return true;
+  }
+
+  return false;
+}
+
 export const tutorSlotRepository = {
   async getSlotsByMentorAndDate(
     mentorId: string,
@@ -464,142 +533,21 @@ export const tutorSlotRepository = {
     date: string,
     typeFilter?: '1-on-1' | 'group'
   ): Promise<TutorSlot[]> {
-    try {
-      const response = await apiClient.get<any[]>('/slots');
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        const transformed = response.data.map(transformBackendSlot);
-        inMemorySlots = transformed;
+    // 1. Retrieve all slots belonging to this specific tutor (syncs local additions & server)
+    const mentorSlots = await this.getAllSlots(mentorId, mentorName);
+
+    // 2. Filter slots matching requested date
+    let slots = mentorSlots.filter((s) => isSameOrMatchingDate(s.date, date));
+
+    // 3. If typeFilter matches some slots, prioritize matching type, but keep available sessions
+    if (typeFilter && slots.length > 0) {
+      const typeMatching = slots.filter((s) => s.type === 'both' || s.type === typeFilter);
+      if (typeMatching.length > 0) {
+        slots = typeMatching;
       }
-    } catch {
-      // Fallback to in-memory slots
     }
 
-    let slots = inMemorySlots.filter((s) => {
-      const matchMentor =
-        !mentorId ||
-        s.mentorId === mentorId ||
-        s.mentorName.toLowerCase().includes(mentorName.toLowerCase()) ||
-        mentorName.toLowerCase().includes(s.mentorName.toLowerCase()) ||
-        true; // Allow matching for demo preview
-
-      const matchDate =
-        !date ||
-        !s.date ||
-        s.date === date ||
-        s.date.includes(date) ||
-        date.includes(s.date);
-
-      return matchMentor && matchDate;
-    });
-
-    if (slots.length === 0) {
-      // Generate clean slots for selected date if none exist
-      const generatedList: TutorSlot[] = [
-        {
-          id: `slot-${Date.now()}-1`,
-          mentorId: mentorId || 'mentor-alex',
-          mentorName: mentorName || 'Alex Ferreira',
-          title: `${mentorName || 'Tutor'}'s Dedicated Mentoring Slot`,
-          module: 'Academic Peer Mentoring',
-          date,
-          startTime: '10:00 AM',
-          endTime: '11:30 AM',
-          duration: '90 Mins',
-          timeRange: '10:00 AM - 11:30 AM',
-          fee: 2500,
-          type: 'both',
-          maxCapacity: 5,
-          bookedCount: 0,
-          description:
-            'Dedicated peer session focusing on coursework guidance, problem sets, and targeted exam questions.',
-          prerequisites: 'Course lecture notes and specific questions prepared.',
-          mode: 'Online',
-          location: 'Microsoft Teams Meeting',
-          targetBatch: 'All Batches',
-          registeredAttendees: [],
-          isAvailable: true,
-        },
-        {
-          id: `slot-${Date.now()}-2`,
-          mentorId: mentorId || 'mentor-alex',
-          mentorName: mentorName || 'Alex Ferreira',
-          title: `${mentorName || 'Tutor'}'s Afternoon Tutorial Lab`,
-          module: 'Academic Peer Mentoring',
-          date,
-          startTime: '02:00 PM',
-          endTime: '03:00 PM',
-          duration: '60 Mins',
-          timeRange: '02:00 PM - 03:00 PM',
-          fee: 2500,
-          type: 'both',
-          maxCapacity: 4,
-          bookedCount: 1,
-          description: 'Tutorial session for coursework questions and revision.',
-          mode: 'Online',
-          location: 'Microsoft Teams Meeting',
-          targetBatch: 'All Batches',
-          registeredAttendees: [],
-          hasConflict: true,
-          conflictDetails: {
-            existingSessionTitle: 'Faculty University Lab',
-            existingWith: 'with Academic Department',
-            time: `${date}, 2:00 PM – 3:00 PM`,
-          },
-          isAvailable: false,
-        },
-        {
-          id: `slot-${Date.now()}-3`,
-          mentorId: mentorId || 'mentor-alex',
-          mentorName: mentorName || 'Alex Ferreira',
-          title: `${mentorName || 'Tutor'}'s Intensive Revision Pod`,
-          module: 'Academic Peer Mentoring',
-          date,
-          startTime: '04:00 PM',
-          endTime: '05:00 PM',
-          duration: '60 Mins',
-          timeRange: '04:00 PM - 05:00 PM',
-          fee: 2500,
-          type: 'both',
-          maxCapacity: 5,
-          bookedCount: 0,
-          description: 'Alternative session for core concepts review and exam preparation.',
-          mode: 'Online',
-          location: 'Microsoft Teams Meeting',
-          targetBatch: 'All Batches',
-          registeredAttendees: [],
-          isAvailable: true,
-        },
-        {
-          id: `slot-${Date.now()}-4`,
-          mentorId: mentorId || 'mentor-alex',
-          mentorName: mentorName || 'Alex Ferreira',
-          title: `${mentorName || 'Tutor'}'s Evening Mentoring Slot`,
-          module: 'Academic Peer Mentoring',
-          date,
-          startTime: '05:30 PM',
-          endTime: '06:30 PM',
-          duration: '60 Mins',
-          timeRange: '05:30 PM - 06:30 PM',
-          fee: 2500,
-          type: 'both',
-          maxCapacity: 5,
-          bookedCount: 0,
-          description: 'Evening alternative session for interactive Q&A.',
-          mode: 'Online',
-          location: 'Microsoft Teams Meeting',
-          targetBatch: 'All Batches',
-          registeredAttendees: [],
-          isAvailable: true,
-        },
-      ];
-      inMemorySlots.push(...generatedList);
-      slots = generatedList;
-    }
-
-    if (typeFilter) {
-      slots = slots.filter((s) => s.type === 'both' || s.type === typeFilter);
-    }
-
+    // 4. Return actual slots scheduled for this date (empty array if no sessions scheduled)
     return slots;
   },
 
@@ -833,7 +781,7 @@ export const tutorSlotRepository = {
         mentorName: studentDetails?.mentorName || 'Tharushi Perera',
         title: studentDetails?.slotTitle || 'Mentoring Session',
         module: 'Database Management Systems',
-        date: studentDetails?.slotDate || 'Friday, 19 Sep 2025',
+        date: studentDetails?.slotDate || getDynamicDate(0),
         startTime: studentDetails?.slotTime || '10:00 AM',
         endTime: '11:30 AM',
         duration: '90 Mins',

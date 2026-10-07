@@ -20,7 +20,13 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BookingsStackParamList } from '../../navigation/AppNavigator';
 import { tutorSlotRepository, parseTimeToMinutes } from '../../../data/repositories/tutorSlotRepository';
-import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/repositories/tutorSettingsRepository';
+import { tutorRequestRepository } from '../../../data/repositories/tutorRequestRepository';
+import {
+  tutorSettingsRepository,
+  TutorBookingSettings,
+  getDynamicDate,
+  getDynamicDatesList,
+} from '../../../data/repositories/tutorSettingsRepository';
 import { sessionRepository } from '../../../data/repositories/sessionRepository';
 import { bookedTutorsRepository } from '../../../data/repositories/bookedTutorsRepository';
 import { paymentRepository, DirectPaySession, DirectPayReceipt } from '../../../data/repositories/paymentRepository';
@@ -28,6 +34,14 @@ import { useAuthStore } from '../../../domain/stores/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import type { TutorSlot } from '../../../domain/entities/TutorSlot';
 import TutorAvatar from '../../components/common/TutorAvatar';
+
+export function formatCalendarDate(d: Date): string {
+  const fullDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+  const dayNum = d.getDate();
+  const month = d.toLocaleDateString('en-US', { month: 'short' });
+  const year = d.getFullYear();
+  return `${fullDay}, ${dayNum} ${month} ${year}`;
+}
 
 const { width } = Dimensions.get('window');
 
@@ -139,17 +153,11 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
     'ER Diagrams',
     'Normalization',
   ]);
-  const [availableDates, setAvailableDates] = useState<string[]>([
-    'Friday, 19 Sep 2025',
-    'Saturday, 20 Sep 2025',
-    'Monday, 22 Sep 2025',
-    'Tuesday, 23 Sep 2025',
-    'Thursday, 25 Sep 2025',
-  ]);
+  const [availableDates, setAvailableDates] = useState<string[]>(getDynamicDatesList(7));
 
   // Screen 1: Subject Preferences & Date
   const [selectedTopics, setSelectedTopics] = useState<string[]>(['Query Optimization', 'Indexing']);
-  const [selectedDate, setSelectedDate] = useState<string>('Friday, 19 Sep 2025');
+  const [selectedDate, setSelectedDate] = useState<string>(getDynamicDate(0));
   const [selectedInitialTime, setSelectedInitialTime] = useState<string>('10:00 AM');
   const [sessionNotes, setSessionNotes] = useState<string>(
     'Please cover B+ Trees and indexing queries...'
@@ -158,6 +166,11 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
   // Pickers state
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [timeModalVisible, setTimeModalVisible] = useState(false);
+
+  // Calendar Picker state (from current today's date onwards)
+  const todayDateObj = new Date();
+  const [calendarYear, setCalendarYear] = useState<number>(todayDateObj.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState<number>(todayDateObj.getMonth());
 
   // Screen 2: Slots
   const [availableSlots, setAvailableSlots] = useState<TutorSlot[]>([]);
@@ -172,6 +185,10 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
   const [timeUpdatedBanner, setTimeUpdatedBanner] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tutorImage, setTutorImage] = useState<string | null>(mentor.profilePicture || null);
+
+  // Student Slot Request State
+  const [requestSuccessModalVisible, setRequestSuccessModalVisible] = useState(false);
+  const [isSubmittingSlotRequest, setIsSubmittingSlotRequest] = useState(false);
 
   // Student auth details
   const user = useAuthStore((state) => state.user);
@@ -243,7 +260,9 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
       }
       if (settings.availableDates && settings.availableDates.length > 0) {
         setAvailableDates(settings.availableDates);
-        setSelectedDate(settings.availableDates[0]);
+        if (!selectedDate || selectedDate.includes('19 Sep')) {
+          setSelectedDate(settings.availableDates[0]);
+        }
       }
       if (settings.profileImage !== undefined) {
         setTutorImage(settings.profileImage);
@@ -253,18 +272,25 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
     }
   };
 
-  // Load slots on mount and when date or studyMode changes
+  // Load slots on mount and when date or studyMode changes, with real-time sync to tutor schedule
   useEffect(() => {
+    setTimeUpdatedBanner(null);
     loadSlots();
-  }, [selectedDate, studyMode]);
+    const unsub = tutorSlotRepository.subscribe(() => {
+      loadSlots();
+    });
+    return unsub;
+  }, [selectedDate, studyMode, mentor]);
 
   const loadSlots = async (preferredTimeOverride?: string) => {
     setIsLoadingSlots(true);
     const prefTime = preferredTimeOverride || selectedInitialTime;
+    const tutorMentorId = mentor._id || (mentor as any)?.id || 'mentor-alex';
+    const tutorMentorName = mentor.name || 'Alex Ferreira';
     try {
       const slots = await tutorSlotRepository.getSlotsByMentorAndDate(
-        mentor._id,
-        mentor.name,
+        tutorMentorId,
+        tutorMentorName,
         selectedDate,
         studyMode === 'group' ? 'group' : '1-on-1'
       );
@@ -283,6 +309,8 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
       const initial = sortedSlots.find((s) => s.startTime === prefTime) || sortedSlots[0];
       if (initial) {
         setSelectedSlot(initial);
+      } else {
+        setSelectedSlot(null);
       }
     } catch {
       // Fallback
@@ -368,6 +396,37 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         isAvailable: true,
       };
       setSelectedSlot(altSlot);
+    }
+  };
+
+  // Step 2 Request Slot from Tutor (when requested date or time is unavailable/clashing)
+  const handleRequestSlot = async () => {
+    setIsSubmittingSlotRequest(true);
+    try {
+      const tutorMentorId = mentor._id || (mentor as any)?.id || 'mentor-alex';
+      const tutorMentorName = mentor.name || 'Alex Ferreira';
+      const currentUser = useAuthStore.getState().user;
+
+      await tutorRequestRepository.createRequest({
+        mentorId: tutorMentorId,
+        mentorName: tutorMentorName,
+        studentId: currentUser?._id || (currentUser as any)?.id || 'demo-student-1',
+        studentName: currentUser?.name || studentName,
+        studentEmail: currentUser?.email || studentEmail,
+        studentAvatar: currentUser?.profilePicture || (currentUser as any)?.avatar,
+        subject: selectedTopics[0] || mentor.subjects?.[0] || 'Database Management Systems',
+        date: selectedDate,
+        time: selectedInitialTime,
+        duration: '60 Mins',
+        studyMode: studyMode,
+        notes: sessionNotes || 'Preferred time slot requested by student.',
+      });
+
+      setRequestSuccessModalVisible(true);
+    } catch {
+      Alert.alert('Request Failed', 'Unable to submit slot request right now. Please try again.');
+    } finally {
+      setIsSubmittingSlotRequest(false);
     }
   };
 
@@ -1080,160 +1139,531 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
               </View>
             </View>
 
-            {/* Date Badge */}
-            <View style={styles.dateBadgeWrap}>
-              <View style={styles.dateBadge}>
-                <Ionicons name="calendar-outline" size={15} color="#475569" style={{ marginRight: 6 }} />
-                <Text style={styles.dateBadgeText}>{selectedDate}</Text>
+            {/* Student's Entered Preferred Time & Availability Banner */}
+            <View style={styles.requestedSummaryCard}>
+              <View style={styles.requestedTopRow}>
+                <Text style={styles.requestedSectionTag}>YOUR REQUESTED SESSION</Text>
+                <TouchableOpacity
+                  style={styles.changeRequestBtn}
+                  onPress={() => setCurrentStep('book')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="create-outline" size={13} color="#D97706" />
+                  <Text style={styles.changeRequestBtnText}>Edit Request</Text>
+                </TouchableOpacity>
               </View>
+
+              <View style={styles.requestedChipsRow}>
+                <TouchableOpacity
+                  style={styles.requestedChip}
+                  onPress={() => setDateModalVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calendar" size={14} color="#D97706" />
+                  <Text style={styles.requestedChipText}>{selectedDate}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.requestedChip}
+                  onPress={() => setTimeModalVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="time" size={14} color="#0D4F9E" />
+                  <Text style={styles.requestedChipText}>{selectedInitialTime}</Text>
+                  <Text style={styles.requestedChipSub}>(Preferred)</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Real-time tutor availability status for requested time */}
+              {availableSlots.length === 0 ? (
+                <View style={[styles.requestedStatusBanner, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
+                  <Ionicons name="information-circle-outline" size={16} color="#D97706" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.requestedStatusTitle, { color: '#B45309' }]}>
+                      NO SESSIONS SCHEDULED FOR THIS DATE
+                    </Text>
+                    <Text style={styles.requestedStatusDesc}>
+                      {mentor.name} has no pre-scheduled sessions on {selectedDate}. You can request an alternative slot below.
+                    </Text>
+                  </View>
+                </View>
+              ) : selectedSlot?.hasConflict ? (
+                <View style={[styles.requestedStatusBanner, styles.requestedStatusBannerClash]}>
+                  <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.requestedStatusTitle, { color: '#DC2626' }]}>
+                      TUTOR SCHEDULE CLASH DETECTED
+                    </Text>
+                    <Text style={styles.requestedStatusDesc}>
+                      {selectedSlot.startTime} clashes with {mentor.name}'s schedule. Choose an alternative time slot below.
+                    </Text>
+                  </View>
+                </View>
+              ) : timeUpdatedBanner ? (
+                <View style={[styles.requestedStatusBanner, styles.requestedStatusBannerSuccess]}>
+                  <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.requestedStatusTitle, { color: '#059669' }]}>
+                      ALTERNATIVE TIME SLOT SELECTED
+                    </Text>
+                    <Text style={styles.requestedStatusDesc}>
+                      Switched to {selectedAlternative} ({alternativeTimeRange}) • 100% Conflict-free.
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.requestedStatusBanner, styles.requestedStatusBannerAvailable]}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color="#0284C7" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.requestedStatusTitle, { color: '#0369A1' }]}>
+                      TUTOR SCHEDULE LOADED
+                    </Text>
+                    <Text style={styles.requestedStatusDesc}>
+                      Slots displayed below with exact time differences from your preferred {selectedInitialTime}.
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
-            {/* AVAILABLE TIME SLOTS Header */}
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.orangeIndicator} />
-              <Text style={styles.sectionTitle}>AVAILABLE TIME SLOTS</Text>
-            </View>
-
-            {/* Rich Allocated Slots Cards */}
+            {/* Rich Allocated Slots Cards OR Alternative Slot Request */}
             {isLoadingSlots ? (
               <ActivityIndicator size="small" color="#F59E0B" style={{ marginVertical: 20 }} />
-            ) : (
-              <View style={styles.richSlotsContainer}>
-                {availableSlots.map((slot) => {
-                  const isSelected = selectedSlot?.id === slot.id;
-                  const showConflictState = isSelected && slot.hasConflict;
-                  const isFull = (slot.bookedCount || 0) >= slot.maxCapacity && !slot.isAvailable;
-                  const attendees = slot.registeredAttendees || [];
+            ) : availableSlots.length === 0 ? (
+              <View>
+                {/* Header */}
+                <View style={styles.sectionHeaderRow}>
+                  <View style={[styles.orangeIndicator, { backgroundColor: '#D97706' }]} />
+                  <Text style={styles.sectionTitle}>
+                    ALTERNATIVE SLOT REQUEST FOR {selectedDate.toUpperCase()}
+                  </Text>
+                </View>
 
-                  return (
-                    <TouchableOpacity
-                      key={slot.id}
-                      style={[
-                        styles.richSlotCard,
-                        isSelected && (showConflictState ? styles.richSlotCardConflict : styles.richSlotCardSelected),
-                        isFull && styles.richSlotCardFull,
-                      ]}
-                      onPress={() => !isFull && handleSelectSlot(slot)}
-                      activeOpacity={isFull ? 1 : 0.85}
-                    >
-                      {/* Top Row: Module + Format Badge + Fee */}
-                      <View style={styles.richSlotTopRow}>
-                        <View style={styles.richSlotModulePill}>
-                          <Text style={styles.richSlotModuleText} numberOfLines={1}>
-                            {slot.module || 'Mentoring'}
-                          </Text>
+                {/* Alternative Slot Request Dedicated Component (No hardcoded sessions) */}
+                <View style={styles.altRequestDedicatedCard}>
+                  {/* Card Header */}
+                  <View style={styles.altRequestCardHeader}>
+                    <View style={styles.altRequestIconWrap}>
+                      <Ionicons name="calendar-outline" size={22} color="#D97706" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.altRequestCardTitle}>Alternative Slot Request</Text>
+                        <View style={styles.altRequestDirectPill}>
+                          <Ionicons name="paper-plane" size={10} color="#0D4F9E" />
+                          <Text style={styles.altRequestDirectText}>Direct to Tutor</Text>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <View
-                            style={[
-                              styles.richSlotTypePill,
-                              slot.type === 'group'
-                                ? { backgroundColor: '#ECFDF5' }
-                                : { backgroundColor: '#EFF6FF' },
-                            ]}
-                          >
-                            <Text
+                      </View>
+                      <Text style={styles.altRequestCardSubtitle}>
+                        {mentor.name} has no scheduled sessions on {selectedDate}. Submit your preferred time below to request a slot directly.
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Structured Details Box */}
+                  <View style={styles.altRequestDetailsBox}>
+                    <View style={styles.altRequestDetailRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="person-outline" size={14} color="#64748B" />
+                        <Text style={styles.altRequestDetailLabel}>Tutor</Text>
+                      </View>
+                      <Text style={styles.altRequestDetailVal}>{mentor.name}</Text>
+                    </View>
+
+                    <View style={styles.altRequestDetailDivider} />
+
+                    <View style={styles.altRequestDetailRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="calendar-outline" size={14} color="#64748B" />
+                        <Text style={styles.altRequestDetailLabel}>Requested Date</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={styles.altRequestDetailVal}>{selectedDate}</Text>
+                        <TouchableOpacity
+                          onPress={() => setDateModalVisible(true)}
+                          style={styles.altRequestChangeLink}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.altRequestChangeLinkText}>Change</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={styles.altRequestDetailDivider} />
+
+                    <View style={styles.altRequestDetailRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="time-outline" size={14} color="#64748B" />
+                        <Text style={styles.altRequestDetailLabel}>Requested Time</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={[styles.altRequestDetailVal, { color: '#0D4F9E', fontWeight: '800' }]}>
+                          {selectedInitialTime}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => setTimeModalVisible(true)}
+                          style={styles.altRequestChangeLink}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.altRequestChangeLinkText}>Change</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={styles.altRequestDetailDivider} />
+
+                    <View style={styles.altRequestDetailRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="book-outline" size={14} color="#64748B" />
+                        <Text style={styles.altRequestDetailLabel}>Module / Subject</Text>
+                      </View>
+                      <Text style={styles.altRequestDetailVal} numberOfLines={1}>
+                        {selectedTopics[0] || mentor.subjects?.[0] || 'Database Management Systems'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.altRequestDetailDivider} />
+
+                    <View style={styles.altRequestDetailRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="people-outline" size={14} color="#64748B" />
+                        <Text style={styles.altRequestDetailLabel}>Format</Text>
+                      </View>
+                      <View style={styles.altRequestFormatPill}>
+                        <Text style={styles.altRequestFormatText}>
+                          {studyMode === 'group' ? `Group Pod (${groupSize} Students)` : '1-on-1 Individual'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Student Topic / Notes Input */}
+                  <View style={styles.altRequestNotesContainer}>
+                    <Text style={styles.altRequestNotesLabel}>
+                      Session Focus or Learning Topic (Optional)
+                    </Text>
+                    <TextInput
+                      style={styles.altRequestNotesInput}
+                      value={sessionNotes}
+                      onChangeText={setSessionNotes}
+                      placeholder="E.g., Need help with normalization, query tuning, past paper revision..."
+                      placeholderTextColor="#94A3B8"
+                      multiline
+                    />
+                  </View>
+
+                  {/* Instant Notification Callout */}
+                  <View style={styles.altRequestCallout}>
+                    <Ionicons name="notifications-outline" size={16} color="#0284C7" />
+                    <Text style={styles.altRequestCalloutText}>
+                      Tap <Text style={{ fontWeight: '800', color: '#0284C7' }}>"Request Slot ({selectedInitialTime})"</Text> below to send a slot request to {mentor.name}'s dashboard.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View>
+                {/* AVAILABLE TIME SLOTS Header */}
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.orangeIndicator} />
+                  <Text style={styles.sectionTitle}>
+                    AVAILABLE TIME SLOTS FOR {selectedDate.toUpperCase()}
+                  </Text>
+                </View>
+
+                {/* Rich Allocated Slots Cards */}
+                <View style={styles.richSlotsContainer}>
+                  {availableSlots.map((slot) => {
+                    const isSelected = selectedSlot?.id === slot.id;
+                    const showConflictState = isSelected && slot.hasConflict;
+                    const isFull = (slot.bookedCount || 0) >= slot.maxCapacity && !slot.isAvailable;
+                    const attendees = slot.registeredAttendees || [];
+                    const diffInfo = getTimeDifferenceInfo(slot.startTime, selectedInitialTime);
+
+                    return (
+                      <TouchableOpacity
+                        key={slot.id}
+                        style={[
+                          styles.richSlotCard,
+                          isSelected && (showConflictState ? styles.richSlotCardConflict : styles.richSlotCardSelected),
+                          isFull && styles.richSlotCardFull,
+                        ]}
+                        onPress={() => !isFull && handleSelectSlot(slot)}
+                        activeOpacity={isFull ? 1 : 0.85}
+                      >
+                        {/* Top Row: Module + Format Badge + Fee */}
+                        <View style={styles.richSlotTopRow}>
+                          <View style={styles.richSlotModulePill}>
+                            <Text style={styles.richSlotModuleText} numberOfLines={1}>
+                              {slot.module || 'Mentoring'}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View
                               style={[
-                                styles.richSlotTypeText,
+                                styles.richSlotTypePill,
                                 slot.type === 'group'
-                                  ? { color: '#059669' }
-                                  : { color: '#1D4ED8' },
+                                  ? { backgroundColor: '#ECFDF5' }
+                                  : { backgroundColor: '#EFF6FF' },
                               ]}
                             >
-                              {slot.type === 'group' ? 'GROUP' : '1-ON-1'}
-                            </Text>
+                              <Text
+                                style={[
+                                  styles.richSlotTypeText,
+                                  slot.type === 'group'
+                                    ? { color: '#059669' }
+                                    : { color: '#1D4ED8' },
+                                ]}
+                              >
+                                {slot.type === 'group' ? 'GROUP' : '1-ON-1'}
+                              </Text>
+                            </View>
+                            <View style={styles.richSlotFeePill}>
+                              <Text style={styles.richSlotFeeText}>
+                                LKR {(slot.fee || 2000).toLocaleString()}
+                              </Text>
+                            </View>
                           </View>
-                          <View style={styles.richSlotFeePill}>
-                            <Text style={styles.richSlotFeeText}>
-                              LKR {(slot.fee || 2000).toLocaleString()}
-                            </Text>
-                          </View>
                         </View>
-                      </View>
 
-                      {/* Slot Title */}
-                      <Text style={styles.richSlotTitleText}>
-                        {slot.title || `${slot.module} Session`}
-                      </Text>
-
-                      {/* Time, Duration & Location */}
-                      <View style={styles.richSlotMetaRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Ionicons name="time" size={13} color="#0D4F9E" />
-                          <Text style={styles.richSlotTimeText}>{slot.timeRange}</Text>
-                        </View>
-                        <View style={styles.richSlotDurationBadge}>
-                          <Text style={styles.richSlotDurationText}>{slot.duration || '60 Mins'}</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
-                          <Ionicons
-                            name={slot.mode === 'In-Person' ? 'location-outline' : 'videocam-outline'}
-                            size={13}
-                            color="#64748B"
-                          />
-                          <Text style={styles.richSlotLocationText} numberOfLines={1}>
-                            {slot.mode || 'Online'}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Description */}
-                      {!!slot.description && (
-                        <Text style={styles.richSlotDescText} numberOfLines={2}>
-                          {slot.description}
+                        {/* Slot Title */}
+                        <Text style={styles.richSlotTitleText}>
+                          {slot.title || `${slot.module} Session`}
                         </Text>
-                      )}
 
-                      {/* Capacity & Selection Status */}
-                      <View style={styles.richSlotFooterRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                          <Ionicons
-                            name="people-outline"
-                            size={14}
-                            color={isFull ? '#EF4444' : '#059669'}
-                          />
-                          <Text style={[styles.richSlotCapacityText, isFull && { color: '#EF4444' }]}>
-                            {isFull
-                              ? 'Fully Booked'
-                              : `${slot.bookedCount}/${slot.maxCapacity} Booked • ${Math.max(0, slot.maxCapacity - slot.bookedCount)} Spots Left`}
-                          </Text>
+                        {/* Time, Duration & Location */}
+                        <View style={styles.richSlotMetaRow}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Ionicons name="time" size={13} color="#0D4F9E" />
+                            <Text style={styles.richSlotTimeText}>{slot.timeRange}</Text>
+                          </View>
+                          <View style={styles.richSlotDurationBadge}>
+                            <Text style={styles.richSlotDurationText}>{slot.duration || '60 Mins'}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
+                            <Ionicons
+                              name={slot.mode === 'In-Person' ? 'location-outline' : 'videocam-outline'}
+                              size={13}
+                              color="#64748B"
+                            />
+                            <Text style={styles.richSlotLocationText} numberOfLines={1}>
+                              {slot.mode || 'Online'}
+                            </Text>
+                          </View>
                         </View>
-                        {isSelected && !showConflictState && (
-                          <View style={styles.selectedCheckBadge}>
-                            <Ionicons name="checkmark-circle" size={15} color="#D97706" />
-                            <Text style={styles.selectedCheckText}>Selected</Text>
+
+                        {/* Time Difference Row relative to preferred time */}
+                        <View style={styles.timeDiffRow}>
+                          <View
+                            style={[
+                              styles.timeDiffPill,
+                              diffInfo.isExactMatch
+                                ? styles.timeDiffPillExact
+                                : diffInfo.type === 'later'
+                                ? styles.timeDiffPillLater
+                                : styles.timeDiffPillEarlier,
+                            ]}
+                          >
+                            <Ionicons
+                              name={diffInfo.isExactMatch ? 'sparkles' : 'time-outline'}
+                              size={12}
+                              color={
+                                diffInfo.isExactMatch
+                                  ? '#059669'
+                                  : diffInfo.type === 'later'
+                                  ? '#1D4ED8'
+                                  : '#B45309'
+                              }
+                            />
+                            <Text
+                              style={[
+                                styles.timeDiffText,
+                                diffInfo.isExactMatch
+                                  ? styles.timeDiffTextExact
+                                  : diffInfo.type === 'later'
+                                  ? styles.timeDiffTextLater
+                                  : styles.timeDiffTextEarlier,
+                              ]}
+                            >
+                              {diffInfo.isExactMatch
+                                ? `Exact Match for Preferred Time (${selectedInitialTime})`
+                                : `Time Difference: ${diffInfo.displayText} from preferred ${selectedInitialTime}`}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Description */}
+                        {!!slot.description && (
+                          <Text style={styles.richSlotDescText} numberOfLines={2}>
+                            {slot.description}
+                          </Text>
+                        )}
+
+                        {/* Capacity & Selection Status */}
+                        <View style={styles.richSlotFooterRow}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                            <Ionicons
+                              name="people-outline"
+                              size={14}
+                              color={isFull ? '#EF4444' : '#059669'}
+                            />
+                            <Text style={[styles.richSlotCapacityText, isFull && { color: '#EF4444' }]}>
+                              {isFull
+                                ? 'Fully Booked'
+                                : `${slot.bookedCount}/${slot.maxCapacity} Booked • ${Math.max(0, slot.maxCapacity - slot.bookedCount)} Spots Left`}
+                            </Text>
+                          </View>
+                          {isSelected && !showConflictState && (
+                            <View style={styles.selectedCheckBadge}>
+                              <Ionicons name="checkmark-circle" size={15} color="#D97706" />
+                              <Text style={styles.selectedCheckText}>Selected</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Display registered attendees snippet if any students/groups already joined */}
+                        {attendees.length > 0 && (
+                          <View style={styles.attendeesSnippetBox}>
+                            <Ionicons name="people" size={12} color="#0D4F9E" />
+                            <Text style={styles.attendeesSnippetText} numberOfLines={1}>
+                              Joined: {attendees.map((a) => a.studentName).join(', ')}
+                            </Text>
                           </View>
                         )}
-                      </View>
 
-                      {/* Display registered attendees snippet if any students/groups already joined */}
-                      {attendees.length > 0 && (
-                        <View style={styles.attendeesSnippetBox}>
-                          <Ionicons name="people" size={12} color="#0D4F9E" />
-                          <Text style={styles.attendeesSnippetText} numberOfLines={1}>
-                            Joined: {attendees.map((a) => a.studentName).join(', ')}
+                        {/* Conflict Notification Box inside Slot Card */}
+                        {showConflictState && (
+                          <View style={styles.slotConflictBox}>
+                            <View style={styles.slotConflictHeader}>
+                              <Ionicons name="warning" size={14} color="#DC2626" />
+                              <Text style={styles.slotConflictTitle}>SCHEDULE CLASH DETECTED</Text>
+                            </View>
+                            <Text style={styles.slotConflictDesc}>
+                              Tutor has an existing commitment: "{slot.conflictDetails?.existingSessionTitle || 'Existing Session'}" ({slot.conflictDetails?.time || slot.timeRange}).
+                            </Text>
+                            <TouchableOpacity
+                              style={styles.slotConflictQuickBtn}
+                              onPress={() => {
+                                const firstAlt = availableSlots.find(
+                                  (a) => a.id !== slot.id && !a.hasConflict && (a.bookedCount || 0) < a.maxCapacity
+                                );
+                                if (firstAlt) {
+                                  handleSelectSlot(firstAlt);
+                                  setTimeUpdatedBanner(`Selected ${firstAlt.title}`);
+                                  setSelectedAlternative(firstAlt.startTime);
+                                  setAlternativeTimeRange(firstAlt.timeRange);
+                                } else {
+                                  handleRequestSlot();
+                                }
+                              }}
+                              activeOpacity={0.85}
+                            >
+                              <Ionicons name="swap-horizontal" size={14} color="#FFFFFF" />
+                              <Text style={styles.slotConflictQuickBtnText}>
+                                Select Alternative Time Slot
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Conflict-Free Alternatives List (ONLY from real scheduled slots on this date) */}
+                {selectedSlot?.hasConflict && (() => {
+                  const realConflictFree = availableSlots.filter(
+                    (s) => s.id !== selectedSlot.id && !s.hasConflict && (s.bookedCount || 0) < s.maxCapacity
+                  );
+
+                  if (realConflictFree.length === 0) return null;
+
+                  return (
+                    <View style={[styles.altSectionContainer, styles.altSectionContainerClashHighlight]}>
+                      <View style={styles.altSectionHeaderRow}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="calendar-clear-outline" size={16} color="#DC2626" />
+                          <Text style={[styles.altSectionTitle, { color: '#DC2626' }]}>
+                            ALTERNATIVE TIME SLOTS (NO CLASH)
                           </Text>
                         </View>
-                      )}
-
-                      {showConflictState && (
-                        <View style={styles.conflictAlertRow}>
-                          <Ionicons name="warning" size={12} color="#DC2626" />
-                          <Text style={styles.conflictAlertText}>SCHEDULE CONFLICT DETECTED</Text>
+                        <View style={styles.altConflictFreeBadge}>
+                          <Text style={styles.altConflictFreeBadgeText}>Conflict-Free</Text>
                         </View>
-                      )}
-                    </TouchableOpacity>
+                      </View>
+
+                      <Text style={styles.altSectionSub}>
+                        Your preferred slot ({selectedSlot.startTime}) clashes with the tutor schedule. Pick any available alternative below, or tap "Request Slot" to notify {mentor.name}:
+                      </Text>
+
+                      {realConflictFree.map((altSlot) => {
+                        const isSelectedAlt = selectedSlot?.id === altSlot.id;
+                        const diffInfo = getTimeDifferenceInfo(altSlot.startTime, selectedInitialTime);
+
+                        return (
+                          <TouchableOpacity
+                            key={altSlot.id}
+                            style={[
+                              styles.altSlotCard,
+                              isSelectedAlt && styles.altSlotCardSelected,
+                            ]}
+                            onPress={() => {
+                              handleSelectSlot(altSlot);
+                              setTimeUpdatedBanner(`Selected ${altSlot.title}`);
+                              setSelectedAlternative(altSlot.startTime);
+                              setAlternativeTimeRange(altSlot.timeRange);
+                            }}
+                            activeOpacity={0.85}
+                          >
+                            <View style={styles.altSlotLeft}>
+                              <View style={styles.altSlotGreenDot} />
+                              <View style={{ flex: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  <Text style={styles.altSlotTimeText}>{altSlot.startTime}</Text>
+                                  <Text style={styles.altSlotRangeText}>({altSlot.timeRange})</Text>
+                                </View>
+                                <View style={styles.altSlotDiffBadge}>
+                                  <Text style={styles.altSlotDiffText}>
+                                    {diffInfo.isExactMatch
+                                      ? 'Exact Match for requested time'
+                                      : `${diffInfo.displayText} from requested ${selectedInitialTime}`}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+
+                            <View
+                              style={[
+                                styles.altSlotRadioCircle,
+                                isSelectedAlt && styles.altSlotRadioCircleActive,
+                              ]}
+                            >
+                              {isSelectedAlt && (
+                                <Ionicons name="checkmark" size={13} color="#FFFFFF" />
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   );
-                })}
+                })()}
               </View>
             )}
 
-            {/* If selected slot has conflict, display conflict warning banner */}
-            {selectedSlot?.hasConflict ? (
+            {/* Notification / Helper Banner */}
+            {availableSlots.length === 0 ? null : selectedSlot?.hasConflict ? (
               <View style={styles.conflictInlineBanner}>
-                <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                <Ionicons name="alert-circle" size={18} color="#DC2626" />
                 <Text style={styles.conflictInlineText}>
-                  {selectedSlot.startTime} is marked not available due to a schedule conflict. Tap Continue to view alternatives.
+                  {selectedSlot.startTime} is not available due to a tutor schedule clash. Tap "Request Slot" below to notify {mentor.name}, or choose an alternative slot.
+                </Text>
+              </View>
+            ) : timeUpdatedBanner ? (
+              <View style={styles.altResolvedBanner}>
+                <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                <Text style={styles.altResolvedText}>
+                  {timeUpdatedBanner} ({alternativeTimeRange}) • Schedule clash resolved! You can now proceed to finalize.
                 </Text>
               </View>
             ) : (
@@ -1244,16 +1674,41 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
               </Text>
             )}
 
-            {/* Continue Button */}
-            <TouchableOpacity
-              style={[styles.primaryActionButton, selectedSlot?.hasConflict && { backgroundColor: '#DC2626' }]}
-              onPress={handleContinueFromSlots}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.primaryActionText, selectedSlot?.hasConflict && { color: '#FFFFFF' }]}>
-                {selectedSlot?.hasConflict ? 'Check Conflict Details' : 'Continue'}
-              </Text>
-            </TouchableOpacity>
+            {/* Primary Action Button: "Request Slot" when no slots or conflict, "Continue" when available */}
+            {availableSlots.length === 0 || (selectedSlot?.hasConflict && !timeUpdatedBanner) ? (
+              <TouchableOpacity
+                style={[styles.primaryActionButton, styles.requestSlotActionBtn]}
+                onPress={handleRequestSlot}
+                disabled={isSubmittingSlotRequest}
+                activeOpacity={0.85}
+              >
+                {isSubmittingSlotRequest ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <Ionicons name="paper-plane" size={17} color="#FFFFFF" />
+                    <Text style={styles.primaryActionText}>
+                      Request Slot ({selectedInitialTime})
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[
+                  styles.primaryActionButton,
+                  timeUpdatedBanner && { backgroundColor: '#059669' },
+                ]}
+                onPress={handleContinueFromSlots}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryActionText}>
+                  {timeUpdatedBanner
+                    ? `Continue with ${selectedAlternative}`
+                    : 'Continue'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1307,7 +1762,7 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
                   {selectedSlot?.conflictDetails?.existingWith || 'with Prof. Kumar'}
                 </Text>
                 <Text style={styles.existingSessionTime}>
-                  {selectedSlot?.conflictDetails?.time || '19 Sep 2025, 2:00 PM – 3:00 PM'}
+                  {selectedSlot?.conflictDetails?.time || `${selectedDate}, 2:00 PM – 3:00 PM`}
                 </Text>
               </View>
             </View>
@@ -1833,49 +2288,220 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         )}
       </ScrollView>
 
-      {/* DATE PICKER MODAL */}
+      {/* CALENDAR DATE PICKER MODAL (From Current Today's Date Onwards) */}
       <Modal visible={dateModalVisible} transparent animationType="fade">
         <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}
           onPress={() => setDateModalVisible(false)}
         >
-          <View style={styles.pickerModalCard}>
-            <View style={styles.pickerModalHeader}>
-              <Text style={styles.pickerModalTitle}>Select Date</Text>
-              <TouchableOpacity onPress={() => setDateModalVisible(false)}>
+          <View style={styles.calendarModalCard} onStartShouldSetResponder={() => true}>
+            {/* Modal Header */}
+            <View style={styles.calendarModalHeader}>
+              <View>
+                <Text style={styles.calendarModalTitle}>Select Session Date</Text>
+                <Text style={styles.calendarModalSubtitle}>Pick from today's date onwards</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setDateModalVisible(false)}
+                style={styles.calendarCloseBtn}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={{ maxHeight: 280 }}>
-              {availableDates.map((date) => (
-                <TouchableOpacity
-                  key={date}
-                  style={[styles.pickerItemRow, selectedDate === date && styles.pickerItemRowActive]}
-                  onPress={() => {
-                    setSelectedDate(date);
-                    setDateModalVisible(false);
-                  }}
-                >
-                  <Ionicons
-                    name="calendar"
-                    size={16}
-                    color={selectedDate === date ? '#D97706' : '#64748B'}
-                  />
-                  <Text
+
+            {/* Quick Date Shortcut Pills */}
+            <View style={styles.calendarShortcutsRow}>
+              {[
+                { label: 'Today', offset: 0 },
+                { label: 'Tomorrow', offset: 1 },
+                { label: '+2 Days', offset: 2 },
+                { label: '+1 Week', offset: 7 },
+              ].map((sc) => {
+                const targetD = new Date();
+                targetD.setDate(targetD.getDate() + sc.offset);
+                const formattedD = formatCalendarDate(targetD);
+                const isSelected = selectedDate === formattedD;
+                return (
+                  <TouchableOpacity
+                    key={sc.label}
                     style={[
-                      styles.pickerItemText,
-                      selectedDate === date && styles.pickerItemTextActive,
+                      styles.calendarShortcutPill,
+                      isSelected && styles.calendarShortcutPillActive,
                     ]}
+                    onPress={() => {
+                      setSelectedDate(formattedD);
+                      setCalendarMonth(targetD.getMonth());
+                      setCalendarYear(targetD.getFullYear());
+                      setDateModalVisible(false);
+                    }}
+                    activeOpacity={0.8}
                   >
-                    {date}
-                  </Text>
-                  {selectedDate === date && (
-                    <Ionicons name="checkmark-circle" size={18} color="#D97706" style={{ marginLeft: 'auto' }} />
-                  )}
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.calendarShortcutText,
+                        isSelected && styles.calendarShortcutTextActive,
+                      ]}
+                    >
+                      {sc.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Month & Year Navigation Bar */}
+            <View style={styles.calendarNavRow}>
+              {(() => {
+                const now = new Date();
+                const isCurrentMonth =
+                  calendarYear === now.getFullYear() && calendarMonth === now.getMonth();
+                const monthName = new Date(calendarYear, calendarMonth, 1).toLocaleDateString(
+                  'en-US',
+                  { month: 'long', year: 'numeric' }
+                );
+
+                return (
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.calendarNavArrowBtn,
+                        isCurrentMonth && styles.calendarNavArrowDisabled,
+                      ]}
+                      disabled={isCurrentMonth}
+                      onPress={() => {
+                        if (calendarMonth === 0) {
+                          setCalendarMonth(11);
+                          setCalendarYear(calendarYear - 1);
+                        } else {
+                          setCalendarMonth(calendarMonth - 1);
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name="chevron-back"
+                        size={18}
+                        color={isCurrentMonth ? '#CBD5E1' : '#061E47'}
+                      />
+                    </TouchableOpacity>
+
+                    <Text style={styles.calendarMonthTitle}>{monthName}</Text>
+
+                    <TouchableOpacity
+                      style={styles.calendarNavArrowBtn}
+                      onPress={() => {
+                        if (calendarMonth === 11) {
+                          setCalendarMonth(0);
+                          setCalendarYear(calendarYear + 1);
+                        } else {
+                          setCalendarMonth(calendarMonth + 1);
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="chevron-forward" size={18} color="#061E47" />
+                    </TouchableOpacity>
+                  </>
+                );
+              })()}
+            </View>
+
+            {/* Day of Week Headers */}
+            <View style={styles.calendarWeekdaysRow}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dw) => (
+                <View key={dw} style={styles.calendarWeekdayCell}>
+                  <Text style={styles.calendarWeekdayText}>{dw}</Text>
+                </View>
               ))}
-            </ScrollView>
+            </View>
+
+            {/* Days Grid */}
+            {(() => {
+              const firstDayOfWeek = new Date(calendarYear, calendarMonth, 1).getDay();
+              const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+              const todayObj = new Date();
+              todayObj.setHours(0, 0, 0, 0);
+
+              const cells = [];
+              // Blank cells before 1st of month
+              for (let b = 0; b < firstDayOfWeek; b++) {
+                cells.push(
+                  <View key={`empty-${b}`} style={styles.calendarDayCellEmpty} />
+                );
+              }
+
+              // Days of month
+              for (let day = 1; day <= daysInMonth; day++) {
+                const cellDate = new Date(calendarYear, calendarMonth, day, 0, 0, 0, 0);
+                const isPast = cellDate.getTime() < todayObj.getTime();
+                const isToday = cellDate.getTime() === todayObj.getTime();
+                const formattedCell = formatCalendarDate(cellDate);
+                const isSelected = selectedDate === formattedCell;
+
+                cells.push(
+                  <TouchableOpacity
+                    key={`day-${day}`}
+                    style={[
+                      styles.calendarDayCell,
+                      isPast && styles.calendarDayCellPast,
+                      isToday && !isSelected && styles.calendarDayCellToday,
+                      isSelected && styles.calendarDayCellSelected,
+                    ]}
+                    disabled={isPast}
+                    onPress={() => {
+                      setSelectedDate(formattedCell);
+                      setDateModalVisible(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.calendarDayNumber,
+                        isPast && styles.calendarDayNumberPast,
+                        isToday && !isSelected && styles.calendarDayNumberToday,
+                        isSelected && styles.calendarDayNumberSelected,
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                    {isToday && !isSelected && (
+                      <View style={styles.calendarTodayDot} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }
+
+              // Group into rows of 7
+              const rows = [];
+              for (let i = 0; i < cells.length; i += 7) {
+                rows.push(
+                  <View key={`row-${i}`} style={styles.calendarDaysRow}>
+                    {cells.slice(i, i + 7)}
+                  </View>
+                );
+              }
+
+              return <View style={styles.calendarGridWrap}>{rows}</View>;
+            })()}
+
+            {/* Footer Selected Date Banner & Close */}
+            <View style={styles.calendarFooterRow}>
+              <View style={styles.calendarFooterSelectedInfo}>
+                <Ionicons name="calendar" size={15} color="#D97706" />
+                <Text style={styles.calendarFooterSelectedText} numberOfLines={1}>
+                  {selectedDate}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.calendarConfirmBtn}
+                onPress={() => setDateModalVisible(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.calendarConfirmBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1939,6 +2565,66 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
             </ScrollView>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* ================= SLOT REQUEST CONFIRMATION MODAL ================= */}
+      <Modal visible={requestSuccessModalVisible} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.requestSuccessModalCard}>
+            <View style={styles.requestSuccessIconWrap}>
+              <Ionicons name="paper-plane" size={28} color="#D97706" />
+            </View>
+
+            <Text style={styles.requestSuccessTitle}>Slot Request Sent!</Text>
+            <Text style={styles.requestSuccessSubtitle}>
+              A notification has been sent directly to {mentor.name}'s Tutor Dashboard.
+            </Text>
+
+            <View style={styles.requestSummaryBox}>
+              <View style={styles.requestSummaryRow}>
+                <Ionicons name="calendar-outline" size={15} color="#D97706" />
+                <Text style={styles.requestSummaryLabel}>Date:</Text>
+                <Text style={styles.requestSummaryVal}>{selectedDate}</Text>
+              </View>
+              <View style={styles.requestSummaryRow}>
+                <Ionicons name="time-outline" size={15} color="#0D4F9E" />
+                <Text style={styles.requestSummaryLabel}>Requested Time:</Text>
+                <Text style={styles.requestSummaryVal}>{selectedInitialTime}</Text>
+              </View>
+              <View style={styles.requestSummaryRow}>
+                <Ionicons name="book-outline" size={15} color="#475569" />
+                <Text style={styles.requestSummaryLabel}>Subject:</Text>
+                <Text style={styles.requestSummaryVal} numberOfLines={1}>
+                  {selectedTopics[0] || mentor.subjects?.[0] || 'Peer Tutoring'}
+                </Text>
+              </View>
+              <View style={styles.requestSummaryRow}>
+                <Ionicons name="people-outline" size={15} color="#059669" />
+                <Text style={styles.requestSummaryLabel}>Format:</Text>
+                <Text style={styles.requestSummaryVal}>
+                  {studyMode === 'group' ? 'Group Session' : '1-on-1 Mentoring'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.requestNoticeText}>
+              {mentor.name} will review your requested time slot. You will receive an alert once accepted.
+            </Text>
+
+            <View style={styles.requestModalBtnRow}>
+              <TouchableOpacity
+                style={styles.requestModalDoneBtn}
+                onPress={() => {
+                  setRequestSuccessModalVisible(false);
+                  (navigation as any).navigate('Home');
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.requestModalDoneBtnText}>Done • Return Home</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       {/* ================= DIRECTPAY PAYMENT MODAL ================= */}
@@ -2736,6 +3422,504 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  /* Screen 2 Requested Summary & Status Banner */
+  requestedSummaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  requestedTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  requestedSectionTag: {
+    color: '#061E47',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  changeRequestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  changeRequestBtnText: {
+    color: '#D97706',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  requestedChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  requestedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  requestedChipText: {
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  requestedChipSub: {
+    color: '#64748B',
+    fontSize: 10.5,
+    fontWeight: '600',
+  },
+  requestedStatusBanner: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  requestedStatusBannerAvailable: {
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  requestedStatusBannerClash: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  requestedStatusBannerSuccess: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  requestedStatusTitle: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  requestedStatusDesc: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1,
+    lineHeight: 15,
+  },
+
+  /* Time Difference Row & Pills */
+  timeDiffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  timeDiffPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+  },
+  timeDiffPillExact: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  timeDiffPillLater: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  timeDiffPillEarlier: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  timeDiffText: {
+    fontSize: 11,
+  },
+  timeDiffTextExact: {
+    color: '#059669',
+    fontWeight: '800',
+  },
+  timeDiffTextLater: {
+    color: '#1D4ED8',
+    fontWeight: '700',
+  },
+  timeDiffTextEarlier: {
+    color: '#B45309',
+    fontWeight: '700',
+  },
+
+  /* In-card Conflict Box */
+  slotConflictBox: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 10,
+    marginTop: 8,
+  },
+  slotConflictHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  slotConflictTitle: {
+    color: '#DC2626',
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  slotConflictDesc: {
+    color: '#475569',
+    fontSize: 11,
+    marginTop: 3,
+    lineHeight: 15,
+  },
+  slotConflictQuickBtn: {
+    marginTop: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  slotConflictQuickBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+
+  noSlotsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+  },
+  noSlotsTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#061E47',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  noSlotsDesc: {
+    fontSize: 12.5,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 14,
+    lineHeight: 18,
+  },
+  noSlotsPickDateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#061E47',
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  noSlotsPickDateBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+
+  /* Alternative Slot Request Dedicated Component */
+  altRequestDedicatedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#FED7AA',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  altRequestCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 14,
+  },
+  altRequestIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1.5,
+    borderColor: '#FDBA74',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  altRequestCardTitle: {
+    fontSize: 15.5,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  altRequestDirectPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  altRequestDirectText: {
+    color: '#1D4ED8',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  altRequestCardSubtitle: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 3,
+    lineHeight: 16,
+  },
+  altRequestDetailsBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+  },
+  altRequestDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  altRequestDetailLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  altRequestDetailVal: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  altRequestDetailDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 4,
+  },
+  altRequestChangeLink: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  altRequestChangeLinkText: {
+    color: '#0D4F9E',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  altRequestFormatPill: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  altRequestFormatText: {
+    color: '#059669',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  altRequestNotesContainer: {
+    marginBottom: 12,
+  },
+  altRequestNotesLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 6,
+  },
+  altRequestNotesInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 12,
+    color: '#061E47',
+    minHeight: 44,
+  },
+  altRequestCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F0F9FF',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  altRequestCalloutText: {
+    fontSize: 11,
+    color: '#0369A1',
+    lineHeight: 15,
+    flex: 1,
+  },
+
+  /* Alternative Time Slots Section on Choose Time */
+  altSectionContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  altSectionContainerClashHighlight: {
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FFFBFB',
+  },
+  altSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  altSectionTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#061E47',
+    letterSpacing: 0.3,
+  },
+  altConflictFreeBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  altConflictFreeBadgeText: {
+    color: '#059669',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  altSectionSub: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  altSlotCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+  },
+  altSlotCardSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#2563EB',
+  },
+  altSlotLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  altSlotGreenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
+  altSlotTimeText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  altSlotRangeText: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  altSlotDiffBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 3,
+  },
+  altSlotDiffText: {
+    fontSize: 10,
+    color: '#475569',
+    fontWeight: '700',
+  },
+  altSlotRadioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  altSlotRadioCircleActive: {
+    borderColor: '#2563EB',
+    backgroundColor: '#2563EB',
+  },
+  altResolvedBanner: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  altResolvedText: {
+    color: '#065F46',
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+    lineHeight: 16,
+  },
+
   /* Slots Grid */
   slotsGrid: {
     flexDirection: 'row',
@@ -3208,6 +4392,327 @@ const styles = StyleSheet.create({
   },
   pickerItemTextActive: {
     color: '#D97706',
+    fontWeight: '800',
+  },
+
+  /* Slot Request Action Button & Confirmation Modal Styles */
+  requestSlotActionBtn: {
+    backgroundColor: '#D97706',
+    shadowColor: '#D97706',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  requestSuccessModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    width: '90%',
+    maxWidth: 380,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  requestSuccessIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  requestSuccessTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#061E47',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  requestSuccessSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  requestSummaryBox: {
+    width: '100%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+    gap: 8,
+  },
+  requestSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  requestSummaryLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    width: 100,
+  },
+  requestSummaryVal: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#061E47',
+    flex: 1,
+  },
+  requestNoticeText: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 18,
+  },
+  requestModalBtnRow: {
+    width: '100%',
+  },
+  requestModalDoneBtn: {
+    backgroundColor: '#061E47',
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  requestModalDoneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  /* ========================================================= */
+  /* INTERACTIVE CALENDAR MODAL STYLES */
+  /* ========================================================= */
+  calendarModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    width: '94%',
+    maxWidth: 390,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  calendarModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  calendarModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#061E47',
+    letterSpacing: -0.3,
+  },
+  calendarModalSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  calendarCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarShortcutsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  calendarShortcutPill: {
+    flex: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarShortcutPillActive: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  calendarShortcutText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  calendarShortcutTextActive: {
+    color: '#B45309',
+  },
+  calendarNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    marginBottom: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  calendarNavArrowBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  calendarNavArrowDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+    opacity: 0.5,
+  },
+  calendarMonthTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#061E47',
+    letterSpacing: -0.2,
+  },
+  calendarWeekdaysRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  calendarWeekdayCell: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  calendarWeekdayText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  calendarGridWrap: {
+    marginBottom: 14,
+  },
+  calendarDaysRow: {
+    flexDirection: 'row',
+    marginVertical: 2,
+  },
+  calendarDayCell: {
+    flex: 1,
+    aspectRatio: 1,
+    margin: 2,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    position: 'relative',
+  },
+  calendarDayCellEmpty: {
+    flex: 1,
+    aspectRatio: 1,
+    margin: 2,
+  },
+  calendarDayCellPast: {
+    backgroundColor: '#F8FAFC',
+    opacity: 0.35,
+  },
+  calendarDayCellToday: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFDF0',
+  },
+  calendarDayCellSelected: {
+    backgroundColor: '#061E47',
+    borderColor: '#061E47',
+    shadowColor: '#061E47',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  calendarDayNumber: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  calendarDayNumberPast: {
+    color: '#94A3B8',
+  },
+  calendarDayNumberToday: {
+    color: '#D97706',
+    fontWeight: '800',
+  },
+  calendarDayNumberSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  calendarTodayDot: {
+    position: 'absolute',
+    bottom: 3,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D97706',
+  },
+  calendarFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 12,
+  },
+  calendarFooterSelectedInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFDF0',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+  },
+  calendarFooterSelectedText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#92400E',
+    flex: 1,
+  },
+  calendarConfirmBtn: {
+    backgroundColor: '#061E47',
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarConfirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '800',
   },
 

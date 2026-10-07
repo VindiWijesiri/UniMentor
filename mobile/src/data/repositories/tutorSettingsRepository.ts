@@ -12,7 +12,21 @@ export interface TutorBookingSettings {
   availableDates: string[];
 }
 
-const STORAGE_KEY = 'unimentor_tutor_settings_v2';
+export function getDynamicDate(offsetDays: number = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const fullDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+  const dayNum = d.getDate();
+  const month = d.toLocaleDateString('en-US', { month: 'short' });
+  const year = d.getFullYear();
+  return `${fullDay}, ${dayNum} ${month} ${year}`;
+}
+
+export function getDynamicDatesList(count: number = 7): string[] {
+  return Array.from({ length: count }, (_, i) => getDynamicDate(i));
+}
+
+const STORAGE_KEY = 'unimentor_tutor_settings_v3';
 
 const DEFAULT_SETTINGS: Record<string, TutorBookingSettings> = {
   'mentor-alex': {
@@ -33,13 +47,7 @@ const DEFAULT_SETTINGS: Record<string, TutorBookingSettings> = {
       'Transactions & ACID',
       'NoSQL & MongoDB',
     ],
-    availableDates: [
-      'Friday, 19 Sep 2025',
-      'Saturday, 20 Sep 2025',
-      'Monday, 22 Sep 2025',
-      'Tuesday, 23 Sep 2025',
-      'Thursday, 25 Sep 2025',
-    ],
+    availableDates: getDynamicDatesList(7),
   },
   'demo-tutor-1': {
     mentorId: 'demo-tutor-1',
@@ -57,12 +65,7 @@ const DEFAULT_SETTINGS: Record<string, TutorBookingSettings> = {
       'Time Complexity & Big-O',
       'Dynamic Programming',
     ],
-    availableDates: [
-      'Friday, 19 Sep 2025',
-      'Saturday, 20 Sep 2025',
-      'Sunday, 21 Sep 2025',
-      'Wednesday, 24 Sep 2025',
-    ],
+    availableDates: getDynamicDatesList(7),
   },
   'mentor-tharushi-1': {
     mentorId: 'mentor-tharushi-1',
@@ -80,12 +83,7 @@ const DEFAULT_SETTINGS: Record<string, TutorBookingSettings> = {
       'Time Complexity & Big-O',
       'Dynamic Programming',
     ],
-    availableDates: [
-      'Friday, 19 Sep 2025',
-      'Saturday, 20 Sep 2025',
-      'Sunday, 21 Sep 2025',
-      'Wednesday, 24 Sep 2025',
-    ],
+    availableDates: getDynamicDatesList(7),
   },
   'mentor-shenal': {
     mentorId: 'mentor-shenal',
@@ -103,11 +101,7 @@ const DEFAULT_SETTINGS: Record<string, TutorBookingSettings> = {
       'Async Storage & APIs',
       'Mobile UI/UX Design',
     ],
-    availableDates: [
-      'Friday, 19 Sep 2025',
-      'Saturday, 20 Sep 2025',
-      'Monday, 22 Sep 2025',
-    ],
+    availableDates: getDynamicDatesList(7),
   },
   'mentor-kaveen-2': {
     mentorId: 'mentor-kaveen-2',
@@ -125,11 +119,7 @@ const DEFAULT_SETTINGS: Record<string, TutorBookingSettings> = {
       'REST & GraphQL APIs',
       'Cloud Deployment',
     ],
-    availableDates: [
-      'Saturday, 20 Sep 2025',
-      'Monday, 22 Sep 2025',
-      'Thursday, 25 Sep 2025',
-    ],
+    availableDates: getDynamicDatesList(7),
   },
   'mentor-sanduni-3': {
     mentorId: 'mentor-sanduni-3',
@@ -147,11 +137,7 @@ const DEFAULT_SETTINGS: Record<string, TutorBookingSettings> = {
       'Feature Engineering',
       'Model Evaluation',
     ],
-    availableDates: [
-      'Friday, 19 Sep 2025',
-      'Tuesday, 23 Sep 2025',
-      'Wednesday, 24 Sep 2025',
-    ],
+    availableDates: getDynamicDatesList(7),
   },
   'mentor-asanka-4': {
     mentorId: 'mentor-asanka-4',
@@ -168,10 +154,7 @@ const DEFAULT_SETTINGS: Record<string, TutorBookingSettings> = {
       'Distributions & Hypothesis Testing',
       'Graph Theory & Combinatorics',
     ],
-    availableDates: [
-      'Saturday, 20 Sep 2025',
-      'Sunday, 21 Sep 2025',
-    ],
+    availableDates: getDynamicDatesList(7),
   },
 };
 
@@ -273,12 +256,7 @@ export const tutorSettingsRepository = {
               'ER Diagrams',
               'Normalization',
             ],
-            availableDates: [
-              'Friday, 19 Sep 2025',
-              'Saturday, 20 Sep 2025',
-              'Monday, 22 Sep 2025',
-              'Tuesday, 23 Sep 2025',
-            ],
+            availableDates: getDynamicDatesList(7),
           };
       await setStorageItem(STORAGE_KEY, JSON.stringify(map));
       notifyListeners(map);

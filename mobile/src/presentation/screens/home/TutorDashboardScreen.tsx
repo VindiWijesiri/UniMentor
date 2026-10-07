@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
 import { tutorSettingsRepository } from '../../../data/repositories/tutorSettingsRepository';
+import { tutorRequestRepository, TutorSlotRequest } from '../../../data/repositories/tutorRequestRepository';
 import type { TutorSlot, RegisteredAttendee } from '../../../domain/entities/TutorSlot';
 import TutorAvatar from '../../components/common/TutorAvatar';
 import apiClient from '../../../data/api/apiClient';
@@ -128,6 +129,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
 
   // Slot management state
   const [tutorSlots, setTutorSlots] = useState<TutorSlot[]>([]);
+  const [slotRequests, setSlotRequests] = useState<TutorSlotRequest[]>([]);
   const [addSlotModalVisible, setAddSlotModalVisible] = useState(false);
   const [newSlotDate, setNewSlotDate] = useState(upcomingDatesList[0].formatted);
   const [newSlotStartTime, setNewSlotStartTime] = useState('10:00 AM');
@@ -169,11 +171,81 @@ export default function TutorDashboardScreen({ navigation }: any) {
 
   useEffect(() => {
     loadTutorSettingsAndSlots();
-    const unsub = tutorSlotRepository.subscribe(() => {
+    loadSlotRequests();
+    const unsubSlots = tutorSlotRepository.subscribe(() => {
       loadTutorSettingsAndSlots();
     });
-    return unsub;
+    const unsubReqs = tutorRequestRepository.subscribe(() => {
+      loadSlotRequests();
+    });
+    return () => {
+      unsubSlots();
+      unsubReqs();
+    };
   }, [tutorMentorId, tutorMentorName]);
+
+  const loadSlotRequests = async () => {
+    try {
+      const reqs = await tutorRequestRepository.getRequestsForTutor(
+        tutorMentorId,
+        tutorMentorName
+      );
+      setSlotRequests(reqs);
+    } catch {}
+  };
+
+  const handleAcceptSlotRequest = async (req: TutorSlotRequest) => {
+    try {
+      const durationMins = 60;
+      const endTimeCalculated = calculateEndTimeFromStart(req.time, durationMins);
+      await tutorSlotRepository.addSlot({
+        mentorId: tutorMentorId,
+        mentorName: tutorMentorName,
+        title: `${req.studentName} • ${req.subject}`,
+        module: req.subject,
+        date: req.date,
+        startTime: req.time,
+        endTime: endTimeCalculated,
+        duration: req.duration || `${durationMins} Mins`,
+        timeRange: `${req.time} - ${endTimeCalculated}`,
+        fee: req.studyMode === 'group' ? 1200 : 2500,
+        type: req.studyMode,
+        maxCapacity: req.studyMode === 'group' ? 5 : 1,
+        mode: 'Online',
+        location: 'Microsoft Teams • Link Sent Upon Booking',
+        description: req.notes || `Requested session for ${req.subject}.`,
+        prerequisites: 'Lecture notes & question sets prepared.',
+        targetBatch: 'All Batches',
+        registeredAttendees: [
+          {
+            id: `att-${Date.now()}`,
+            studentName: req.studentName,
+            studentEmail: req.studentEmail,
+            studentAvatar: req.studentAvatar,
+            registeredAt: 'Just now',
+            status: 'confirmed',
+            bookingType: req.studyMode === 'group' ? 'group' : 'individual',
+            feePaid: req.studyMode === 'group' ? 1200 : 2500,
+            notes: req.notes,
+          },
+        ],
+      });
+
+      await tutorRequestRepository.updateRequestStatus(req.id, 'accepted');
+
+      Alert.alert(
+        'Slot Request Accepted',
+        `A session slot has been scheduled for ${req.studentName} on ${req.date} at ${req.time}. It is now in your active schedule.`
+      );
+    } catch {
+      Alert.alert('Error', 'Unable to schedule slot. Please try again.');
+    }
+  };
+
+  const handleDeclineSlotRequest = async (req: TutorSlotRequest) => {
+    await tutorRequestRepository.updateRequestStatus(req.id, 'declined');
+    Alert.alert('Request Declined', `Slot request from ${req.studentName} has been declined.`);
+  };
 
   const loadTutorSettingsAndSlots = async () => {
     try {
@@ -583,6 +655,115 @@ export default function TutorDashboardScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* ===================================================================== */}
+        {/* STUDENT SLOT REQUESTS SECTION (Live alerts for unavailable slots)    */}
+        {/* ===================================================================== */}
+        <View style={styles.slotRequestsCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.sectionHeading}>Student Slot Requests</Text>
+                {slotRequests.filter((r) => r.status === 'pending').length > 0 && (
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>
+                      {slotRequests.filter((r) => r.status === 'pending').length} New
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.sectionSubheading}>
+                Direct session requests from students whose preferred dates or times had clashes
+              </Text>
+            </View>
+          </View>
+
+          {slotRequests.filter((r) => r.status === 'pending').length === 0 ? (
+            <View style={styles.emptyRequestsBox}>
+              <Ionicons name="notifications-outline" size={24} color="#94A3B8" />
+              <Text style={styles.emptyRequestsText}>
+                No pending student slot requests. When students request custom or unavailable times, they will appear here in real time.
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 12, marginTop: 10 }}>
+              {slotRequests
+                .filter((r) => r.status === 'pending')
+                .map((req) => (
+                  <View key={req.id} style={styles.requestItemCard}>
+                    {/* Header Row: Student Info */}
+                    <View style={styles.requestItemHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <TutorAvatar
+                          name={req.studentName}
+                          imageUrl={req.studentAvatar}
+                          size={40}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.requestStudentName}>{req.studentName}</Text>
+                          <Text style={styles.requestStudentEmail} numberOfLines={1}>
+                            {req.studentEmail}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.requestTimeAgoPill}>
+                        <Text style={styles.requestTimeAgoText}>{req.requestedAt}</Text>
+                      </View>
+                    </View>
+
+                    {/* Details: Subject, Date & Time, Mode */}
+                    <View style={styles.requestDetailsRow}>
+                      <View style={styles.requestDetailChip}>
+                        <Ionicons name="book-outline" size={13} color="#061E47" />
+                        <Text style={styles.requestDetailChipText} numberOfLines={1}>
+                          {req.subject}
+                        </Text>
+                      </View>
+                      <View style={styles.requestDetailChip}>
+                        <Ionicons name="calendar-outline" size={13} color="#D97706" />
+                        <Text style={styles.requestDetailChipText}>
+                          {req.date} • {req.time}
+                        </Text>
+                      </View>
+                      <View style={styles.requestDetailChip}>
+                        <Ionicons name="people-outline" size={13} color="#059669" />
+                        <Text style={styles.requestDetailChipText}>
+                          {req.studyMode === 'group' ? 'Group' : '1-on-1'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Notes if provided */}
+                    {!!req.notes && (
+                      <View style={styles.requestNotesBox}>
+                        <Text style={styles.requestNotesLabel}>Student Note:</Text>
+                        <Text style={styles.requestNotesText}>"{req.notes}"</Text>
+                      </View>
+                    )}
+
+                    {/* Actions Row */}
+                    <View style={styles.requestActionRow}>
+                      <TouchableOpacity
+                        style={styles.declineRequestBtn}
+                        onPress={() => handleDeclineSlotRequest(req)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.declineRequestBtnText}>Decline</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.acceptRequestBtn}
+                        onPress={() => handleAcceptSlotRequest(req)}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="checkmark-sharp" size={15} color="#FFFFFF" />
+                        <Text style={styles.acceptRequestBtnText}>Accept & Schedule Slot</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+            </View>
+          )}
         </View>
 
         {/* 3.1 Booking Pricing & Subject Preferences Section */}
@@ -2438,6 +2619,152 @@ const styles = StyleSheet.create({
   modePickerBtnTextActive: {
     color: '#FFFFFF',
     fontWeight: '800',
+  },
+
+  /* Student Slot Requests Section Styles */
+  slotRequestsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 14,
+    borderWidth: 1.5,
+    borderColor: '#FEF3C7',
+    shadowColor: '#D97706',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  pendingBadge: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  pendingBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  emptyRequestsBox: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyRequestsText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 17,
+    paddingHorizontal: 16,
+  },
+  requestItemCard: {
+    backgroundColor: '#FFFDF0',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+  },
+  requestItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  requestStudentName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  requestStudentEmail: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  requestTimeAgoPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  requestTimeAgoText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  requestDetailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  requestDetailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  requestDetailChipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  requestNotesBox: {
+    backgroundColor: '#FFFFFF',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 10,
+  },
+  requestNotesLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 2,
+  },
+  requestNotesText: {
+    fontSize: 11.5,
+    fontStyle: 'italic',
+    color: '#334155',
+  },
+  requestActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  declineRequestBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  declineRequestBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  acceptRequestBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#061E47',
+  },
+  acceptRequestBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 
   /* Date & Time Picker Styles */
