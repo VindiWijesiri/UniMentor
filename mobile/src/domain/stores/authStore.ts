@@ -1,5 +1,68 @@
 import { create } from 'zustand';
-import { User } from '../entities/User';
+import { User, VerificationStatus } from '../entities/User';
+
+export const mockStudentUser: User = {
+  _id: 'student-oslo-1',
+  id: 'student-oslo-1',
+  name: 'Nethmi Silva',
+  email: 'nethmi.silva@student.unimentor.lk',
+  role: 'student',
+  university: 'SLIIT Malabe Campus',
+  faculty: 'Faculty of Computing',
+  department: 'Software Engineering',
+  degree: 'BSc (Hons) in Information Technology',
+  degreeProgramme: 'BSc (Hons) in Information Technology',
+  academicYear: 'Year 2',
+  semester: 'Sem 1',
+  studentId: 'IT22089100',
+  phone: '+94 77 123 4567',
+  accountStatus: 'active',
+  verificationStatus: 'approved',
+  createdAt: '2023-01-15T09:00:00Z',
+  bio: 'Second-year Computing undergrad passionate about Databases and Software Engineering.',
+};
+
+export const mockTutorUser: User = {
+  _id: 'mentor-alex',
+  id: 'mentor-alex',
+  name: 'Alex Ferreira',
+  email: 'alex.ferreira@sliit.lk',
+  role: 'mentor',
+  university: 'SLIIT Malabe Campus',
+  faculty: 'Faculty of Computing',
+  department: 'Database Systems',
+  degree: 'MSc in Information Systems & Database Technologies',
+  degreeProgramme: 'MSc in Information Systems',
+  studentId: 'TUT/2021/042',
+  phone: '+94 71 987 6543',
+  accountStatus: 'active',
+  verificationStatus: 'approved',
+  hourlyRate: 2500,
+  approvedModules: ['Database Management Systems', 'Data Structures & Algorithms', 'Query Optimization'],
+  pendingModules: ['DevOps'],
+  rating: 4.9,
+  totalReviews: 48,
+  reviewCount: 48,
+  completedSessions: 74,
+  availability: 'Mon - Fri: 9:00 AM - 6:30 PM',
+  createdAt: '2022-08-10T10:30:00Z',
+  bio: 'Database Systems Tutor & Senior Peer Mentor. Specializes in SQL, Relational Normalization, Indexing, and Schema Architecture.',
+};
+
+export const mockAdminUser: User = {
+  _id: 'user_admin_01',
+  id: 'user_admin_01',
+  name: 'Admin Kasun Jayawardena',
+  email: 'admin.kasun@unimentor.lk',
+  role: 'admin',
+  university: 'UniMentor Platform Operations',
+  faculty: 'Academic Administration',
+  department: 'Quality & Verification Board',
+  accountStatus: 'active',
+  verificationStatus: 'approved',
+  createdAt: '2021-05-01T08:00:00Z',
+  bio: 'System Administrator and Lead Verification Officer for UniMentor.',
+};
 
 interface AuthState {
   user: User | null;
@@ -8,22 +71,76 @@ interface AuthState {
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   logout: () => void;
+  switchDemoRole: (role: 'student' | 'mentor' | 'admin') => void;
+  updateUserProfile: (partial: Partial<User>) => void;
+  updateVerificationStatus: (status: VerificationStatus, reason?: string) => void;
+  pendingRoute: string | null;
+  setPendingRoute: (route: string | null) => void;
+  rememberToken: (token: string) => Promise<void>;
+  restoreSession: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: {
-    _id: 'student-oslo-1',
-    id: 'student-oslo-1',
-    name: 'Nethmi Silva',
-    email: 'nethmi.silva@student.unimentor.lk',
-    role: 'student',
-    faculty: 'Faculty of Computing',
-    department: 'Software Engineering',
-  },
-  token: 'demo-student-token-xyz',
+  user: mockStudentUser,
+  token: 'demo_student_token',
   isAuthenticated: true,
   setUser: (user) => set({ user, isAuthenticated: true }),
   setToken: (token) => set({ token }),
-  logout: () => set({ user: null, token: null, isAuthenticated: false }),
+  logout: () => {
+    set({ user: null, token: null, isAuthenticated: false, pendingRoute: null });
+    import('expo-secure-store').then((store) => store.deleteItemAsync('auth.token')).catch(() => undefined);
+  },
+  switchDemoRole: (role) => {
+    let selectedUser: User = mockStudentUser;
+    if (role === 'mentor') selectedUser = mockTutorUser;
+    if (role === 'admin') selectedUser = mockAdminUser;
+    set({ user: selectedUser, token: `demo_${role}_token`, isAuthenticated: true });
+  },
+  updateUserProfile: (partial) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, ...partial } : null,
+    })),
+  updateVerificationStatus: (status, reason) =>
+    set((state) => ({
+      user: state.user
+        ? {
+            ...state.user,
+            verificationStatus: status,
+            rejectionReason: reason || state.user.rejectionReason,
+          }
+        : null,
+    })),
+  pendingRoute: null,
+  setPendingRoute: (route) => set({ pendingRoute: route }),
+  rememberToken: async (token) => {
+    const store = await import('expo-secure-store');
+    await store.setItemAsync('auth.token', token);
+  },
+  restoreSession: async () => {
+    try {
+      const store = await import('expo-secure-store');
+      const token = await store.getItemAsync('auth.token');
+      if (!token || token.startsWith('demo_') || token.startsWith('mock_')) return;
+      const biometric = await store.getItemAsync('auth.biometric');
+      if (biometric === '1') {
+        try {
+          const localAuth = await import('expo-local-authentication');
+          const result = await localAuth.authenticateAsync({
+            promptMessage: 'Unlock UniMentor',
+            cancelLabel: 'Use password',
+          });
+          if (!result.success) return;
+        } catch {
+          return;
+        }
+      }
+      set({ token });
+      const { authRepository } = await import('../../data/repositories/authRepository');
+      const me = await authRepository.me();
+      set({ user: me.user, token, isAuthenticated: true });
+    } catch {
+      set({ user: null, token: null, isAuthenticated: false });
+      import('expo-secure-store').then((store) => store.deleteItemAsync('auth.token')).catch(() => undefined);
+    }
+  },
 }));
-

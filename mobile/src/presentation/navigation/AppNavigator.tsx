@@ -7,6 +7,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { Mentor } from '../../domain/entities/Mentor';
 import type { TutorFilters } from '../../domain/entities/TutorFilters';
 import type { Review } from '../../domain/entities/Review';
+import type { AssessmentKind } from '../../domain/entities/AssessmentWork';
 import HomeScreen from '../screens/home/HomeScreen';
 import SearchScreen from '../screens/search/SearchScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -20,15 +21,64 @@ import RecommendedTutorScreen from '../screens/search/RecommendedTutorScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
 import ChatInboxScreen from '../screens/chat/ChatInboxScreen';
 import StudentDashboardScreen from '../screens/home/StudentDashboardScreen';
-import { useAuthStore } from '../../domain/stores/authStore';
-import { colors } from '../../shared/theme';
-
 import TutorDashboardScreen from '../screens/home/TutorDashboardScreen';
 import TutorSlotManagementScreen from '../screens/home/TutorSlotManagementScreen';
 import TutorSessionsScreen from '../screens/home/TutorSessionsScreen';
 import SessionsScreen from '../screens/sessions/SessionsScreen';
 import BookingFlowScreen from '../screens/booking/BookingFlowScreen';
 import LiveSessionRoomScreen from '../screens/sessions/LiveSessionRoomScreen';
+
+// Hima-Personal screens
+import LearningDashboardScreen from '../screens/learning/LearningDashboardScreen';
+import TutorLearningDashboardScreen from '../screens/learning/TutorLearningDashboardScreen';
+import GradeSubmissionScreen from '../screens/learning/GradeSubmissionScreen';
+import TutorStudentScreen from '../screens/learning/TutorStudentScreen';
+import PackDispatcherScreen from '../screens/learning/PackDispatcherScreen';
+import TutorToolsScreen from '../screens/learning/TutorToolsScreen';
+import ChatPodScreen from '../screens/learning/ChatPodScreen';
+import PodThreadScreen from '../screens/learning/PodThreadScreen';
+import CreateSquadScreen from '../screens/learning/CreateSquadScreen';
+import FindFriendScreen from '../screens/learning/FindFriendScreen';
+import StudyPlansScreen from '../screens/learning/StudyPlansScreen';
+import StudyMaterialsScreen from '../screens/learning/StudyMaterialsScreen';
+import StudyMaterialDetailScreen from '../screens/learning/StudyMaterialDetailScreen';
+import StoreMaterialScreen from '../screens/learning/StoreMaterialScreen';
+import StudentAssessmentDashboardScreen from '../screens/assessments/StudentAssessmentDashboardScreen';
+import ImprovementHistoryScreen from '../screens/assessments/ImprovementHistoryScreen';
+import TakeAssessmentScreen from '../screens/assessments/TakeAssessmentScreen';
+import AssessmentResultScreen from '../screens/assessments/AssessmentResultScreen';
+import TutorAssessmentHubScreen from '../screens/assessments/TutorAssessmentHubScreen';
+import CreateAssessmentScreen from '../screens/assessments/CreateAssessmentScreen';
+import TutorSubmissionsScreen from '../screens/assessments/TutorSubmissionsScreen';
+import AssessmentDetailScreen from '../screens/learning/AssessmentDetailScreen';
+import LearningActivityScreen from '../screens/learning/LearningActivityScreen';
+import DiscussionsScreen from '../screens/learning/DiscussionsScreen';
+import LiveSessionScreen from '../screens/learning/LiveSessionScreen';
+import OnboardingScreen from '../screens/auth/OnboardingScreen';
+import RoleSelectionScreen from '../screens/auth/RoleSelectionScreen';
+import StudentRegistrationScreen from '../screens/auth/StudentRegistrationScreen';
+import TutorRegistrationScreen from '../screens/auth/TutorRegistrationScreen';
+import EmailVerificationScreen from '../screens/verification/EmailVerificationScreen';
+import VerifyIdentityScreen from '../screens/verification/VerifyIdentityScreen';
+import FaceVerificationScreen from '../screens/verification/FaceVerificationScreen';
+import VerificationResultScreen from '../screens/verification/VerificationResultScreen';
+import TutorVerificationStatusScreen from '../screens/verification/TutorVerificationStatusScreen';
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import TutorApplicationsScreen from '../screens/admin/TutorApplicationsScreen';
+import TutorApplicationDetailsScreen from '../screens/admin/TutorApplicationDetailsScreen';
+import DocumentReviewScreen from '../screens/admin/DocumentReviewScreen';
+import UserManagementScreen from '../screens/admin/UserManagementScreen';
+import TutorProfileManageScreen from '../screens/tutor/TutorProfileManageScreen';
+import EditProfileScreen from '../screens/tutor/EditProfileScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
+import SecurityScreen from '../screens/settings/SecurityScreen';
+import NotificationSettingsScreen from '../screens/settings/NotificationSettingsScreen';
+import HelpSupportScreen from '../screens/settings/HelpSupportScreen';
+import AccountStatusScreen from '../screens/settings/AccountStatusScreen';
+
+import { useAuthStore } from '../../domain/stores/authStore';
+import { colors } from '../../shared/theme';
+
 import {
   SvgHome,
   SvgCalendar,
@@ -56,20 +106,24 @@ export type BookingsStackParamList = {
   };
 };
 
+export type SearchParams = {
+  initialQuery?: string;
+  faculty?: string;
+  department?: string;
+  programme?: string;
+  academicYear?: string;
+  semester?: string;
+  topic?: string;
+  filters?: TutorFilters;
+} | undefined;
+
 export type AppTabParamList = {
   Home: undefined;
   Bookings: NavigatorScreenParams<BookingsStackParamList> | undefined;
-  Search: {
-    initialQuery?: string;
-    faculty?: string;
-    department?: string;
-    programme?: string;
-    academicYear?: string;
-    semester?: string;
-    topic?: string;
-    filters?: TutorFilters;
-  } | undefined;
+  Search: SearchParams;
+  Learning?: undefined;
   Messages: undefined;
+  Alerts?: undefined;
   Profile: undefined;
   Reviews?: undefined;
   TutorProfileTab?: undefined;
@@ -79,8 +133,9 @@ export type AppTabParamList = {
 
 export type AppStackParamList = {
   MainTabs: NavigatorScreenParams<AppTabParamList> | undefined;
+  Search: SearchParams;
   TutorProfile: { mentor: Mentor };
-  Filters: { filters?: TutorFilters; searchParams?: AppTabParamList['Search'] } | undefined;
+  Filters: { filters?: TutorFilters; searchParams?: SearchParams } | undefined;
   WriteReview: { mentor: Mentor; existingReview?: Review };
   Reviews: undefined;
   CompareTutors: { mentors: Mentor[] };
@@ -88,12 +143,70 @@ export type AppStackParamList = {
   Chat: { mentor: Mentor };
   GuidanceWizard: undefined;
   TutorDashboard: undefined;
+  StudentDashboard: undefined;
   TutorSlotManagement: undefined;
   BookSession: {
     mentor: any;
     initialMode?: '1-on-1' | 'group';
   };
   LiveSessionRoom: { session: any } | undefined;
+  Onboarding: undefined;
+
+  // Integrated screens from Hima-Personal
+  StudyPlans: undefined;
+  Assessments: undefined;
+  AssessmentHistory: undefined;
+  TakeAssessment: { paperId?: string; preview?: boolean } | undefined;
+  AssessmentResult: { paperId?: string } | undefined;
+  AssessmentDetail: { id?: string; paperId?: string } | undefined;
+  LearningActivity: { id?: string } | undefined;
+  Discussions: undefined;
+  LiveSession: { id?: string; title?: string; tutorName?: string; minutesLeft?: number } | undefined;
+  TutorInbox: undefined;
+  GradeSubmission: { id?: string; submissionId?: string } | undefined;
+  TutorStudent: { id?: string; studentId?: string } | undefined;
+  PackDispatcher: undefined;
+  TutorTools: { tool?: 'voice' | 'bank' | 'export' | 'squads' | string } | undefined;
+  TutorAssessmentHub: undefined;
+  CreateAssessment: { kind?: AssessmentKind } | undefined;
+  TutorSubmissions: { paperId?: string } | undefined;
+  ChatPod: undefined;
+  PodThread: { id?: string; threadId?: string; podId?: string; conversationId?: string } | undefined;
+  CreateSquad: undefined;
+  FindFriend: undefined;
+  StudyMaterials: { conversationId?: string } | undefined;
+  StudyMaterialDetail: { id?: string; materialId?: string } | undefined;
+  StoreMaterial: { conversationId?: string } | undefined;
+  TutorProfileManage: undefined;
+  EditProfile: undefined;
+  TutorVerificationStatus: undefined;
+  VerifyIdentity: { email?: string; role?: 'student' | 'mentor' } | undefined;
+  FaceVerification: { role?: 'student' | 'mentor' } | undefined;
+  VerificationResult: {
+    success?: boolean;
+    role?: 'student' | 'mentor';
+    reason?: string;
+    message?: string;
+  } | undefined;
+  EmailVerification: {
+    email?: string;
+    role?: 'student' | 'mentor';
+    token?: string;
+    user?: any;
+  } | undefined;
+  AdminDashboard: undefined;
+  TutorApplications: undefined;
+  TutorApplicationDetails: { applicationId?: string } | undefined;
+  DocumentReview: { documentType?: string; fileName?: string } | undefined;
+  UserManagement: undefined;
+  Settings: undefined;
+  Security: undefined;
+  NotificationSettings: undefined;
+  HelpSupport: undefined;
+  AccountStatus: undefined;
+  RoleSelection: undefined;
+  StudentRegistration: undefined;
+  TutorRegistration: undefined;
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
@@ -300,6 +413,7 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Search" component={SearchScreen} />
       <Stack.Screen name="TutorProfile" component={TutorProfileScreen} />
       <Stack.Screen name="Filters" component={FiltersScreen} />
       <Stack.Screen name="WriteReview" component={WriteReviewScreen} />
@@ -309,8 +423,56 @@ export default function AppNavigator() {
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="GuidanceWizard" component={HomeScreen} />
       <Stack.Screen name="TutorDashboard" component={TutorDashboardScreen} />
+      <Stack.Screen name="StudentDashboard" component={StudentDashboardScreen as any} />
       <Stack.Screen name="TutorSlotManagement" component={TutorSlotManagementScreen} />
       <Stack.Screen name="LiveSessionRoom" component={LiveSessionRoomScreen} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+
+      {/* Integrated Screens from Hima-Personal */}
+      <Stack.Screen name="StudyPlans" component={StudyPlansScreen} />
+      <Stack.Screen name="Assessments" component={StudentAssessmentDashboardScreen} />
+      <Stack.Screen name="AssessmentHistory" component={ImprovementHistoryScreen} />
+      <Stack.Screen name="TakeAssessment" component={TakeAssessmentScreen} />
+      <Stack.Screen name="AssessmentResult" component={AssessmentResultScreen} />
+      <Stack.Screen name="AssessmentDetail" component={AssessmentDetailScreen} />
+      <Stack.Screen name="LearningActivity" component={LearningActivityScreen} />
+      <Stack.Screen name="Discussions" component={DiscussionsScreen} />
+      <Stack.Screen name="LiveSession" component={LiveSessionScreen} />
+      <Stack.Screen name="TutorInbox" component={ChatInboxScreen as any} />
+      <Stack.Screen name="GradeSubmission" component={GradeSubmissionScreen} />
+      <Stack.Screen name="TutorStudent" component={TutorStudentScreen} />
+      <Stack.Screen name="PackDispatcher" component={PackDispatcherScreen} />
+      <Stack.Screen name="TutorTools" component={TutorToolsScreen} />
+      <Stack.Screen name="TutorAssessmentHub" component={TutorAssessmentHubScreen} />
+      <Stack.Screen name="CreateAssessment" component={CreateAssessmentScreen} />
+      <Stack.Screen name="TutorSubmissions" component={TutorSubmissionsScreen} />
+      <Stack.Screen name="ChatPod" component={ChatPodScreen} />
+      <Stack.Screen name="PodThread" component={PodThreadScreen} />
+      <Stack.Screen name="CreateSquad" component={CreateSquadScreen} />
+      <Stack.Screen name="FindFriend" component={FindFriendScreen} />
+      <Stack.Screen name="StudyMaterials" component={StudyMaterialsScreen} />
+      <Stack.Screen name="StudyMaterialDetail" component={StudyMaterialDetailScreen} />
+      <Stack.Screen name="StoreMaterial" component={StoreMaterialScreen} />
+      <Stack.Screen name="TutorProfileManage" component={TutorProfileManageScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="TutorVerificationStatus" component={TutorVerificationStatusScreen} />
+      <Stack.Screen name="VerifyIdentity" component={VerifyIdentityScreen} />
+      <Stack.Screen name="FaceVerification" component={FaceVerificationScreen} />
+      <Stack.Screen name="VerificationResult" component={VerificationResultScreen} />
+      <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="TutorApplications" component={TutorApplicationsScreen} />
+      <Stack.Screen name="TutorApplicationDetails" component={TutorApplicationDetailsScreen} />
+      <Stack.Screen name="DocumentReview" component={DocumentReviewScreen} />
+      <Stack.Screen name="UserManagement" component={UserManagementScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Security" component={SecurityScreen} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+      <Stack.Screen name="AccountStatus" component={AccountStatusScreen} />
+      <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
+      <Stack.Screen name="StudentRegistration" component={StudentRegistrationScreen} />
+      <Stack.Screen name="TutorRegistration" component={TutorRegistrationScreen} />
     </Stack.Navigator>
   );
 }

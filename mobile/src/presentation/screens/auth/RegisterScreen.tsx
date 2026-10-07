@@ -21,7 +21,7 @@ export default function RegisterScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'student' | 'mentor'>('student');
   const [loading, setLoading] = useState(false);
-  const { setUser, setToken } = useAuthStore();
+  const { setToken } = useAuthStore();
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -32,7 +32,13 @@ export default function RegisterScreen({ navigation }: Props) {
     try {
       const result = await registerUseCase({ name, email, password, role });
       setToken(result.token);
-      setUser(result.user);
+      navigation.navigate('EmailVerification', {
+        email: result.user.email,
+        role,
+        name: result.user.name,
+        token: result.token,
+        user: result.user,
+      });
     } catch (err: any) {
       Alert.alert('Registration Failed', err.message ?? 'Something went wrong.');
     } finally {
@@ -48,7 +54,7 @@ export default function RegisterScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {/* Logo */}
         <View style={styles.logoSection}>
-          <Logo size="medium" showText={true} />
+          <Logo size="medium" />
         </View>
 
         <Text style={styles.heading}>Create Account</Text>
@@ -85,14 +91,17 @@ export default function RegisterScreen({ navigation }: Props) {
 
         <Text style={styles.label}>I am a:</Text>
         <View style={styles.roleRow}>
-          {(['student', 'mentor'] as const).map((r) => (
+          {([
+            ['student', 'Student'],
+            ['mentor', 'Tutor'],
+          ] as const).map(([r, label]) => (
             <TouchableOpacity
               key={r}
               style={[styles.roleBtn, role === r && styles.roleBtnActive]}
               onPress={() => setRole(r)}
             >
               <Text style={[styles.roleBtnText, role === r && styles.roleBtnTextActive]}>
-                {r === 'student' ? '🎓 Student' : '👨‍🏫 Mentor'}
+                {label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -110,6 +119,13 @@ export default function RegisterScreen({ navigation }: Props) {
             Already have an account? <Text style={styles.linkBold}>Login</Text>
           </Text>
         </TouchableOpacity>
+
+        <View style={styles.campusSection}>
+          <Text style={styles.campusHint}>Representing a university?</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('RegisterCampusIntro')}>
+            <Text style={styles.campusLink}>Register my campus</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -149,7 +165,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.surface,
   },
-  roleRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   roleBtn: {
     flex: 1, padding: 14, borderRadius: 10,
     borderWidth: 1.5, borderColor: colors.border,
@@ -173,4 +189,20 @@ const styles = StyleSheet.create({
   buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   link: { textAlign: 'center', color: colors.textLight, fontSize: 14 },
   linkBold: { color: colors.primary, fontWeight: '700' },
+  campusSection: {
+    marginTop: 28,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    alignItems: 'center',
+  },
+  campusHint: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  campusLink: { color: colors.primary, fontWeight: '800', fontSize: 15 },
 });

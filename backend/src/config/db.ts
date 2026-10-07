@@ -82,50 +82,35 @@ export async function connectDB(): Promise<void> {
   }
 
   const maskedUri = uri.replace(/:[^:]*@/, ':****@');
-  console.log(`\n⏳ Connecting to MongoDB Atlas database...`);
+  console.log(`\n⏳ Connecting to real MongoDB Atlas database...`);
   console.log(`📍 Connection URI: ${maskedUri}`);
 
-  const tryConnect = async (): Promise<boolean> => {
-    try {
-      await mongoose.connect(uri, {
-        lookup: customLookup,
-        serverSelectionTimeoutMS: 8000,
-      });
+  try {
+    await mongoose.connect(uri, {
+      lookup: customLookup,
+      serverSelectionTimeoutMS: 10000,
+    });
 
-      console.log(`\n============================================================`);
-      console.log(`✅ CONNECTED TO REAL DATABASE: ${mongoose.connection.name}`);
-      console.log(`🌐 Cluster Host: ${mongoose.connection.host}`);
+    console.log(`\n============================================================`);
+    console.log(`✅ CONNECTED TO REAL DATABASE: ${mongoose.connection.name}`);
+    console.log(`🌐 Cluster Host: ${mongoose.connection.host}`);
 
-      const totalUsers = await User.countDocuments();
-      const mentors = await User.find({ role: 'mentor' }).select('name email subjects rating');
+    // Query and log real data from the database
+    const totalUsers = await User.countDocuments();
+    const mentors = await User.find({ role: 'mentor' }).select('name email subjects rating');
 
-      console.log(`📊 TOTAL DOCUMENTS IN USERS COLLECTION: ${totalUsers}`);
-      console.log(`👨‍🏫 Real Mentors Count: ${mentors.length}`);
-      mentors.forEach((m, i) => {
-        console.log(`   [${i + 1}] ${m.name} (${m.email}) - Subjects: [${m.subjects?.join(', ') || 'General'}]`);
-      });
-      console.log(`============================================================\n`);
+    console.log(`📊 TOTAL DOCUMENTS IN USERS COLLECTION: ${totalUsers}`);
+    console.log(`👨‍🏫 Real Mentors Count: ${mentors.length}`);
+    mentors.forEach((m, i) => {
+      console.log(`   [${i + 1}] ${m.name} (${m.email}) - Subjects: [${m.subjects?.join(', ') || 'General'}]`);
+    });
+    console.log(`============================================================\n`);
 
-      await migrateLegacyReviewIndexes();
-      return true;
-    } catch (err: any) {
-      return false;
-    }
-  };
-
-  const initialSuccess = await tryConnect();
-  if (!initialSuccess) {
-    console.warn('\n⚠️  MongoDB Atlas could not be reached on startup (IP not whitelisted or network issue).');
-    console.warn('👉 Please whitelist your IP in MongoDB Atlas > Network Access > Add IP Address.');
-    console.warn('   - Add "112.134.149.17" or "0.0.0.0/0" (Allow from Anywhere).');
-    console.warn('🔄 UniMentor server is still running and will automatically retry connecting every 10s...\n');
-
-    const interval = setInterval(async () => {
-      const ok = await tryConnect();
-      if (ok) {
-        clearInterval(interval);
-      }
-    }, 10000);
+    await migrateLegacyReviewIndexes();
+  } catch (err: any) {
+    console.error('\n❌ FAILED TO CONNECT TO MONGODB ATLAS:');
+    console.error(`   Error: ${err.message}`);
+    throw err;
   }
 
   mongoose.connection.on('error', (err) => {

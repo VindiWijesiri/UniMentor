@@ -40,7 +40,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'student' | 'mentor';
+  role: 'student' | 'mentor' | 'admin' | 'lic';
   profilePicture?: string;
   bio?: string;
   subjects?: string[];
@@ -65,6 +65,34 @@ export interface IUser extends Document {
   languages?: string[];
   teachingMode?: string;
   lessonTypes?: string[];
+  campusId?: mongoose.Types.ObjectId;
+  university?: string;
+  faculty?: string;
+  department?: string;
+  studentId?: string;
+  phone?: string;
+  accountStatus?: 'active' | 'pending' | 'under_review' | 'suspended' | 'rejected' | 'expired';
+  isVerified?: boolean;
+  verificationStatus?: 'unverified' | 'pending' | 'under_review' | 'verified' | 'approved' | 'rejected';
+  faceVerifiedAt?: Date;
+  idPhoto?: string;
+  referenceFaceImage?: string;
+  passwordResetCode?: string;
+  passwordResetExpires?: Date;
+  passwordResetVerified?: boolean;
+  loginCode?: string;
+  loginCodeExpires?: Date;
+  tokenVersion?: number;
+  twoFactorEnabled?: boolean;
+  biometricEnabled?: boolean;
+  notificationPrefs?: {
+    sessionReminders: boolean;
+    chatMessages: boolean;
+    bookingUpdates: boolean;
+    verificationAlerts: boolean;
+    semesterRenewals: boolean;
+    facultyNews: boolean;
+  };
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -115,7 +143,7 @@ const userSchema = new Schema<IUser>(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
-    role: { type: String, enum: ['student', 'mentor'], required: true },
+    role: { type: String, enum: ['student', 'mentor', 'admin', 'lic'], required: true },
     profilePicture: { type: String },
     bio: { type: String },
     subjects: [{ type: String }],
@@ -140,6 +168,42 @@ const userSchema = new Schema<IUser>(
     languages: [{ type: String, default: 'English' }],
     teachingMode: { type: String, default: 'Online / Hybrid' },
     lessonTypes: [{ type: String, default: 'Individual' }],
+    campusId: { type: Schema.Types.ObjectId, ref: 'Campus' },
+    university: { type: String },
+    faculty: { type: String },
+    department: { type: String },
+    studentId: { type: String },
+    phone: { type: String },
+    accountStatus: {
+      type: String,
+      enum: ['active', 'pending', 'under_review', 'suspended', 'rejected', 'expired'],
+      default: 'active',
+    },
+    isVerified: { type: Boolean, default: false },
+    verificationStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'under_review', 'verified', 'approved', 'rejected'],
+      default: 'unverified',
+    },
+    faceVerifiedAt: { type: Date },
+    idPhoto: { type: String },
+    referenceFaceImage: { type: String },
+    passwordResetCode: { type: String },
+    passwordResetExpires: { type: Date },
+    passwordResetVerified: { type: Boolean, default: false },
+    loginCode: { type: String },
+    loginCodeExpires: { type: Date },
+    tokenVersion: { type: Number, default: 0 },
+    twoFactorEnabled: { type: Boolean, default: false },
+    biometricEnabled: { type: Boolean, default: false },
+    notificationPrefs: {
+      sessionReminders: { type: Boolean, default: true },
+      chatMessages: { type: Boolean, default: true },
+      bookingUpdates: { type: Boolean, default: true },
+      verificationAlerts: { type: Boolean, default: true },
+      semesterRenewals: { type: Boolean, default: true },
+      facultyNews: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );
@@ -159,7 +223,22 @@ userSchema.methods.comparePassword = function (candidate: string): Promise<boole
 // Never expose password in JSON responses
 userSchema.set('toJSON', {
   transform: (_doc, ret) => {
-    delete (ret as { password?: string }).password;
+    const hidden = ret as {
+      password?: string;
+      loginCode?: string;
+      loginCodeExpires?: Date;
+      passwordResetCode?: string;
+      passwordResetExpires?: Date;
+      idPhoto?: string;
+      referenceFaceImage?: string;
+    };
+    delete hidden.password;
+    delete hidden.loginCode;
+    delete hidden.loginCodeExpires;
+    delete hidden.passwordResetCode;
+    delete hidden.passwordResetExpires;
+    delete hidden.idPhoto;
+    delete hidden.referenceFaceImage;
     return ret;
   },
 });

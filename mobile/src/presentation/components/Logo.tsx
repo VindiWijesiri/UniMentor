@@ -3,25 +3,27 @@ import { Image, View, Text, StyleSheet } from 'react-native';
 import { colors } from '../../shared/theme';
 
 interface LogoProps {
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'xlarge' | number;
   showText?: boolean;
 }
 
 export default function Logo({ size = 'medium', showText = true }: LogoProps) {
-  const dimensions = {
+  const dimensions: Record<string, number> = {
     small: 48,
     medium: 80,
     large: 120,
+    xlarge: 150,
   };
 
-  const fontSize = {
+  const fontSize: Record<string, number> = {
     small: 16,
     medium: 24,
     large: 32,
+    xlarge: 38,
   };
 
-  const dim = dimensions[size];
-  const fs = fontSize[size];
+  const dim = typeof size === 'number' ? size : dimensions[size] ?? 80;
+  const fs = typeof size === 'number' ? Math.round(size * 0.25) : fontSize[size] ?? 24;
 
   return (
     <View style={styles.container}>
