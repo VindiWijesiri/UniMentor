@@ -1,5 +1,5 @@
 export const navy = '#061E47';
-export const yellow = '#EAA023';
+export const yellow = '#F59E0B';
 export const pageBg = '#F3F5F8';
 export const muted = '#8A97AB';
 export const card = '#FFFFFF';

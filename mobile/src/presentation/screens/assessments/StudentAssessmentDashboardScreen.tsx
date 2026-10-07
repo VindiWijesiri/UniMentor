@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { SvgClock, SvgPlay, SvgTrendingUp } from '../../components/common/SvgIcons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
 import type { AssessmentCard, AssessmentCenter } from '../../../domain/entities/AssessmentWork';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -13,6 +14,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Assessments'>;
 type Filter = 'all' | 'dueSoon' | 'inProgress' | 'completed';
 
 export default function StudentAssessmentDashboardScreen({ navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const [data, setData] = useState<AssessmentCenter | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,7 +52,7 @@ export default function StudentAssessmentDashboardScreen({ navigation }: Props) 
   return (
     <AssessmentScreen navigation={navigation}>
       <KuppiyaBar />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.titleRow}>
           <View style={styles.flex}>
             <Text style={styles.title}>My Assessments</Text>

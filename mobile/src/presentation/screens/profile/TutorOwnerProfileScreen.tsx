@@ -36,6 +36,7 @@ import {
   SvgBook,
 } from '../../components/common/SvgIcons';
 import { Ionicons } from '@expo/vector-icons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
@@ -47,6 +48,7 @@ const AVATAR_PRESETS = [
 ];
 
 export default function TutorOwnerProfileScreen() {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
@@ -252,7 +254,11 @@ export default function TutorOwnerProfileScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Tutor Hero Card */}
         <View style={styles.profileHeroCard}>
           <View style={styles.profileSummaryRow}>
@@ -926,7 +932,7 @@ const styles = StyleSheet.create({
     color: '#065F46',
   },
   tutorManageSlotsHeroBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -1181,7 +1187,7 @@ const styles = StyleSheet.create({
   },
   modalSaveBtn: {
     flex: 1,
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',

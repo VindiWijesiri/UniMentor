@@ -12,12 +12,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import DemoSwitcherModal from '../../components/DemoSwitcherModal';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export default function SettingsScreen({ navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const { user, logout } = useAuthStore();
   const [demoModalVisible, setDemoModalVisible] = useState(false);
 
@@ -44,7 +46,7 @@ export default function SettingsScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* User Card */}
         <View style={styles.userCard}>
           <View style={styles.avatar}>

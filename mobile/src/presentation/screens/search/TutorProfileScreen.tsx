@@ -9,6 +9,7 @@ import type { Review } from '../../../domain/entities/Review';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = any;
 type ProfileMentor = Mentor & {
@@ -30,6 +31,7 @@ function SectionHeading({ icon, title }: { icon: keyof typeof Ionicons.glyphMap;
 }
 
 export default function TutorProfileScreen({ route, navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -147,6 +149,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 82 }]}
         showsVerticalScrollIndicator={false}
       >
@@ -465,13 +468,13 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.chatButton} onPress={openChat} activeOpacity={0.84}>
             <View style={styles.chatIcon}>
-              <Ionicons name="chatbubble-ellipses" size={16} color="#FFFFFF" />
+              <Ionicons name="chatbubble-ellipses" size={16} color="#061E47" />
             </View>
             <View>
               <Text style={styles.chatButtonLabel}>DIRECT MESSAGE</Text>
               <Text style={styles.chatButtonText}>{chatLabel}</Text>
             </View>
-            <Ionicons name="arrow-forward" size={16} color="#FBBF24" style={{ marginLeft: 8 }} />
+            <Ionicons name="arrow-forward" size={16} color="#061E47" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
       )}
@@ -598,12 +601,12 @@ const styles = StyleSheet.create({
   backButton: { width: 91, height: 52, borderRadius: 15, backgroundColor: '#EEF2F8', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 2 },
   backArrow: { color: navy, fontSize: 19, fontWeight: '900', marginRight: 6, marginTop: -2 },
   backButtonText: { color: navy, fontSize: 12.5, fontWeight: '900' },
-  chatButton: { flex: 1, height: 52, borderRadius: 15, backgroundColor: navy, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', shadowColor: navy, shadowOpacity: 0.18, shadowRadius: 7, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  chatIcon: { width: 31, height: 31, borderRadius: 10, backgroundColor: 'rgba(245,158,11,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  chatIconText: { color: amber, fontSize: 12, lineHeight: 12, fontWeight: '900', marginTop: -5 },
-  chatButtonLabel: { color: '#AFC2DF', fontSize: 7.5, fontWeight: '900', letterSpacing: 0.6 },
-  chatButtonText: { color: '#FFF', fontSize: 12, fontWeight: '900', marginTop: 2 },
-  chatArrow: { color: gold, fontSize: 19, fontWeight: '900', marginLeft: 'auto' },
+  chatButton: { flex: 1, height: 52, borderRadius: 15, backgroundColor: amber, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', shadowColor: amber, shadowOpacity: 0.25, shadowRadius: 7, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  chatIcon: { width: 31, height: 31, borderRadius: 10, backgroundColor: 'rgba(6,30,71,0.12)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  chatIconText: { color: navy, fontSize: 12, lineHeight: 12, fontWeight: '900', marginTop: -5 },
+  chatButtonLabel: { color: '#78350F', fontSize: 7.5, fontWeight: '900', letterSpacing: 0.6 },
+  chatButtonText: { color: navy, fontSize: 12, fontWeight: '900', marginTop: 2 },
+  chatArrow: { color: navy, fontSize: 19, fontWeight: '900', marginLeft: 'auto' },
 
   /* Reviews Card & Styles */
   reviewsCard: {
@@ -796,7 +799,7 @@ const styles = StyleSheet.create({
   },
   emptyWriteBtn: {
     marginTop: 14,
-    backgroundColor: '#0D4F9E',
+    backgroundColor: amber,
     borderRadius: 12,
     paddingHorizontal: 18,
     paddingVertical: 10,
@@ -859,17 +862,17 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 14,
-    backgroundColor: navy,
+    backgroundColor: amber,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    shadowColor: navy,
+    shadowColor: amber,
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
   },
   mentorTabActionText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 13.5,
     fontWeight: '800',
   },

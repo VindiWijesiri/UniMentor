@@ -20,6 +20,7 @@ import {
   SvgShieldCheck,
   SvgUserPlus,
 } from '../../components/common/SvgIcons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -66,6 +67,7 @@ const INITIAL_ADMINS: ExistingAdmin[] = [
 ];
 
 export default function AddAdminScreen({ navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -183,6 +185,7 @@ export default function AddAdminScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 85 }]}
           keyboardShouldPersistTaps="handled"
@@ -616,11 +619,11 @@ const styles = StyleSheet.create({
 
   /* Submit Button */
   submitBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: 'center',
-    shadowColor: '#061E47',
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,

@@ -20,12 +20,14 @@ import {
   SvgTrendingUp,
   SvgUser,
 } from '../../components/common/SvgIcons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export default function AdminReportsScreen({ navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -70,6 +72,7 @@ export default function AdminReportsScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 85 }]}
       >
@@ -512,7 +515,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   exportBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,

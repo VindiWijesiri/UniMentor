@@ -27,6 +27,7 @@ import {
 } from '../../components/common/SvgIcons';
 import { card, ice, ink, live, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
@@ -44,6 +45,7 @@ function formatWhen(value?: string) {
 }
 
 export default function LearningDashboardScreen({ navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -100,7 +102,11 @@ export default function LearningDashboardScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
         <View style={styles.shortcutBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutRow}>
             <TouchableOpacity style={[styles.shortcut, styles.shortcutActive]} onPress={() => stack?.navigate('ChatPod')}>
@@ -413,8 +419,8 @@ const styles = StyleSheet.create({
   topic: { color: ink, fontSize: 13, fontWeight: '700', marginTop: 4 },
   yellowBtn: { backgroundColor: yellow, borderRadius: 16, paddingVertical: 13, alignItems: 'center', marginTop: 14 },
   yellowBtnText: { color: navy, fontSize: 15, fontWeight: '900' },
-  navyBtn: { backgroundColor: navy, borderRadius: 14, paddingVertical: 11, alignItems: 'center', marginTop: 12 },
-  navyBtnText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+  navyBtn: { backgroundColor: yellow, borderRadius: 14, paddingVertical: 11, alignItems: 'center', marginTop: 12 },
+  navyBtnText: { color: navy, fontSize: 14, fontWeight: '900' },
   ghostBtn: {
     borderRadius: 16, paddingVertical: 13, alignItems: 'center', marginTop: 12,
     borderWidth: 1, borderColor: '#D9E1EE',

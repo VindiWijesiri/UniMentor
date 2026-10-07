@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
   title: { color: ink, fontWeight: '800', fontSize: 12, marginTop: 6 },
   empty: { color: muted, fontSize: 12, paddingVertical: 12 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  navyBtn: { flex: 1, backgroundColor: navy, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
-  navyText: { color: '#FFF', fontWeight: '900', fontSize: 12 },
+  navyBtn: { flex: 1, backgroundColor: yellow, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  navyText: { color: navy, fontWeight: '900', fontSize: 12 },
   yellowBtn: { flex: 1, backgroundColor: yellow, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   yellowText: { color: navy, fontWeight: '900', fontSize: 12 },
 });

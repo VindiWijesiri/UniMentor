@@ -34,6 +34,7 @@ import { useAuthStore } from '../../../domain/stores/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import type { TutorSlot } from '../../../domain/entities/TutorSlot';
 import TutorAvatar from '../../components/common/TutorAvatar';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 export function formatCalendarDate(d: Date): string {
   const fullDay = d.toLocaleDateString('en-US', { weekday: 'long' });
@@ -126,6 +127,7 @@ type Step =
 type Props = NativeStackScreenProps<BookingsStackParamList, 'BookSession'>;
 
 export default function BookingFlowScreen({ navigation, route }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const mentor = route.params?.mentor || {
     _id: 'mentor-alex',
@@ -871,6 +873,7 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -3637,7 +3640,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     paddingVertical: 9,
     paddingHorizontal: 16,
     borderRadius: 10,
@@ -4478,7 +4481,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   requestModalDoneBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     paddingVertical: 13,
     borderRadius: 12,
     alignItems: 'center',
@@ -4703,7 +4706,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   calendarConfirmBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     paddingVertical: 9,
     paddingHorizontal: 18,
     borderRadius: 10,
@@ -5271,7 +5274,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   dpSubmitBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     borderRadius: 14,
     height: 48,
     flexDirection: 'row',

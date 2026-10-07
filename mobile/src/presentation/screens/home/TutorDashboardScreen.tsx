@@ -24,6 +24,7 @@ import { tutorRequestRepository, TutorSlotRequest } from '../../../data/reposito
 import type { TutorSlot, RegisteredAttendee } from '../../../domain/entities/TutorSlot';
 import TutorAvatar from '../../components/common/TutorAvatar';
 import apiClient from '../../../data/api/apiClient';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 const { width } = Dimensions.get('window');
 
@@ -106,6 +107,7 @@ function calculateEndTimeFromStart(startTime: string, durationMinutes: number): 
 }
 
 export default function TutorDashboardScreen({ navigation }: any) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const currentUser = useAuthStore((state) => state.user);
   const tutorMentorId = currentUser?._id || (currentUser as any)?.id || 'demo-tutor-1';
@@ -543,6 +545,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#08214D" />}
@@ -2484,7 +2487,7 @@ const styles = StyleSheet.create({
   },
   modalConfirmBtn: {
     flex: 1.5,
-    backgroundColor: '#0A2342',
+    backgroundColor: '#F59E0B',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -2759,7 +2762,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 10,
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
   },
   acceptRequestBtnText: {
     fontSize: 12,
@@ -3021,7 +3024,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   addTopicBtn: {
-    backgroundColor: '#0D4F9E',
+    backgroundColor: '#F59E0B',
     borderRadius: 10,
     paddingHorizontal: 12,
     flexDirection: 'row',
@@ -3099,7 +3102,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   addModuleBtn: {
-    backgroundColor: '#0D4F9E',
+    backgroundColor: '#F59E0B',
     borderRadius: 10,
     paddingHorizontal: 12,
     flexDirection: 'row',
@@ -3739,7 +3742,7 @@ const styles = StyleSheet.create({
     color: '#059669',
   },
   photoModalCloseBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',

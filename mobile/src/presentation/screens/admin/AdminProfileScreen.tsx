@@ -20,12 +20,14 @@ import {
   SvgLock,
   SvgFileText,
 } from '../../components/common/SvgIcons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export default function AdminProfileScreen({ navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -77,6 +79,7 @@ export default function AdminProfileScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 85 }]}
       >

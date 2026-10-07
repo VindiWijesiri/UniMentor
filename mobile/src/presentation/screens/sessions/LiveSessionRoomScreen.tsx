@@ -1724,7 +1724,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 10,
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
   },
   shareModalSubmitText: {
     fontSize: 13,

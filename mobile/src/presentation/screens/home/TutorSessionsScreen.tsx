@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../domain/stores/authStore';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 import {
   tutorSlotRepository,
   parseTimeToMinutes,
@@ -186,6 +187,7 @@ function transformSlotToSessionItem(slot: TutorSlot): TutorSessionItem {
 }
 
 export default function TutorSessionsScreen({ navigation }: any) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -377,6 +379,7 @@ export default function TutorSessionsScreen({ navigation }: any) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#061E47" />}
@@ -1165,7 +1168,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   emptyCreateBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1339,7 +1342,7 @@ const styles = StyleSheet.create({
   },
   primaryActionBtn: {
     flex: 1,
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     borderRadius: 12,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -1505,7 +1508,7 @@ const styles = StyleSheet.create({
     color: '#0D4F9E',
   },
   doneSheetBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
@@ -1533,7 +1536,7 @@ const styles = StyleSheet.create({
     color: '#1D4ED8',
   },
   upcomingActionBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
   },
   confirmJoinOverlay: {
     flex: 1,
@@ -1667,13 +1670,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   confirmEnterBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     borderRadius: 14,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#061E47',
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 6,

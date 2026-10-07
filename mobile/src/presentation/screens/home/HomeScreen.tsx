@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { Ionicons } from '@expo/vector-icons';
 import type { AppTabParamList } from '../../navigation/AppNavigator';
+import StackFooterBar from '../../navigation/StackFooterBar';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = {
   navigation: any;
@@ -182,11 +184,13 @@ function SelectField({
   );
 }
 
-export default function HomeScreen({ navigation }: Props) {
+export default function HomeScreen({ navigation, route }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { user } = useAuthStore();
+  const activeTab = route?.params?.fromTab || 'Home';
   const [selectedField, setSelectedField] = useState<FieldKey | null>(null);
   const [values, setValues] = useState<Partial<Record<FieldKey, string>>>({});
   const activeField = useMemo(() => academicFields.find(({ key }) => key === selectedField), [selectedField]);
@@ -311,7 +315,11 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={styles.hero}>
           <View style={styles.heroBody}>
             <View style={styles.heroCopy}>
@@ -435,6 +443,8 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </ScrollView>
 
+      <StackFooterBar navigation={navigation} active={activeTab} />
+
       <Modal transparent visible={selectedField !== null} animationType="fade" onRequestClose={() => setSelectedField(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setSelectedField(null)}>
           <Pressable style={styles.optionSheet} onPress={(event) => event.stopPropagation()}>
@@ -502,7 +512,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  scrollContent: { paddingBottom: 24 },
+  scrollContent: { paddingBottom: 36 },
   hero: { backgroundColor: navy, paddingHorizontal: 20, paddingBottom: 44, overflow: 'hidden' },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
   brandMark: { width: 42, height: 34, borderRadius: 10, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },

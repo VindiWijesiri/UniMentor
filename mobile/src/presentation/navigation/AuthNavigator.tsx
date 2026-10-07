@@ -17,7 +17,6 @@ import FaceVerificationScreen from '../screens/verification/FaceVerificationScre
 import VerificationResultScreen from '../screens/verification/VerificationResultScreen';
 import TutorVerificationStatusScreen from '../screens/verification/TutorVerificationStatusScreen';
 import AdminLoginScreen from '../screens/admin/AdminLoginScreen';
-import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import TutorApplicationsScreen from '../screens/admin/TutorApplicationsScreen';
 import TutorApplicationDetailsScreen from '../screens/admin/TutorApplicationDetailsScreen';
 import DocumentReviewScreen from '../screens/admin/DocumentReviewScreen';
@@ -65,7 +64,6 @@ export type AuthStackParamList = {
   };
   TutorVerificationStatus: undefined;
   AdminLogin: undefined;
-  AdminDashboard: undefined;
   TutorApplications: undefined;
   TutorApplicationDetails: { applicationId: string };
   DocumentReview: { documentType?: string; fileName?: string } | undefined;

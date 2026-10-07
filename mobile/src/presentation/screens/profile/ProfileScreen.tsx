@@ -31,6 +31,7 @@ import {
   SvgBook,
 } from '../../components/common/SvgIcons';
 import { Ionicons } from '@expo/vector-icons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
@@ -42,6 +43,7 @@ const AVATAR_PRESETS = [
 ];
 
 export default function ProfileScreen() {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
@@ -203,7 +205,11 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* ====================================================================== */}
         {/* 1. CAMPUS WALLET BALANCE CARD (MOVED MORE UP TO TOP) */}
         {/* ====================================================================== */}
@@ -1089,7 +1095,7 @@ const styles = StyleSheet.create({
   },
   modalSaveBtn: {
     flex: 1,
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',

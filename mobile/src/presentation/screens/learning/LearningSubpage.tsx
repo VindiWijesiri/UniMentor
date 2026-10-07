@@ -158,11 +158,11 @@ export const subpageStyles = StyleSheet.create({
   primaryText: { color: navy, fontSize: 14, fontWeight: '900' },
   navyBtn: {
     marginTop: 12,
-    backgroundColor: navy,
+    backgroundColor: yellow,
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  navyText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+  navyText: { color: navy, fontSize: 14, fontWeight: '900' },
   empty: { color: muted, textAlign: 'center', marginTop: 40 },
 });

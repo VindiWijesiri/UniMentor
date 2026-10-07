@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   retryButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.secondary,
     width: '100%',
     paddingVertical: 15,
     borderRadius: 12,

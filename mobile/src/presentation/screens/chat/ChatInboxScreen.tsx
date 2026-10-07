@@ -22,6 +22,7 @@ import type { ChatConversation } from '../../../domain/entities/ChatMessage';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Messages'>;
 type FilterTab = 'all' | 'unread' | 'voice';
@@ -30,6 +31,7 @@ const formatDate = (date: string) =>
   new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' });
 
 export default function ChatInboxScreen({ navigation }: Props) {
+  const listRef = useScrollToTopOnFocus<FlatList>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -148,6 +150,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
 
       {/* Conversations List */}
       <FlatList
+        ref={listRef}
         data={filteredConversations}
         keyExtractor={(item) => item.lastMessage.conversationKey}
         contentContainerStyle={styles.listContent}

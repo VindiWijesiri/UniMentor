@@ -32,7 +32,11 @@ export default function StackFooterBar({ navigation, active = 'Learning' }: Prop
             accessibilityLabel={tab.label}
             onPress={() => {
               if (navigation) {
-                navigation.navigate('MainTabs', { screen: tab.screen as any });
+                if ((tab.name === active || tab.screen === active) && navigation.canGoBack?.()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('MainTabs', { screen: tab.screen as any });
+                }
               }
             }}
             style={styles.item}

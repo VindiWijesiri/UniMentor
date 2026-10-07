@@ -26,6 +26,7 @@ import {
   SvgSearch,
   SvgCheck,
 } from '../../components/common/SvgIcons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -262,6 +263,7 @@ const MENTOR_SCHEDULED_SESSIONS: MentorScheduledSession[] = [
 ];
 
 export default function AdminDashboardScreen({ navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -371,6 +373,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 85 }]}
       >
@@ -1924,7 +1927,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   modalCloseBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: 'center',

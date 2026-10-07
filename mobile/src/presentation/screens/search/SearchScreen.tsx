@@ -29,6 +29,7 @@ import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/rep
 import TutorAvatar from '../../components/common/TutorAvatar';
 import type { ShortlistedMentor } from '../../../domain/entities/ShortlistedMentor';
 import { Ionicons } from '@expo/vector-icons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = any;
 type MentorCard = Mentor & {
@@ -289,6 +290,7 @@ export function matchesFilters(mentor: MentorCard, filters?: TutorFilters): bool
 }
 
 export default function SearchScreen({ route, navigation }: Props) {
+  const listRef = useScrollToTopOnFocus<FlatList>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -987,6 +989,7 @@ export default function SearchScreen({ route, navigation }: Props) {
       </View>
 
       <FlatList
+        ref={listRef}
         data={searchTab === 'browse' ? visibleMentors : (shortlist as any)}
         keyExtractor={(item: any) => item._id || item.mentorId}
         renderItem={searchTab === 'browse' ? (renderMentor as any) : (renderShortlistCard as any)}
@@ -1879,8 +1882,8 @@ const styles = StyleSheet.create({
   addCompareTextSelected: { color: '#FFF' },
   availableLabel: { color: '#9AA5B9', fontSize: 8, fontWeight: '800', letterSpacing: 0.8 },
   availableText: { color: '#D97706', fontSize: 9.5, fontWeight: '800', marginTop: 3 },
-  viewButton: { backgroundColor: navy, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
-  viewButtonText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+  viewButton: { backgroundColor: amber, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  viewButtonText: { color: '#061E47', fontSize: 12, fontWeight: '800' },
   floatingCompareBar: { position: 'absolute', left: 12, right: 12, bottom: 8, minHeight: 66, borderRadius: 18, backgroundColor: navy, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#001433', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
   floatingCompareCount: { color: '#FFF', fontSize: 13, fontWeight: '900' },
   floatingCompareHint: { color: '#BFCFE7', fontSize: 9.5, marginTop: 2 },

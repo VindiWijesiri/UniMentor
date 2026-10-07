@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
 import type { TutorSlot, RegisteredAttendee } from '../../../domain/entities/TutorSlot';
 import { useAuthStore } from '../../../domain/stores/authStore';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 const { width } = Dimensions.get('window');
 
@@ -74,6 +75,7 @@ function getUpcomingDatesList(count = 14) {
 }
 
 export default function TutorSlotManagementScreen({ navigation }: any) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
   const currentUser = useAuthStore((state) => state.user);
   const tutorMentorId = currentUser?._id || (currentUser as any)?.id || 'demo-tutor-1';
@@ -382,6 +384,7 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#061E47" />}
@@ -2145,7 +2148,7 @@ const styles = StyleSheet.create({
     color: '#059669',
   },
   photoModalCloseBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: '#F59E0B',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',

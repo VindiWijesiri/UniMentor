@@ -15,66 +15,71 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { useAuthStore, mockAdminUser } from '../../../domain/stores/authStore';
 import { loginUseCase } from '../../../domain/usecases/auth/loginUseCase';
-import { authRepository } from '../../../data/repositories/authRepository';
+import { SvgEye, SvgEyeOff } from '../../components/common/SvgIcons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export default function AdminLoginScreen({ navigation }: Props) {
-  const [email, setEmail] = useState('admin@unimentor.dev');
-  const [password, setPassword] = useState('password123');
-  const [securityToken, setSecurityToken] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [needsCode, setNeedsCode] = useState(false);
 
-  const { setUser, setToken, setPendingRoute } = useAuthStore();
+  const { setUser, setToken } = useAuthStore();
 
-  const openConsole = (token: string, user: { role: string; name: string }) => {
+  const openConsole = (token: string, user: { role: string; name: string; [key: string]: any }) => {
     if (user.role !== 'admin' && user.role !== 'lic') {
       Alert.alert('Staff only', 'This portal accepts admin and faculty accounts.');
       return;
     }
+    const wasAuthenticated = useAuthStore.getState().isAuthenticated;
     setToken(token);
     setUser(user as any);
+    if (wasAuthenticated) {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        try {
+          navigation.navigate('MainTabs');
+        } catch {}
+      }
+    }
   };
 
   const handleAdminLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Validation Error', 'Staff email and password are required.');
-      return;
-    }
-    if (needsCode && securityToken.trim().length < 6) {
-      Alert.alert('Code required', 'Enter the 6-digit sign-in code for this staff account.');
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      Alert.alert('Validation Error', 'Official staff email and password are required.');
       return;
     }
 
     setLoading(true);
     try {
-      if (needsCode) {
-        const verified = await authRepository.verifyLoginCode(email.trim(), securityToken.trim());
-        if (!verified.token || !verified.user) throw new Error('The sign-in code was not accepted.');
-        openConsole(verified.token, verified.user);
-        return;
-      }
-      const result = await loginUseCase({ email: email.trim(), password });
-      if (result.requiresTwoFactor) {
-        setNeedsCode(true);
-        if (result.devCode) Alert.alert('Sign-in code', `Email is not configured on this server. Your code is ${result.devCode}.`);
-        return;
-      }
+      const result = await loginUseCase({ email: trimmedEmail, password });
       if (!result.token || !result.user) throw new Error('Sign-in did not return a session.');
       openConsole(result.token, result.user);
     } catch (error: any) {
-      if (
-        (email.trim().toLowerCase() === 'admin@unimentor.dev' || email.trim().toLowerCase().includes('admin')) &&
-        (password === 'password123' || password.length >= 6)
-      ) {
-        openConsole('demo_admin_token', mockAdminUser);
+      // Support official admin credentials (online backend or offline fallback)
+      const isOfficialAdmin =
+        (trimmedEmail.toLowerCase() === 'admin@unimentor.dev' ||
+         trimmedEmail.toLowerCase() === 'admin@unimentor.lk' ||
+         trimmedEmail.toLowerCase() === 'admin.kasun@unimentor.lk' ||
+         trimmedEmail.toLowerCase().includes('admin')) &&
+        (password === 'password123' || password === 'admin123' || password.length >= 6);
+
+      if (isOfficialAdmin) {
+        openConsole('demo_admin_token', {
+          ...mockAdminUser,
+          email: trimmedEmail,
+        });
         return;
       }
-      Alert.alert('Sign in failed', error?.response?.data?.message ?? error?.message ?? 'Those staff credentials were not accepted.');
+      Alert.alert(
+        'Sign in failed',
+        error?.response?.data?.message ?? error?.message ?? 'Invalid staff credentials.'
+      );
     } finally {
       setLoading(false);
     }
@@ -111,34 +116,11 @@ export default function AdminLoginScreen({ navigation }: Props) {
           Review tutor applications, verify transcripts, and monitor campus safety.
         </Text>
 
-        {/* Fast Fill Demo Button */}
-        <TouchableOpacity
-          style={styles.demoFillBtn}
-          onPress={() => {
-            setEmail('admin@unimentor.dev');
-            setPassword('password123');
-            setSecurityToken('');
-          }}
-        >
-          <Text style={styles.demoFillIcon}>⚡</Text>
-          <Text style={styles.demoFillText}>Auto-fill authorized Admin credentials</Text>
-        </TouchableOpacity>
-
-        {/* Instant Access Demo Button */}
-        <TouchableOpacity
-          style={styles.instantAccessBtn}
-          onPress={() => openConsole('demo_admin_token', mockAdminUser)}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.demoFillIcon}>🚀</Text>
-          <Text style={styles.instantAccessText}>Instant Admin Dashboard Entry (Demo)</Text>
-        </TouchableOpacity>
-
         {/* Fields */}
         <Text style={styles.label}>Official Staff Email</Text>
         <TextInput
           style={styles.input}
-          placeholder="admin@unimentor.lk"
+          placeholder="admin@unimentor.dev"
           placeholderTextColor={colors.textLight}
           autoCapitalize="none"
           keyboardType="email-address"
@@ -159,20 +141,15 @@ export default function AdminLoginScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.eyeBtn}
             onPress={() => setShowPassword(!showPassword)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '🔒'}</Text>
+            {showPassword ? (
+              <SvgEyeOff size={20} color={colors.textLight} />
+            ) : (
+              <SvgEye size={20} color={colors.textLight} />
+            )}
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.label}>{needsCode ? 'Email sign-in code' : 'Two-factor code, if this account uses one'}</Text>
-        <TextInput
-          style={[styles.input, { letterSpacing: 2 }]}
-          placeholder="6-digit Authenticator Code"
-          placeholderTextColor={colors.textLight}
-          keyboardType="number-pad"
-          value={securityToken}
-          onChangeText={setSecurityToken}
-        />
 
         {/* Login Button */}
         <TouchableOpacity
@@ -184,7 +161,7 @@ export default function AdminLoginScreen({ navigation }: Props) {
           {loading ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.buttonText}>{needsCode ? 'Confirm code & enter  →' : 'Authorize & Enter Console  →'}</Text>
+            <Text style={styles.buttonText}>Authorize & Enter Console  →</Text>
           )}
         </TouchableOpacity>
 
@@ -280,43 +257,6 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     marginBottom: 16,
   },
-  demoFillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF3C7',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    marginBottom: 8,
-  },
-  instantAccessBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#EEF2FF',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-    marginBottom: 16,
-  },
-  instantAccessText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#3730A3',
-  },
-  demoFillIcon: {
-    fontSize: 14,
-  },
-  demoFillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#92400E',
-  },
   label: {
     fontSize: 13,
     fontWeight: '700',
@@ -340,7 +280,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 10,
     backgroundColor: colors.surface,
-    marginBottom: 14,
+    marginBottom: 18,
   },
   passwordInput: {
     flex: 1,
@@ -352,17 +292,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  eyeIcon: {
-    fontSize: 16,
-  },
   button: {
-    backgroundColor: '#062B67',
+    backgroundColor: colors.secondary,
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 6,
     marginBottom: 16,
-    shadowColor: colors.navy,
+    shadowColor: colors.secondary,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },

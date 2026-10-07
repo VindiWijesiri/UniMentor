@@ -416,5 +416,51 @@ export const SvgBarChart: React.FC<SvgIconProps> = ({ size = 24, color = '#061E4
   </Svg>
 );
 
+export const SvgPlusCircle: React.FC<SvgIconProps> = ({ size = 24, color = '#D97706', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={strokeWidth} />
+    <Path d="M12 8V16M8 12H16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+export const SvgChatBubbles: React.FC<SvgIconProps> = ({ size = 24, color = '#1D4ED8', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M17 8H19C19.5304 8 20.0391 8.21071 20.4142 8.58579C20.7893 8.96086 21 9.46957 21 10V18L18 15H14C13.4696 15 12.9609 14.7893 12.5858 14.4142C12.2107 14.0391 12 13.5304 12 13V12"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M14 4H5C4.46957 4 3.96086 4.21071 3.58579 4.58579C3.21071 4.96086 3 5.46957 3 6V16L7 12H14C14.5304 12 15.0391 11.7893 15.4142 11.4142C15.7893 11.0391 16 10.5304 16 10V6C16 5.46957 15.7893 4.96086 15.4142 4.58579C15.0391 4.21071 14.5304 4 14 4Z"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+export const SvgFolderOpen: React.FC<SvgIconProps> = ({ size = 24, color = '#7C3AED', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M2 17.5V5C2 4.44772 2.44772 4 3 4H8.5L10.5 6.5H21C21.5523 6.5 22 6.94772 22 7.5V10"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M2.5 19L5.2 9.5C5.35 8.9 5.85 8.5 6.45 8.5H21.55C22.15 8.5 22.65 8.9 22.8 9.5L20.5 19H2.5Z"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+
 
 

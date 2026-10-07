@@ -38,7 +38,11 @@ import {
   SvgPricetag,
   SvgPeople,
   SvgChevronRight,
+  SvgPlusCircle,
+  SvgChatBubbles,
+  SvgFolderOpen,
 } from '../../components/common/SvgIcons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 import { Ionicons } from '@expo/vector-icons';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
@@ -84,6 +88,7 @@ const academicCatalogData: Record<string, Record<string, string[]>> = {
 
 export default function StudentDashboardScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const authUser = useAuthStore((state) => state.user);
@@ -526,6 +531,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />}
@@ -629,7 +635,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             onPress={() => setShowGoalModal(true)}
           >
             <View style={[styles.launchpadIconSquare, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="add-circle" size={20} color="#D97706" />
+              <SvgPlusCircle size={20} color="#D97706" />
             </View>
             <Text style={styles.launchpadCardLabel}>New Goal</Text>
           </TouchableOpacity>
@@ -641,7 +647,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             onPress={() => setShowPodsModal(true)}
           >
             <View style={[styles.launchpadIconSquare, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="chatbubbles" size={20} color="#1D4ED8" />
+              <SvgChatBubbles size={20} color="#1D4ED8" />
               <View style={styles.badgeRed}>
                 <Text style={styles.badgeRedText}>3</Text>
               </View>
@@ -661,7 +667,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             }}
           >
             <View style={[styles.launchpadIconSquare, { backgroundColor: '#ECFDF5' }]}>
-              <Ionicons name="videocam" size={20} color="#059669" />
+              <SvgVideocam size={20} color="#059669" />
             </View>
             <Text style={styles.launchpadCardLabel}>Join Session</Text>
           </TouchableOpacity>
@@ -673,7 +679,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             onPress={() => setShowLibraryModal(true)}
           >
             <View style={[styles.launchpadIconSquare, { backgroundColor: '#F5F3FF' }]}>
-              <Ionicons name="folder-open" size={20} color="#7C3AED" />
+              <SvgFolderOpen size={20} color="#7C3AED" />
             </View>
             <Text style={styles.launchpadCardLabel}>Library</Text>
           </TouchableOpacity>
@@ -1194,9 +1200,9 @@ export default function StudentDashboardScreen({ navigation }: Props) {
           onPress={() => {
             const parent = navigation.getParent<NativeStackNavigationProp<AppStackParamList>>();
             if (parent) {
-              parent.navigate('GuidanceWizard');
+              parent.navigate('GuidanceWizard', { fromTab: 'Home' });
             } else {
-              (navigation as any).navigate('GuidanceWizard');
+              (navigation as any).navigate('GuidanceWizard', { fromTab: 'Home' });
             }
           }}
           activeOpacity={0.88}
@@ -2827,7 +2833,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   addModulePillBtn: {
-    backgroundColor: '#0D4F9E',
+    backgroundColor: orangeVibrant,
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -3046,7 +3052,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   emptyPodsBookBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: orangeVibrant,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 10,
@@ -3398,7 +3404,7 @@ const styles = StyleSheet.create({
   },
   chatMentorBtn: {
     flex: 1,
-    backgroundColor: '#0D4F9E',
+    backgroundColor: orangeVibrant,
     borderRadius: 10,
     paddingVertical: 7,
     alignItems: 'center',
@@ -3639,7 +3645,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   podJoinBtn: {
-    backgroundColor: '#0D4F9E',
+    backgroundColor: orangeVibrant,
     paddingVertical: 6,
     borderRadius: 8,
     alignItems: 'center',
@@ -4130,7 +4136,7 @@ const styles = StyleSheet.create({
   },
   examBookMentorBtn: {
     flex: 1,
-    backgroundColor: '#0D4F9E',
+    backgroundColor: orangeVibrant,
     paddingVertical: 9,
     borderRadius: 10,
     alignItems: 'center',
@@ -4299,7 +4305,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   calcScoreBtn: {
-    backgroundColor: '#0D4F9E',
+    backgroundColor: orangeVibrant,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
@@ -4342,7 +4348,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   downloadPdfBtn: {
-    backgroundColor: '#0D4F9E',
+    backgroundColor: orangeVibrant,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',

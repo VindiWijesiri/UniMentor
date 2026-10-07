@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     color: colors.navy,
   },
   doneBtn: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.secondary,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',

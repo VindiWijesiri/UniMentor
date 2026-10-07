@@ -67,6 +67,7 @@ import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import AddAdminScreen from '../screens/admin/AddAdminScreen';
 import AdminReportsScreen from '../screens/admin/AdminReportsScreen';
 import AdminProfileScreen from '../screens/admin/AdminProfileScreen';
+import AdminLoginScreen from '../screens/admin/AdminLoginScreen';
 import TutorApplicationsScreen from '../screens/admin/TutorApplicationsScreen';
 import TutorApplicationDetailsScreen from '../screens/admin/TutorApplicationDetailsScreen';
 import DocumentReviewScreen from '../screens/admin/DocumentReviewScreen';
@@ -171,7 +172,7 @@ export type AppStackParamList = {
   CompareTutors: { mentors: Mentor[] };
   RecommendedTutor: { mentor: Mentor; reviews: Review[]; comparedCount: number; isBestMatch: boolean };
   Chat: { mentor: Mentor };
-  GuidanceWizard: undefined;
+  GuidanceWizard: { fromTab?: string } | undefined;
   TutorDashboard: undefined;
   StudentDashboard: undefined;
   TutorSlotManagement: undefined;
@@ -225,9 +226,7 @@ export type AppStackParamList = {
     user?: any;
   } | undefined;
   AdminDashboard: undefined;
-  AddAdmin: undefined;
-  AdminReports: undefined;
-  AdminProfile: undefined;
+  AdminLogin: undefined;
   TutorApplications: undefined;
   TutorApplicationDetails: { applicationId?: string } | undefined;
   DocumentReview: { documentType?: string; fileName?: string } | undefined;
@@ -566,9 +565,7 @@ export default function AppNavigator() {
       <Stack.Screen name="VerificationResult" component={VerificationResultScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
       <Stack.Screen name="AdminDashboard" component={MainTabs} />
-      <Stack.Screen name="AddAdmin" component={AddAdminScreen} />
-      <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
-      <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
+      <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
       <Stack.Screen name="TutorApplications" component={TutorApplicationsScreen} />
       <Stack.Screen name="TutorApplicationDetails" component={TutorApplicationDetailsScreen} />
       <Stack.Screen name="DocumentReview" component={DocumentReviewScreen} />

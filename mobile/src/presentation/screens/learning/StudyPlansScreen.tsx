@@ -6,10 +6,12 @@ import { learningRepository } from '../../../data/repositories/learningRepositor
 import type { LearningPlan } from '../../../domain/entities/Learning';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import LearningSubpage, { subpageStyles } from './LearningSubpage';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'StudyPlans'>;
 
 export default function StudyPlansScreen({ navigation }: Props) {
+  const listRef = useScrollToTopOnFocus<FlatList>();
   const [plans, setPlans] = useState<LearningPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,6 +34,7 @@ export default function StudyPlansScreen({ navigation }: Props) {
       loading={loading}
     >
       <FlatList
+        ref={listRef}
         data={plans}
         keyExtractor={(item) => item._id}
         contentContainerStyle={subpageStyles.list}

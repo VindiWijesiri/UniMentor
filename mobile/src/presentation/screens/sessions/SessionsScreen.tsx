@@ -39,11 +39,13 @@ import {
 } from '../../components/common/SvgIcons';
 import { Ionicons } from '@expo/vector-icons';
 import TutorAvatar from '../../components/common/TutorAvatar';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type FacultyFilter = 'all' | 'Computing' | 'Engineering' | 'Business' | 'Architecture';
 type ViewMode = 'tutors' | 'modules';
 
 export default function SessionsScreen() {
+  const listRef = useScrollToTopOnFocus<FlatList>();
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
@@ -328,6 +330,7 @@ export default function SessionsScreen() {
 
       {/* Main Content List */}
       <FlatList
+        ref={listRef}
         data={activeViewMode === 'modules' ? filteredModules : []}
         keyExtractor={(item) => item.code}
         contentContainerStyle={[
@@ -632,7 +635,7 @@ export default function SessionsScreen() {
               {!searchQuery && selectedFaculty === 'all' && (
                 <TouchableOpacity
                   style={styles.emptyActionBtn}
-                  onPress={() => navigation.navigate('GuidanceWizard')}
+                  onPress={() => (navigation as any).navigate('GuidanceWizard', { fromTab: 'Bookings' })}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.emptyActionBtnText}>+ Select Modules in Guidance</Text>
@@ -1628,7 +1631,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   chatBtn: {
-    backgroundColor: '#061E47',
+    backgroundColor: amber,
     borderRadius: 8,
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -1699,11 +1702,11 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   emptyActionBtn: {
-    backgroundColor: navy,
+    backgroundColor: amber,
     borderRadius: 12,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    shadowColor: navy,
+    shadowColor: amber,
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 3,
@@ -1871,7 +1874,7 @@ const styles = StyleSheet.create({
   },
   tutorChatActionBtn: {
     flex: 1,
-    backgroundColor: '#061E47',
+    backgroundColor: amber,
     borderRadius: 9,
     paddingVertical: 7,
     flexDirection: 'row',
