@@ -103,7 +103,6 @@ export default function AuthNavigator() {
       <Stack.Screen name="VerificationResult" component={VerificationResultScreen} />
       <Stack.Screen name="TutorVerificationStatus" component={TutorVerificationStatusScreen} />
       <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
-      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="TutorApplications" component={TutorApplicationsScreen} />
       <Stack.Screen name="TutorApplicationDetails" component={TutorApplicationDetailsScreen} />
       <Stack.Screen name="DocumentReview" component={DocumentReviewScreen} />

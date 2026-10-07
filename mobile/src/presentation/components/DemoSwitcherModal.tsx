@@ -24,19 +24,9 @@ export default function DemoSwitcherModal({ visible, onClose }: DemoSwitcherModa
   const handleRoleSelect = (role: 'student' | 'mentor' | 'admin') => {
     switchDemoRole(role);
     onClose();
-    if (role === 'admin') {
-      try {
-        navigation.navigate('AdminDashboard');
-      } catch {}
-    } else if (role === 'mentor') {
-      try {
-        navigation.navigate('TutorDashboard');
-      } catch {}
-    } else {
-      try {
-        navigation.navigate('StudentDashboard');
-      } catch {}
-    }
+    try {
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    } catch {}
   };
 
   const handleNavigate = (screenName: string, params?: object) => {
@@ -197,7 +187,7 @@ export default function DemoSwitcherModal({ visible, onClose }: DemoSwitcherModa
                 <Text style={styles.screenLinkText}>• Admin Login</Text>
                 <Text style={styles.screenArrow}>→</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.screenLink} onPress={() => handleNavigate('AdminDashboard')}>
+              <TouchableOpacity style={styles.screenLink} onPress={() => handleNavigate('MainTabs', { screen: 'Home' })}>
                 <Text style={styles.screenLinkText}>• Admin Dashboard</Text>
                 <Text style={styles.screenArrow}>→</Text>
               </TouchableOpacity>

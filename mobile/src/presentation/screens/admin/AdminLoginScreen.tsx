@@ -37,11 +37,7 @@ export default function AdminLoginScreen({ navigation }: Props) {
       return;
     }
     setToken(token);
-    setPendingRoute('AdminDashboard');
     setUser(user as any);
-    try {
-      navigation.navigate('AdminDashboard' as any);
-    } catch {}
   };
 
   const handleAdminLogin = async () => {

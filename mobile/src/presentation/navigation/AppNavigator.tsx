@@ -307,6 +307,7 @@ function MainTabs() {
 
   return (
     <Tab.Navigator
+      key={currentUser?.role || 'guest'}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#EAA023',
@@ -564,7 +565,7 @@ export default function AppNavigator() {
       <Stack.Screen name="FaceVerification" component={FaceVerificationScreen} />
       <Stack.Screen name="VerificationResult" component={VerificationResultScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
-      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="AdminDashboard" component={MainTabs} />
       <Stack.Screen name="AddAdmin" component={AddAdminScreen} />
       <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
       <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
