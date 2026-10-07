@@ -71,6 +71,10 @@ interface AuthState {
   switchDemoRole: (role: 'student' | 'mentor' | 'admin') => void;
   updateUserProfile: (partial: Partial<User>) => void;
   updateVerificationStatus: (status: VerificationStatus, reason?: string) => void;
+  pendingRoute: string | null;
+  setPendingRoute: (route: string | null) => void;
+  rememberToken: (token: string) => Promise<void>;
+  restoreSession: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -79,7 +83,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   setUser: (user) => set({ user, isAuthenticated: true }),
   setToken: (token) => set({ token }),
-  logout: () => set({ user: null, token: null, isAuthenticated: false }),
+  logout: () => {
+    set({ user: null, token: null, isAuthenticated: false, pendingRoute: null });
+    import('expo-secure-store').then((store) => store.deleteItemAsync('auth.token')).catch(() => undefined);
+  },
   switchDemoRole: (role) => {
     let selectedUser: User = mockStudentUser;
     if (role === 'mentor') selectedUser = mockTutorUser;
@@ -100,4 +107,24 @@ export const useAuthStore = create<AuthState>((set) => ({
           }
         : null,
     })),
+  pendingRoute: null,
+  setPendingRoute: (route) => set({ pendingRoute: route }),
+  rememberToken: async (token) => {
+    const store = await import('expo-secure-store');
+    await store.setItemAsync('auth.token', token);
+  },
+  restoreSession: async () => {
+    try {
+      const store = await import('expo-secure-store');
+      const token = await store.getItemAsync('auth.token');
+      if (!token || token.startsWith('demo_') || token.startsWith('mock_')) return;
+      set({ token });
+      const { authRepository } = await import('../../data/repositories/authRepository');
+      const me = await authRepository.me();
+      set({ user: me.user, token, isAuthenticated: true });
+    } catch {
+      set({ user: null, token: null, isAuthenticated: false });
+      import('expo-secure-store').then((store) => store.deleteItemAsync('auth.token')).catch(() => undefined);
+    }
+  },
 }));

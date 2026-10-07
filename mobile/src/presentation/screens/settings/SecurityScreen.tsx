@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
+import { useAuthStore } from '../../../domain/stores/authStore';
+import { authRepository } from '../../../data/repositories/authRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -24,7 +26,9 @@ export default function SecurityScreen({ navigation }: Props) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleChangePassword = () => {
+  const token = useAuthStore((state) => state.token);
+
+  const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       Alert.alert('Validation', 'Please fill in all password fields.');
       return;
@@ -33,14 +37,23 @@ export default function SecurityScreen({ navigation }: Props) {
       Alert.alert('Validation', 'New passwords do not match.');
       return;
     }
-    Alert.alert('Password Changed', 'Your security password has been updated across all devices.');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    if (!token || token.startsWith('demo_') || token.startsWith('mock_')) {
+      Alert.alert('Real sign-in required', 'Change the password after signing in with the account email. Demo role switch does not have its own password.');
+      return;
+    }
+    try {
+      await authRepository.changePassword(currentPassword, newPassword);
+      Alert.alert('Password updated', 'Use the new password the next time you sign in.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      Alert.alert('Not updated', error?.response?.data?.message ?? error?.message ?? 'The password could not be changed.');
+    }
   };
 
   const handleRevokeSessions = () => {
-    Alert.alert('Sessions Terminated', 'All other active web and mobile device sessions have been revoked.');
+    Alert.alert('Not available', 'Ending other device sessions is not tracked yet.');
   };
 
   return (

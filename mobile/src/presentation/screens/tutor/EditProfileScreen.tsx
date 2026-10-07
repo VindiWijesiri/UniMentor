@@ -12,6 +12,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { useAuthStore, mockTutorUser } from '../../../domain/stores/authStore';
+import { userRepository } from '../../../data/repositories/userRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -30,16 +31,29 @@ export default function EditProfileScreen({ navigation }: Props) {
     tutor.availability || 'Mon - Thu: 5:00 PM - 9:00 PM | Sat: 10:00 AM - 2:00 PM'
   );
 
-  const handleSave = () => {
-    updateUserProfile({
+  const handleSave = async () => {
+    const next = {
       name,
       phone,
       degree,
-      hourlyRate: Number(hourlyRate) || 2500,
+      degreeProgramme: degree,
+      hourlyRate: Number(hourlyRate) || 0,
       bio,
       availability,
-    });
-    Alert.alert('Profile Saved', 'Your tutor profile information has been updated.');
+    };
+    const token = useAuthStore.getState().token;
+    if (token && !token.startsWith('demo_') && !token.startsWith('mock_')) {
+      try {
+        const saved = await userRepository.updateProfile(next);
+        updateUserProfile(saved);
+      } catch (error: any) {
+        Alert.alert('Not saved', error?.response?.data?.message ?? 'The profile could not be stored.');
+        return;
+      }
+    } else {
+      updateUserProfile(next);
+    }
+    Alert.alert('Profile saved', 'Your tutor profile information has been updated.');
     navigation.goBack();
   };
 

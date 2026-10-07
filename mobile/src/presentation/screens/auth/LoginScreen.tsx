@@ -31,7 +31,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [demoModalVisible, setDemoModalVisible] = useState(false);
 
-  const { setUser, setToken, switchDemoRole } = useAuthStore();
+  const { setUser, setToken, switchDemoRole, rememberToken } = useAuthStore();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -42,6 +42,11 @@ export default function LoginScreen({ navigation }: Props) {
     try {
       const result = await loginUseCase({ email, password });
       setToken(result.token);
+      if (rememberMe) {
+        rememberToken(result.token).catch(() => undefined);
+      } else {
+        import('expo-secure-store').then((store) => store.deleteItemAsync('auth.token')).catch(() => undefined);
+      }
       setUser(result.user);
     } catch (err: any) {
       const msg = err?.friendlyMessage ?? err?.response?.data?.message ?? err?.message ?? 'Invalid university credentials.';

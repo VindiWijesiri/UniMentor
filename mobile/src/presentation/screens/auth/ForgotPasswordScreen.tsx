@@ -33,10 +33,12 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      await authRepository.forgotPassword(trimmedEmail);
+      const result = await authRepository.forgotPassword(trimmedEmail);
       Alert.alert(
-        'Verification Code Sent',
-        'A 6-digit verification code has been dispatched to your email address.'
+        'Verification code',
+        result.devCode
+          ? `Email is not configured on this server. Your code is ${result.devCode}.`
+          : 'If that email is registered, a verification code has been sent.',
       );
       navigation.navigate('VerifyCode', { email: trimmedEmail });
     } catch (error: any) {

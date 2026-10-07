@@ -34,9 +34,12 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
 
   const requestOtpFromBackend = async () => {
     try {
-      await authRepository.sendVerificationOtp(email);
+      const result = await authRepository.sendVerificationOtp(email);
+      if (result.devCode) {
+        Alert.alert('Verification code', `Email is not configured on this server. Your code is ${result.devCode}.`);
+      }
     } catch (err: any) {
-      console.warn('sendVerificationOtp error:', err?.message || err);
+      Alert.alert('Code not sent', err?.response?.data?.message || 'The verification code could not be requested.');
     }
   };
 
@@ -68,19 +71,30 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
 
     setLoading(true);
     try {
-      await authRepository.verifyEmailOtp(email, code);
+      const verified = await authRepository.verifyEmailOtp(email, code);
       setLoading(false);
+      const account = verified.user || route?.params?.user;
+      const token = route?.params?.token;
 
       if (role === 'mentor') {
-        navigation.navigate('VerifyIdentity', { email, role });
+        navigation.navigate('VerifyIdentity', { email, role, token, user: account });
+      } else if (account && token) {
+        navigation.navigate('VerificationResult', {
+          success: true,
+          role: 'student',
+          message: 'Your student account has been verified successfully. Welcome to UniMentor!',
+          token,
+          user: { ...account, isVerified: true, accountStatus: 'active' as const, verificationStatus: 'approved' as const },
+        });
       } else {
         setUser({
           ...mockStudentUser,
           email,
+          name: route?.params?.name || mockStudentUser.name,
           verificationStatus: 'approved',
           accountStatus: 'active',
         });
-        setToken('valid_session_token');
+        setToken('demo_student_token');
         navigation.navigate('VerificationResult', {
           success: true,
           role: 'student',

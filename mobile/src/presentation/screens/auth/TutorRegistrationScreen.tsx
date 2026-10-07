@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
+import { authRepository } from '../../../data/repositories/authRepository';
+import { useAuthStore } from '../../../domain/stores/authStore';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -48,9 +50,15 @@ export default function TutorRegistrationScreen({ navigation }: Props) {
     }
   };
 
-  const handleProceed = () => {
+  const { setToken } = useAuthStore();
+
+  const handleProceed = async () => {
     if (!name || !email || !phone || !degree || !password) {
       Alert.alert('Validation Error', 'Please complete all required fields.');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Validation Error', 'Password must be at least 6 characters.');
       return;
     }
 
@@ -60,17 +68,34 @@ export default function TutorRegistrationScreen({ navigation }: Props) {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      navigation.navigate('EmailVerification', {
-        email,
+    try {
+      const result = await authRepository.register({
+        name: name.trim(),
+        email: email.trim(),
+        password,
         role: 'mentor',
-        name,
+        phone: phone.trim(),
+        degreeProgramme: degree,
+        hourlyRate: Number(hourlyRate) || 2500,
+        subjects: selectedModules,
+        bio: bio.trim(),
+      });
+      setToken(result.token);
+      navigation.navigate('EmailVerification', {
+        email: result.user.email,
+        role: 'mentor',
+        name: result.user.name,
         degree,
         hourlyRate: Number(hourlyRate) || 2500,
         selectedModules,
+        token: result.token,
+        user: result.user,
       });
-    }, 600);
+    } catch (error: any) {
+      Alert.alert('Registration failed', error?.response?.data?.message ?? error?.message ?? 'The account could not be created.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -4,7 +4,7 @@ interface RegisterInput {
   name: string;
   email: string;
   password: string;
-  role: 'student' | 'mentor' | 'admin';
+  role: 'student' | 'mentor';
 }
 
 export async function registerUseCase(input: RegisterInput) {

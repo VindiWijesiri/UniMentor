@@ -19,9 +19,9 @@ export default function RegisterScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'mentor' | 'admin'>('student');
+  const [role, setRole] = useState<'student' | 'mentor'>('student');
   const [loading, setLoading] = useState(false);
-  const { setUser, setToken } = useAuthStore();
+  const { setToken } = useAuthStore();
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -32,7 +32,13 @@ export default function RegisterScreen({ navigation }: Props) {
     try {
       const result = await registerUseCase({ name, email, password, role });
       setToken(result.token);
-      setUser(result.user);
+      navigation.navigate('EmailVerification', {
+        email: result.user.email,
+        role,
+        name: result.user.name,
+        token: result.token,
+        user: result.user,
+      });
     } catch (err: any) {
       Alert.alert('Registration Failed', err.message ?? 'Something went wrong.');
     } finally {
@@ -88,7 +94,6 @@ export default function RegisterScreen({ navigation }: Props) {
           {([
             ['student', 'Student'],
             ['mentor', 'Tutor'],
-            ['admin', 'Admin / LIC'],
           ] as const).map(([r, label]) => (
             <TouchableOpacity
               key={r}

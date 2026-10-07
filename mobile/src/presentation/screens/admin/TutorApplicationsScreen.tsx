@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
+import { adminRepository } from '../../../data/repositories/adminRepository';
+import type { User } from '../../../domain/entities/User';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -25,71 +27,46 @@ interface ApplicationItem {
   status: 'pending' | 'under_review' | 'approved' | 'rejected';
   submittedDate: string;
   studentId: string;
+  email: string;
+  hourlyRate?: number;
 }
 
-const mockApplications: ApplicationItem[] = [
-  {
-    id: 'APP-8421',
-    name: 'Dr. Sarah De Silva',
-    university: 'University of Moratuwa',
-    faculty: 'Computing',
-    degree: 'MSc in Software Engineering & AI',
-    requestedModules: ['Data Structures', 'OOP', 'Software Architecture'],
-    status: 'under_review',
-    submittedDate: 'Today, 10:30 AM',
-    studentId: 'TUT/2021/042',
-  },
-  {
-    id: 'APP-8422',
-    name: 'Malith Gunawardena',
-    university: 'University of Peradeniya',
-    faculty: 'Engineering',
-    degree: 'BSc (Hons) in Electrical & Electronic',
-    requestedModules: ['Circuit Theory', 'Digital Electronics'],
-    status: 'pending',
-    submittedDate: 'Today, 08:15 AM',
-    studentId: 'ENG/2022/119',
-  },
-  {
-    id: 'APP-8423',
-    name: 'Kaveen Fernando',
-    university: 'University of Colombo',
-    faculty: 'Computing',
-    degree: 'BSc (Hons) in Computer Science',
-    requestedModules: ['DBMS', 'Machine Learning'],
-    status: 'approved',
-    submittedDate: 'Yesterday',
-    studentId: 'CS/2021/008',
-  },
-  {
-    id: 'APP-8424',
-    name: 'Dinithi Weerasinghe',
-    university: 'University of Kelaniya',
-    faculty: 'Business',
-    degree: 'BSc in Accounting & Finance',
-    requestedModules: ['Financial Accounting', 'Corporate Finance'],
-    status: 'rejected',
-    submittedDate: '2 days ago',
-    studentId: 'MGT/2022/204',
-  },
-  {
-    id: 'APP-8425',
-    name: 'Janith Samarasekera',
-    university: 'University of Moratuwa',
-    faculty: 'Architecture',
-    degree: 'BSc in Quantity Surveying',
-    requestedModules: ['Construction Measurement'],
-    status: 'pending',
-    submittedDate: '3 days ago',
-    studentId: 'QS/2021/077',
-  },
-];
+function mapApplication(user: User): ApplicationItem {
+  const verification = user.verificationStatus;
+  const status: ApplicationItem['status'] = verification === 'approved'
+    ? 'approved'
+    : verification === 'rejected'
+      ? 'rejected'
+      : verification === 'under_review'
+        ? 'under_review'
+        : 'pending';
+  return {
+    id: user._id,
+    name: user.name,
+    university: user.university || '—',
+    faculty: user.faculty || '—',
+    degree: user.degree || user.degreeProgramme || '—',
+    requestedModules: user.subjects?.length ? user.subjects : [],
+    status,
+    submittedDate: user.createdAt ? new Date(user.createdAt).toLocaleString() : '—',
+    studentId: user.studentId || '—',
+    email: user.email,
+    hourlyRate: user.hourlyRate,
+  };
+}
 
 export default function TutorApplicationsScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'under_review' | 'approved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [applications, setApplications] = useState<ApplicationItem[]>([]);
 
-  const filtered = mockApplications.filter((app) => {
+  useEffect(() => {
+    adminRepository.directory()
+      .then((users) => setApplications(users.filter((user) => user.role === 'mentor').map(mapApplication)))
+      .catch(() => setApplications([]));
+  }, []);
+
+  const filtered = applications.filter((app) => {
     const matchesTab = activeTab === 'all' || app.status === activeTab;
     const matchesSearch =
       app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -174,7 +151,18 @@ export default function TutorApplicationsScreen({ navigation }: Props) {
               key={item.id}
               style={styles.card}
               onPress={() =>
-                navigation.navigate('TutorApplicationDetails', { applicationId: item.id })
+                navigation.navigate('TutorApplicationDetails', {
+                  applicationId: item.id,
+                  name: item.name,
+                  degree: item.degree,
+                  university: item.university,
+                  faculty: item.faculty,
+                  studentId: item.studentId,
+                  modules: item.requestedModules,
+                  email: item.email,
+                  hourlyRate: item.hourlyRate,
+                  submittedDate: item.submittedDate,
+                })
               }
               activeOpacity={0.88}
             >

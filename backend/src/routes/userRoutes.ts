@@ -13,6 +13,9 @@ import {
   addToShortlist,
   updateShortlist,
   removeFromShortlist,
+  listDirectory,
+  setAccountStatus,
+  setVerificationStatus,
 } from '../controllers/userController';
 import { authenticate } from '../middleware/auth';
 
@@ -35,5 +38,8 @@ router.get('/shortlist', authenticate, getShortlist);
 router.post('/shortlist', authenticate, addToShortlist);
 router.put('/shortlist/:mentorId', authenticate, updateShortlist);
 router.delete('/shortlist/:mentorId', authenticate, removeFromShortlist);
+router.get('/directory', authenticate, listDirectory);
+router.patch('/:id/account-status', authenticate, setAccountStatus);
+router.patch('/:id/verification', authenticate, setVerificationStatus);
 
 export default router;

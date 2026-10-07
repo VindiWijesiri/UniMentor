@@ -28,6 +28,13 @@ export default function VerificationResultScreen({ navigation, route }: Props) {
   const { setUser, setToken } = useAuthStore();
 
   const handleGoToNext = () => {
+    const account = route?.params?.user;
+    const token = route?.params?.token;
+    if (account && token) {
+      setToken(token);
+      setUser(account);
+      return;
+    }
     if (initialRole === 'mentor') {
       setUser({
         ...mockTutorUser,
@@ -43,7 +50,6 @@ export default function VerificationResultScreen({ navigation, route }: Props) {
         accountStatus: 'active',
       });
       setToken('demo_student_token');
-      // RootNavigator will show MainTabs
     }
   };
 

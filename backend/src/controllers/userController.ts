@@ -126,13 +126,25 @@ export async function getProfile(req: AuthRequest, res: Response, next: NextFunc
 
 export async function updateProfile(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const allowedFields = ['name', 'bio', 'profilePicture', 'subjects', 'degreeProgramme', 'academicYear', 'semester'];
+    const allowedFields = [
+      'name', 'bio', 'profilePicture', 'subjects', 'degreeProgramme', 'academicYear', 'semester',
+      'hourlyRate', 'availability', 'university', 'faculty', 'department', 'studentId', 'phone',
+    ];
     const updates: Record<string, unknown> = {};
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         updates[field] = req.body[field];
       }
+    }
+
+    if (updates.hourlyRate !== undefined) {
+      const rate = Number(updates.hourlyRate);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 20000) {
+        res.status(400).json({ message: 'Hourly rate must be between 0 and 20,000 LKR.' });
+        return;
+      }
+      updates.hourlyRate = rate;
     }
 
     const user = await User.findByIdAndUpdate(req.userId, updates, {
@@ -595,6 +607,78 @@ export async function removeFromShortlist(req: AuthRequest, res: Response, next:
       message: 'Tutor removed from shortlist.',
       shortlist: user.shortlistedMentors,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function assertStaff(req: AuthRequest, res: Response): boolean {
+  if (req.userRole !== 'admin' && req.userRole !== 'lic') {
+    res.status(403).json({ message: 'Staff access is required.' });
+    return false;
+  }
+  return true;
+}
+
+export async function listDirectory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!assertStaff(req, res)) return;
+    const users = await User.find()
+      .select('name email role verificationStatus accountStatus isVerified university faculty department studentId degreeProgramme subjects hourlyRate phone createdAt')
+      .sort({ createdAt: -1 })
+      .limit(300);
+    res.json({ users });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setAccountStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!assertStaff(req, res)) return;
+    const allowed = ['active', 'pending', 'under_review', 'suspended', 'rejected', 'expired'];
+    if (!allowed.includes(req.body.accountStatus)) {
+      res.status(400).json({ message: 'Unknown account status.' });
+      return;
+    }
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { accountStatus: req.body.accountStatus },
+      { new: true },
+    ).select('name email role accountStatus verificationStatus');
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setVerificationStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!assertStaff(req, res)) return;
+    const allowed = ['unverified', 'pending', 'under_review', 'verified', 'approved', 'rejected'];
+    if (!allowed.includes(req.body.verificationStatus)) {
+      res.status(400).json({ message: 'Unknown verification status.' });
+      return;
+    }
+    const approved = req.body.verificationStatus === 'approved' || req.body.verificationStatus === 'verified';
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        verificationStatus: req.body.verificationStatus,
+        accountStatus: approved ? 'active' : req.body.verificationStatus === 'rejected' ? 'rejected' : 'under_review',
+        isVerified: approved,
+      },
+      { new: true },
+    ).select('name email role accountStatus verificationStatus isVerified');
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    res.json({ user });
   } catch (err) {
     next(err);
   }

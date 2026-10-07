@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { UserRole, AccountStatus } from '../../../domain/entities/User';
+import { adminRepository } from '../../../data/repositories/adminRepository';
+import { authRepository } from '../../../data/repositories/authRepository';
+import type { User } from '../../../domain/entities/User';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -29,77 +32,43 @@ interface UserDirectoryItem {
   faculty: string;
 }
 
-const mockUsers: UserDirectoryItem[] = [
-  {
-    id: 'usr_01',
-    name: 'Kavindu Perera',
-    email: 'kavindu.p@campus.ac.lk',
-    role: 'student',
-    status: 'active',
-    university: 'University of Colombo',
-    studentId: 'CS/2023/089',
-    faculty: 'Computing',
-  },
-  {
-    id: 'usr_02',
-    name: 'Dr. Sarah De Silva',
-    email: 'sarah.desilva@campus.ac.lk',
-    role: 'mentor',
-    status: 'active',
-    university: 'University of Moratuwa',
-    studentId: 'TUT/2021/042',
-    faculty: 'Computing',
-  },
-  {
-    id: 'usr_03',
-    name: 'Prof. Rohan Wickramasinghe',
-    email: 'rohan.w@campus.ac.lk',
-    role: 'lecturer',
-    status: 'active',
-    university: 'University of Colombo',
-    studentId: 'STAFF/LEC/014',
-    faculty: 'Computing',
-  },
-  {
-    id: 'usr_04',
-    name: 'Admin Kasun Jayawardena',
-    email: 'admin.kasun@unimentor.lk',
-    role: 'admin',
-    status: 'active',
-    university: 'UniMentor Platform Admin',
-    studentId: 'ADM/2020/001',
-    faculty: 'Administration',
-  },
-  {
-    id: 'usr_05',
-    name: 'Thilina Bandara',
-    email: 'thilina.b@campus.ac.lk',
-    role: 'student',
-    status: 'suspended',
-    university: 'University of Peradeniya',
-    studentId: 'ENG/2022/045',
-    faculty: 'Engineering',
-  },
-  {
-    id: 'usr_06',
-    name: 'Minoli Silva',
-    email: 'minoli.s@campus.ac.lk',
-    role: 'student',
-    status: 'pending',
-    university: 'SLIIT',
-    studentId: 'IT2104921',
-    faculty: 'Computing',
-  },
-];
+const mockUsers: UserDirectoryItem[] = [];
+
+function mapDirectoryUser(user: User): UserDirectoryItem {
+  const status = user.accountStatus;
+  const known: AccountStatus[] = ['active', 'pending', 'under_review', 'suspended', 'rejected', 'expired'];
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: status && known.includes(status) ? status : 'active',
+    university: user.university || '—',
+    studentId: user.studentId || '—',
+    faculty: user.faculty || '—',
+  };
+}
 
 export default function UserManagementScreen({ navigation }: Props) {
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [userList, setUserList] = useState<UserDirectoryItem[]>(mockUsers);
   const [selectedUser, setSelectedUser] = useState<UserDirectoryItem | null>(null);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    adminRepository.directory()
+      .then((users) => {
+        setUserList(users.map(mapDirectoryUser));
+        setLoadError('');
+      })
+      .catch(() => setLoadError('The directory could not be loaded. Sign in with an admin or faculty account.'));
+  }, []);
 
   const filtered = userList.filter((item) => {
-    const matchesRole = roleFilter === 'all' || item.role === roleFilter;
+    const matchesRole = roleFilter === 'all'
+      || item.role === roleFilter
+      || (roleFilter === 'lecturer' && item.role === 'lic');
     const matchesQuery =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -107,21 +76,34 @@ export default function UserManagementScreen({ navigation }: Props) {
     return matchesRole && matchesQuery;
   });
 
-  const handleToggleSuspend = () => {
+  const handleToggleSuspend = async () => {
     if (!selectedUser) return;
     const nextStatus: AccountStatus = selectedUser.status === 'suspended' ? 'active' : 'suspended';
-    setUserList((list) =>
-      list.map((u) => (u.id === selectedUser.id ? { ...u, status: nextStatus } : u))
-    );
-    setSelectedUser({ ...selectedUser, status: nextStatus });
-    Alert.alert(
-      'Account Status Modified',
-      `${selectedUser.name}'s status has been changed to "${nextStatus.toUpperCase()}".`
-    );
+    try {
+      await adminRepository.setAccountStatus(selectedUser.id, nextStatus);
+      setUserList((list) =>
+        list.map((u) => (u.id === selectedUser.id ? { ...u, status: nextStatus } : u))
+      );
+      setSelectedUser({ ...selectedUser, status: nextStatus });
+      Alert.alert('Account updated', `${selectedUser.name} is now ${nextStatus}.`);
+    } catch {
+      Alert.alert('Not saved', 'The account status could not be updated.');
+    }
   };
 
-  const handleSendResetLink = () => {
-    Alert.alert('Password Reset Sent', `A reset token was dispatched to ${selectedUser?.email}.`);
+  const handleSendResetLink = async () => {
+    if (!selectedUser?.email) return;
+    try {
+      const result = await authRepository.forgotPassword(selectedUser.email);
+      Alert.alert(
+        'Password reset',
+        result.devCode
+          ? `Email is not configured. The code for ${selectedUser.email} is ${result.devCode}.`
+          : `A reset code was sent to ${selectedUser.email}.`,
+      );
+    } catch {
+      Alert.alert('Not sent', 'The reset code could not be created.');
+    }
   };
 
   const getRoleBadge = (role: UserRole) => {
@@ -186,6 +168,8 @@ export default function UserManagementScreen({ navigation }: Props) {
       {/* User Cards List */}
       <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
         <Text style={styles.resultsCount}>Registered Users ({filtered.length})</Text>
+        {loadError ? <Text style={styles.resultsCount}>{loadError}</Text> : null}
+        {!loadError && filtered.length === 0 ? <Text style={styles.resultsCount}>No accounts match this search.</Text> : null}
 
         {filtered.map((item) => {
           const roleBadge = getRoleBadge(item.role);

@@ -92,7 +92,7 @@ export default function SettingsScreen({ navigation }: Props) {
             onPress={() =>
               user?.role === 'mentor'
                 ? navigation.navigate('EditProfile')
-                : navigation.navigate('Profile')
+                : navigation.navigate('MainTabs', { screen: 'Profile' })
             }
           >
             <Text style={styles.menuIcon}>✏️</Text>

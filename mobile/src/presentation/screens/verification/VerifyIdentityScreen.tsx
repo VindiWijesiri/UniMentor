@@ -36,7 +36,11 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
       Alert.alert('Required', 'Please upload both front and back of your University ID card.');
       return;
     }
-    navigation.navigate('FaceVerification', { role });
+    navigation.navigate('FaceVerification', {
+      role,
+      token: route?.params?.token,
+      user: route?.params?.user,
+    });
   };
 
   return (

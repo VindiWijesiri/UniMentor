@@ -49,6 +49,8 @@ export type AuthStackParamList = {
     degree?: string;
     hourlyRate?: number;
     selectedModules?: string[];
+    token?: string;
+    user?: import('../../domain/entities/User').User;
   };
   VerifyIdentity: { email?: string; role?: 'student' | 'mentor' } | undefined;
   FaceVerification: { role?: 'student' | 'mentor' } | undefined;

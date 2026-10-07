@@ -49,8 +49,13 @@ export default function VerifyCodeScreen({ navigation, route }: Props) {
   const handleResend = async () => {
     setResending(true);
     try {
-      await authRepository.forgotPassword(email);
-      Alert.alert('Code Dispatched', 'A new verification code has been sent to your email.');
+      const result = await authRepository.forgotPassword(email);
+      Alert.alert(
+        'Verification code',
+        result.devCode
+          ? `Email is not configured on this server. Your code is ${result.devCode}.`
+          : 'A new verification code has been sent to your email.',
+      );
     } catch (error: any) {
       Alert.alert('Failed', error?.response?.data?.message ?? error?.message ?? 'Could not resend code.');
     } finally {

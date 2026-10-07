@@ -179,6 +179,8 @@ export default function FaceVerificationScreen({ navigation, route }: Props) {
       role,
       confidence: verificationResult?.confidence,
       threshold: verificationResult?.threshold,
+      token: route?.params?.token,
+      user: route?.params?.user,
       message:
         role === 'mentor'
           ? 'Your live biometric verification passed successfully. Your mentor account has been updated.'

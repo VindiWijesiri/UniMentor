@@ -126,6 +126,17 @@ export default function ProfileScreen() {
             <Text style={styles.menuArrow}>→</Text>
           </TouchableOpacity>
 
+          {(user?.role === 'admin' || user?.role === 'lic') && (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('AdminDashboard')}
+            >
+              <Text style={styles.menuIcon}>🛡️</Text>
+              <Text style={styles.menuLabel}>Admin console</Text>
+              <Text style={styles.menuArrow}>→</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => navigation.navigate('Settings')}

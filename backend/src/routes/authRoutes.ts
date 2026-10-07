@@ -8,6 +8,7 @@ import {
   resetPassword,
   sendVerificationOtp,
   verifyEmailOtp,
+  changePassword,
 } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
 
@@ -21,5 +22,6 @@ router.post('/reset-password', resetPassword);
 router.post('/send-verification-otp', sendVerificationOtp);
 router.post('/verify-email-otp', verifyEmailOtp);
 router.get('/me', authenticate, getMe);
+router.post('/change-password', authenticate, changePassword);
 
 export default router;

@@ -13,7 +13,18 @@ function signToken(id: string, role: string): string {
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { name, email, password, role } = req.body;
+    const name = String(req.body.name || '').trim();
+    const email = String(req.body.email || '').toLowerCase().trim();
+    const password = String(req.body.password || '');
+    const role = req.body.role;
+    if (!name || !email || !password) {
+      res.status(400).json({ message: 'Name, email, and password are required.' });
+      return;
+    }
+    if (role !== 'student' && role !== 'mentor') {
+      res.status(400).json({ message: 'Choose a student or tutor account.' });
+      return;
+    }
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -21,7 +32,24 @@ export async function register(req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    const user = await User.create({ name, email, password, role });
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role,
+      bio: req.body.bio,
+      subjects: Array.isArray(req.body.subjects) ? req.body.subjects : undefined,
+      degreeProgramme: req.body.degreeProgramme,
+      hourlyRate: req.body.hourlyRate,
+      university: req.body.university,
+      faculty: req.body.faculty,
+      department: req.body.department,
+      studentId: req.body.studentId,
+      phone: req.body.phone,
+      accountStatus: 'pending',
+      verificationStatus: 'unverified',
+      isVerified: false,
+    });
     const token = signToken(String(user._id), user.role);
 
     res.status(201).json({ user, token });
@@ -32,7 +60,8 @@ export async function register(req: Request, res: Response, next: NextFunction):
 
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body.email || '').toLowerCase().trim();
+    const password = String(req.body.password || '');
 
     const user = await User.findOne({ email }).select('+password');
     if (!user || !(await user.comparePassword(password))) {
@@ -107,16 +136,13 @@ export async function forgotPassword(req: Request, res: Response, next: NextFunc
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    let user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      const fallbackName = normalizedEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'UniMentor Student';
-      user = await User.create({
-        name: fallbackName,
-        email: normalizedEmail,
-        password: crypto.randomBytes(16).toString('hex'),
-        role: 'student',
+      res.json({
+        message: 'If that email is registered, a verification code has been sent.',
+        emailSent: false,
       });
-      console.log(`[Forgot Password] Auto-provisioned user account for ${normalizedEmail}`);
+      return;
     }
 
     const code = crypto.randomInt(100000, 999999).toString();
@@ -130,8 +156,11 @@ export async function forgotPassword(req: Request, res: Response, next: NextFunc
     console.log(`[Forgot Password] Verification code generated for ${normalizedEmail}: ${code} (Email sent: ${emailSent})`);
 
     res.json({
-      message: 'A verification code has been dispatched to your email.',
+      message: emailSent
+        ? 'A verification code has been sent to your email.'
+        : 'If that email is registered, a verification code has been sent.',
       emailSent,
+      ...(emailSent || process.env.NODE_ENV === 'production' ? {} : { devCode: code }),
     });
   } catch (err) {
     next(err);
@@ -209,6 +238,31 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
   }
 }
 
+export async function changePassword(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const currentPassword = String(req.body.currentPassword || '');
+    const newPassword = String(req.body.newPassword || '');
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ message: 'Current and new passwords are required.' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      res.status(400).json({ message: 'New password must be at least 6 characters.' });
+      return;
+    }
+    const user = await User.findById(req.userId).select('+password');
+    if (!user || !(await user.comparePassword(currentPassword))) {
+      res.status(401).json({ message: 'Current password is incorrect.' });
+      return;
+    }
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Password updated.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getMe(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const user = await User.findById(req.userId);
@@ -246,8 +300,9 @@ export async function sendVerificationOtp(req: Request, res: Response, next: Nex
     res.json({
       message: emailSent
         ? 'Verification code sent to your email address.'
-        : 'Verification code generated and dispatched.',
+        : 'Email delivery is not configured. Use the code shown in the app.',
       emailSent,
+      ...(emailSent || process.env.NODE_ENV === 'production' ? {} : { devCode: code }),
     });
   } catch (err) {
     next(err);
@@ -262,13 +317,25 @@ export async function verifyEmailOtp(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    const record = registrationOtpStore.get(email.toLowerCase());
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const record = registrationOtpStore.get(normalizedEmail);
     const now = new Date();
 
-    // Also accept 739201 as universal demo bypass code
-    if (code === '739201' || (record && record.code === code && now <= record.expires)) {
-      registrationOtpStore.delete(email.toLowerCase());
-      res.json({ message: 'Email verified successfully.', verified: true });
+    if (record && record.code === String(code).trim() && now <= record.expires) {
+      registrationOtpStore.delete(normalizedEmail);
+      const user = await User.findOne({ email: normalizedEmail });
+      if (user) {
+        user.isVerified = true;
+        if (user.role === 'mentor') {
+          user.verificationStatus = 'pending';
+          user.accountStatus = 'pending';
+        } else {
+          user.verificationStatus = 'approved';
+          user.accountStatus = 'active';
+        }
+        await user.save();
+      }
+      res.json({ message: 'Email verified successfully.', verified: true, user });
       return;
     }
 

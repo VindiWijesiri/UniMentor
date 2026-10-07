@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Image, View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { NavigatorScreenParams } from '@react-navigation/native';
+import { useNavigation, type NavigatorScreenParams } from '@react-navigation/native';
 import type { Mentor } from '../../domain/entities/Mentor';
 import type { TutorFilters } from '../../domain/entities/TutorFilters';
 import type { Review } from '../../domain/entities/Review';
@@ -179,9 +179,17 @@ function LogoTitle() {
 }
 
 function MainTabs() {
+  const navigation = useNavigation<any>();
   const role = useAuthStore((state) => state.user?.role);
+  const pendingRoute = useAuthStore((state) => state.pendingRoute);
   const student = role === 'student';
   const staff = role === 'admin' || role === 'lic';
+
+  useEffect(() => {
+    if (!pendingRoute) return;
+    navigation.getParent()?.navigate(pendingRoute);
+    useAuthStore.setState({ pendingRoute: null });
+  }, [navigation, pendingRoute]);
 
   return (
     <Tab.Navigator

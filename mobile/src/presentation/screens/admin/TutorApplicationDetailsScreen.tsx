@@ -13,6 +13,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors } from '../../../shared/theme';
+import { adminRepository } from '../../../data/repositories/adminRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -41,8 +42,20 @@ const rejectionReasons = [
 ];
 
 export default function TutorApplicationDetailsScreen({ navigation, route }: Props) {
-  const applicationId = route?.params?.applicationId || 'APP-8421';
-  const [modules, setModules] = useState<ModuleDecision[]>(initialModules);
+  const applicationId = route?.params?.applicationId || '';
+  const applicantName = route?.params?.name || 'Tutor applicant';
+  const applicantDegree = route?.params?.degree || '—';
+  const applicantUni = [route?.params?.university, route?.params?.faculty].filter(Boolean).join(' • ') || '—';
+  const applicantCode = route?.params?.studentId || '—';
+  const applicantEmail = route?.params?.email || '—';
+  const applicantRate = typeof route?.params?.hourlyRate === 'number' ? `LKR ${route.params.hourlyRate} / hr` : '—';
+  const submittedDate = route?.params?.submittedDate || '—';
+  const realApplication = /^[a-f\d]{24}$/i.test(applicationId);
+  const [modules, setModules] = useState<ModuleDecision[]>(
+    Array.isArray(route?.params?.modules) && route.params.modules.length
+      ? route.params.modules.map((name: string, index: number) => ({ module: name, code: `module-${index}`, grade: '—', decision: 'pending' as const }))
+      : initialModules,
+  );
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState(rejectionReasons[0]);
   const [customNote, setCustomNote] = useState('');
@@ -53,22 +66,40 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
     setModules(updated);
   };
 
-  const handleCommitApproval = () => {
+  const handleCommitApproval = async () => {
+    if (!realApplication) {
+      Alert.alert('No application', 'Open a tutor from the applications list.');
+      return;
+    }
     const approvedCount = modules.filter((m) => m.decision === 'approved').length;
-    Alert.alert(
-      'Module Approval Confirmed',
-      `FR05 & FR06 verified: ${approvedCount} of ${modules.length} modules approved for Dr. Sarah De Silva. An official compliance email has been dispatched.`,
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
-    );
+    try {
+      await adminRepository.setVerification(applicationId, 'approved');
+      Alert.alert(
+        'Tutor approved',
+        `${approvedCount} of ${modules.length} modules marked for ${applicantName}.`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
+    } catch {
+      Alert.alert('Not saved', 'The approval could not be stored.');
+    }
   };
 
-  const handleConfirmRejection = () => {
+  const handleConfirmRejection = async () => {
     setRejectModalVisible(false);
-    Alert.alert(
-      'Application Rejected',
-      `Application ${applicationId} declined. Reason logged: "${selectedReason}". Applicant notified with appeal guidelines.`,
-      [{ text: 'Done', onPress: () => navigation.goBack() }]
-    );
+    if (!realApplication) {
+      Alert.alert('No application', 'Open a tutor from the applications list.');
+      return;
+    }
+    try {
+      await adminRepository.setVerification(applicationId, 'rejected');
+      Alert.alert(
+        'Application rejected',
+        `${applicantName} was marked rejected. ${selectedReason}`,
+        [{ text: 'Done', onPress: () => navigation.goBack() }],
+      );
+    } catch {
+      Alert.alert('Not saved', 'The rejection could not be stored.');
+    }
   };
 
   return (
@@ -87,15 +118,15 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
         <View style={styles.applicantCard}>
           <View style={styles.applicantTop}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>S</Text>
+              <Text style={styles.avatarText}>{applicantName.charAt(0) || 'T'}</Text>
             </View>
             <View style={styles.applicantMeta}>
               <View style={styles.statusPill}>
                 <Text style={styles.statusPillText}>QUEUED APPLICATION: {applicationId}</Text>
               </View>
-              <Text style={styles.applicantName}>Dr. Sarah De Silva</Text>
-              <Text style={styles.applicantDegree}>MSc in Software Engineering & AI</Text>
-              <Text style={styles.applicantUni}>🏛️ University of Moratuwa • Computing</Text>
+              <Text style={styles.applicantName}>{applicantName}</Text>
+              <Text style={styles.applicantDegree}>{applicantDegree}</Text>
+              <Text style={styles.applicantUni}>{applicantUni}</Text>
             </View>
           </View>
 
@@ -104,19 +135,19 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Registration ID</Text>
-              <Text style={styles.detailVal}>TUT/2021/042</Text>
+              <Text style={styles.detailVal}>{applicantCode}</Text>
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Hourly Rate</Text>
-              <Text style={styles.detailVal}>LKR 2,500 / hr</Text>
+              <Text style={styles.detailVal}>{applicantRate}</Text>
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Official Email</Text>
-              <Text style={styles.detailVal}>sarah.d@campus.ac.lk</Text>
+              <Text style={styles.detailVal}>{applicantEmail}</Text>
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Submitted</Text>
-              <Text style={styles.detailVal}>12 May, 10:30 AM</Text>
+              <Text style={styles.detailVal}>{submittedDate}</Text>
             </View>
           </View>
         </View>

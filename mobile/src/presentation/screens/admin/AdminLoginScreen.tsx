@@ -14,32 +14,42 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { useAuthStore } from '../../../domain/stores/authStore';
+import { loginUseCase } from '../../../domain/usecases/auth/loginUseCase';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export default function AdminLoginScreen({ navigation }: Props) {
-  const [email, setEmail] = useState('admin.kasun@unimentor.lk');
-  const [password, setPassword] = useState('AdminPass#2024');
-  const [securityToken, setSecurityToken] = useState('841920');
+  const [email, setEmail] = useState('admin@unimentor.dev');
+  const [password, setPassword] = useState('password123');
+  const [securityToken, setSecurityToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { switchDemoRole } = useAuthStore();
+  const { setUser, setToken, setPendingRoute } = useAuthStore();
 
-  const handleAdminLogin = () => {
-    if (!email || !password || !securityToken) {
-      Alert.alert('Validation Error', 'Staff email, password, and 2FA token are required.');
+  const handleAdminLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Validation Error', 'Staff email and password are required.');
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const result = await loginUseCase({ email: email.trim(), password });
+      if (result.user.role !== 'admin' && result.user.role !== 'lic') {
+        Alert.alert('Staff only', 'This portal accepts admin and faculty accounts.');
+        return;
+      }
+      setToken(result.token);
+      setPendingRoute('AdminDashboard');
+      setUser(result.user);
+    } catch (error: any) {
+      Alert.alert('Sign in failed', error?.response?.data?.message ?? error?.message ?? 'Those staff credentials were not accepted.');
+    } finally {
       setLoading(false);
-      switchDemoRole('admin');
-      navigation.navigate('AdminDashboard');
-    }, 700);
+    }
   };
 
   return (
@@ -77,9 +87,9 @@ export default function AdminLoginScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.demoFillBtn}
           onPress={() => {
-            setEmail('admin.kasun@unimentor.lk');
-            setPassword('AdminPass#2024');
-            setSecurityToken('841920');
+            setEmail('admin@unimentor.dev');
+            setPassword('password123');
+            setSecurityToken('');
           }}
         >
           <Text style={styles.demoFillIcon}>⚡</Text>
