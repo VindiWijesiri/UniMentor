@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { SvgFileText, SvgShare } from '../../components/common/SvgIcons';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
 import type { ImprovementHistory } from '../../../domain/entities/AssessmentWork';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -114,20 +114,20 @@ export default function ImprovementHistoryScreen({ navigation }: Props) {
             <Text style={styles.compTitle}>{data?.focus.title}</Text>
             <Text style={styles.detail}>{data?.focus.detail}</Text>
             <Text style={styles.delta}>{data?.focus.boost}</Text>
-            <TouchableOpacity style={styles.book} onPress={() => navigation.navigate('MainTabs', { screen: 'Sessions' })}>
+            <TouchableOpacity style={styles.book} onPress={() => navigation.navigate('MainTabs', { screen: 'Bookings' })}>
               <Text style={styles.bookText}>Book topic</Text>
             </TouchableOpacity>
           </View>
           <OrangeButton
             label="Download Growth Report"
-            icon="file-download"
+            svgIcon={<SvgFileText size={16} color={navy} />}
             onPress={() => Alert.alert('Growth report', `${data?.growth} mastery this semester. ${data?.growthDetail}`)}
           />
           <TouchableOpacity
             style={styles.share}
             onPress={() => Alert.alert('Shared', 'Progress was shared with Tharushi Perera.')}
           >
-            <MaterialIcons name="share" size={16} color={blue} />
+            <SvgShare size={16} color={blue} />
             <Text style={styles.link}>Share progress with Tharushi</Text>
           </TouchableOpacity>
         </ScrollView>

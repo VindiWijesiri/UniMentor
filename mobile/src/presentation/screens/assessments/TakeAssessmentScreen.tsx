@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { SvgArrowRight, SvgBookmark } from '../../components/common/SvgIcons';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
 import type { TakePayload, WorkAnswer } from '../../../domain/entities/AssessmentWork';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -119,7 +119,7 @@ export default function TakeAssessmentScreen({ navigation, route }: Props) {
         <View style={styles.progressRow}>
           <Text style={styles.progressText}>Question {index + 1} of {questions.length}</Text>
           <TouchableOpacity style={styles.flag} onPress={toggleFlag}>
-            <MaterialIcons name={flaggedOn ? 'bookmark' : 'bookmark-border'} size={16} color={navy} />
+            <SvgBookmark filled={flaggedOn} size={16} color={navy} />
             <Text style={styles.flagText}>{flaggedOn ? 'Flagged' : 'Mark for review'}</Text>
           </TouchableOpacity>
         </View>
@@ -135,7 +135,7 @@ export default function TakeAssessmentScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <TouchableOpacity style={styles.next} disabled={busy} onPress={last ? submit : () => go(index + 1)}>
           <Text style={styles.nextText}>{last ? 'Submit' : 'Next Question'}</Text>
-          <MaterialIcons name="arrow-forward" size={16} color={navy} />
+          <SvgArrowRight size={16} color={navy} />
         </TouchableOpacity>
       </View>
     </View>

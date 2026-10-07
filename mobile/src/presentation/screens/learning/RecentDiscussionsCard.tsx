@@ -3,7 +3,9 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodConversation, PodFeed } from '../../../domain/entities/Pod';
+import { SvgArrowRight, SvgChat, SvgPlay, SvgZap } from '../../components/common/SvgIcons';
 import { ink, muted, navy, yellow } from './learningTheme';
+
 
 type Props = {
   feed?: PodFeed | null;
@@ -57,7 +59,7 @@ export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversat
               <View style={styles.badge}><Text style={styles.badgeText}>{item.title}</Text></View>
             ) : (
               <View style={styles.kuppiyaRow}>
-                <Text style={styles.bolt}>⚡</Text>
+                <SvgZap size={13} color={yellow} />
                 <Text style={styles.kuppiya}>{item.meta.subtitle ?? 'Flash Kuppiya Proposal'}</Text>
               </View>
             )}
@@ -75,11 +77,18 @@ export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversat
                     <View style={styles.newPill}><Text style={styles.newText}>New</Text></View>
                   ) : null}
                 </View>
-                <Text style={styles.preview} numberOfLines={1}>
-                  {squad
-                    ? `▶ Voice note: “${item.meta.voicePreview ?? item.lastMessageText}”`
-                    : `Proposed: “${item.lastMessageText}”`}
-                </Text>
+                {squad ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                    <SvgPlay size={11} color={navy} />
+                    <Text style={[styles.preview, { marginTop: 0 }]} numberOfLines={1}>
+                      Voice note: “{item.meta.voicePreview ?? item.lastMessageText}”
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.preview} numberOfLines={1}>
+                    Proposed: “{item.lastMessageText}”
+                  </Text>
+                )}
                 {!squad && (item.meta.pollVotes ?? 0) > 0 && (
                   <TouchableOpacity
                     onPress={async () => {
@@ -91,9 +100,12 @@ export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversat
                       onOpenConversation(item);
                     }}
                   >
-                    <Text style={styles.votes}>
-                      🔥 {item.meta.pollVotes} voted Yes  <Text style={styles.join}>Join Poll →</Text>
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                      <SvgZap size={12} color={yellow} />
+                      <Text style={[styles.votes, { marginTop: 0 }]}>{item.meta.pollVotes} voted Yes</Text>
+                      <Text style={styles.join}>Join Poll</Text>
+                      <SvgArrowRight size={11} color="#2563EB" />
+                    </View>
                   </TouchableOpacity>
                 )}
               </View>
@@ -103,7 +115,10 @@ export default function RecentDiscussionsCard({ feed, onOpenPod, onOpenConversat
       })}
 
       <TouchableOpacity style={styles.cta} onPress={onOpenPod} activeOpacity={0.85}>
-        <Text style={styles.ctaText}>💬  Open Discussions POD  →</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <SvgChat size={16} color={navy} />
+          <Text style={styles.ctaText}>Open Discussions POD</Text>
+        </View>
       </TouchableOpacity>
     </View>
   );

@@ -5,6 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import StackFooterBar from '../../navigation/StackFooterBar';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import {
+  SvgChevronLeft,
+  SvgClock,
+  SvgGraduationCap,
+  SvgSearch,
+  SvgUser,
+} from '../../components/common/SvgIcons';
 import { blue, card, ink, line, muted, navy, orange, page, soft } from './theme';
 
 export function AssessmentScreen<T extends keyof AppStackParamList>({
@@ -27,17 +34,20 @@ export function KuppiyaBar({ onSearch, title }: { onSearch?: () => void; title?:
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
       <View style={styles.logoTile}>
-        <MaterialIcons name="school" size={18} color={orange} />
+        <SvgGraduationCap size={20} color={orange} />
       </View>
       <View style={styles.brand}>
-        <Text style={styles.brandName}>{title || 'Kuppiya'}</Text>
+        <Text style={styles.brandName}>{title || 'Assessment Center'}</Text>
         <Text style={styles.brandSub}>Learning Hub</Text>
       </View>
-      <TouchableOpacity style={styles.iconBtn} onPress={onSearch}>
-        <MaterialIcons name="search" size={20} color="#fff" />
-      </TouchableOpacity>
-      <View style={styles.avatar}>
-        <MaterialIcons name="person" size={18} color="#fff" />
+      {onSearch ? (
+        <TouchableOpacity style={styles.iconBtn} onPress={onSearch}>
+          <SvgSearch size={18} color="#fff" />
+        </TouchableOpacity>
+      ) : null}
+      <View style={styles.brandRow}>
+        <Text style={styles.brandUni}>Uni</Text>
+        <Text style={styles.brandMentor}>Mentor</Text>
       </View>
     </View>
   );
@@ -59,19 +69,21 @@ export function HeroHeader({
     <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
       <View style={styles.barRow}>
         <View style={styles.logoTile}>
-          <MaterialIcons name="school" size={18} color={orange} />
+          <SvgGraduationCap size={20} color={orange} />
         </View>
         <View style={styles.brand}>
-          <Text style={styles.brandName}>Kuppiya</Text>
-          <Text style={styles.brandSub}>Learning Hub</Text>
+          <Text style={styles.brandName}>Assessment Hub</Text>
+          <Text style={styles.brandSub}>UniMentor Learning</Text>
         </View>
-        <View style={styles.iconBtn}><MaterialIcons name="search" size={20} color="#fff" /></View>
-        <View style={styles.avatar}><MaterialIcons name="person" size={18} color="#fff" /></View>
+        <View style={styles.brandRow}>
+          <Text style={styles.brandUni}>Uni</Text>
+          <Text style={styles.brandMentor}>Mentor</Text>
+        </View>
       </View>
       <View style={styles.heroTitleRow}>
         {onBack ? (
           <TouchableOpacity style={styles.back} onPress={onBack}>
-            <MaterialIcons name="arrow-back" size={18} color="#fff" />
+            <SvgChevronLeft size={18} color="#fff" />
           </TouchableOpacity>
         ) : null}
         <View style={styles.flex}>
@@ -84,6 +96,7 @@ export function HeroHeader({
   );
 }
 
+
 export function SearchField({
   value,
   onChangeText,
@@ -95,7 +108,7 @@ export function SearchField({
 }) {
   return (
     <View style={styles.search}>
-      <MaterialIcons name="search" size={18} color={muted} />
+      <SvgSearch size={16} color={muted} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -111,14 +124,16 @@ export function OrangeButton({
   label,
   onPress,
   icon,
+  svgIcon,
 }: {
   label: string;
   onPress: () => void;
   icon?: keyof typeof MaterialIcons.glyphMap;
+  svgIcon?: React.ReactNode;
 }) {
   return (
     <TouchableOpacity style={styles.orangeBtn} onPress={onPress}>
-      {icon ? <MaterialIcons name={icon} size={18} color={navy} /> : null}
+      {svgIcon ? svgIcon : icon ? <MaterialIcons name={icon} size={18} color={navy} /> : null}
       <Text style={styles.orangeText}>{label}</Text>
     </TouchableOpacity>
   );
@@ -139,20 +154,21 @@ export function TakeHeader({
   return (
     <View style={[styles.takeBar, { paddingTop: insets.top + 6 }]}>
       <TouchableOpacity onPress={onBack} style={styles.takeBack}>
-        <MaterialIcons name="chevron-left" size={28} color={navy} />
+        <SvgChevronLeft size={24} color={navy} />
       </TouchableOpacity>
       <View style={styles.flex}>
         <Text style={styles.takeBrand}>Uni<Text style={styles.takeOrange}>Mentor</Text> · Kuppiya</Text>
         <Text style={styles.takeCourse}>{course}</Text>
       </View>
       <View style={styles.timer}>
-        <MaterialIcons name="timer" size={14} color={navy} />
+        <SvgClock size={14} color={navy} />
         <Text style={styles.timerText}>{minutes}:{String(seconds).padStart(2, '0')}</Text>
       </View>
-      <View style={styles.takeAvatar}><MaterialIcons name="person" size={16} color="#fff" /></View>
+      <View style={styles.takeAvatar}><SvgUser size={16} color="#fff" /></View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: page },
@@ -172,7 +188,23 @@ const styles = StyleSheet.create({
   brand: { flex: 1, marginLeft: 10 },
   brandName: { color: '#fff', fontSize: 16, fontWeight: '800' },
   brandSub: { color: '#C9D4EA', fontSize: 11, marginTop: 1 },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: orange,
+    fontSize: 18,
+    fontWeight: '800',
+  },
   iconBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+
   avatar: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: blue,
     alignItems: 'center', justifyContent: 'center',

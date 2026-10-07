@@ -23,7 +23,7 @@ export default function LiveSessionScreen({ route, navigation }: Props) {
             {minutesLeft ? `${minutesLeft} minutes remaining.` : 'Session is open.'}
             {'\n\n'}This live room uses booking/session data. The real video room can replace it later.
           </Text>
-          <TouchableOpacity style={subpageStyles.navyBtn} onPress={() => navigation.navigate('MainTabs', { screen: 'Sessions' })}>
+          <TouchableOpacity style={subpageStyles.navyBtn} onPress={() => navigation.navigate('MainTabs', { screen: 'Bookings' })}>
             <Text style={subpageStyles.navyText}>View all bookings</Text>
           </TouchableOpacity>
         </View>

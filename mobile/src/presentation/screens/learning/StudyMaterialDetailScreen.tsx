@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,13 +15,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import type { LibraryMaterial, QuizResult } from '../../../domain/entities/Library';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { SvgChevronLeft, SvgPlay } from '../../components/common/SvgIcons';
+import StackFooterBar from '../../navigation/StackFooterBar';
 import { ink, muted, navy, pageBg, yellow } from './learningTheme';
+
 
 type Props = NativeStackScreenProps<AppStackParamList, 'StudyMaterialDetail'>;
 
 export default function StudyMaterialDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const [item, setItem] = useState<LibraryMaterial | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -83,17 +91,24 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>‹</Text></TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <View style={styles.titleRow}>
-              <Text style={styles.heroTitle} numberOfLines={1}>{kindLabel}</Text>
-              <View style={styles.libraryPill}><Text style={styles.libraryText}>LIBRARY</Text></View>
-            </View>
-            <Text style={styles.sub} numberOfLines={1}>{item?.moduleCode} · {item?.moduleName}</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+              <SvgChevronLeft size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>{kindLabel}</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
+      </View>
+      <View style={styles.subBanner}>
+        <Text style={styles.sub} numberOfLines={1}>{item?.moduleCode} · {item?.moduleName}</Text>
+        <View style={styles.libraryPill}><Text style={styles.libraryText}>LIBRARY</Text></View>
       </View>
 
       {loading ? (
@@ -108,7 +123,7 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
 
           {item.kind === 'video' && (
             <View style={styles.player}>
-              <Text style={styles.playBig}>▶</Text>
+              <SvgPlay size={36} color={yellow} />
               <Text style={styles.playerMeta}>{item.durationLabel} · {item.watchedPercent ?? 0}% watched</Text>
               <TouchableOpacity style={styles.primary} onPress={() => void markProgress({ watchedPercent: 100, completed: true })}>
                 <Text style={styles.primaryText}>Watch Now</Text>
@@ -118,7 +133,7 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
 
           {item.kind === 'audio' && (
             <View style={styles.player}>
-              <Text style={styles.playBig}>▶</Text>
+              <SvgPlay size={36} color={yellow} />
               <Text style={styles.playerMeta}>{item.durationLabel} · {item.audioSpeed ?? 1}x</Text>
               <View style={styles.row}>
                 {[1, 1.6, 2].map((speed) => (
@@ -129,6 +144,7 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
               </View>
             </View>
           )}
+
 
           {item.kind === 'pdf' && (
             <View style={styles.note}>
@@ -195,20 +211,71 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
           </TouchableOpacity>
         </ScrollView>
       )}
+      <StackFooterBar navigation={navigation} active="Learning" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  back: { color: '#FFF', fontSize: 30, marginRight: 8 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  heroTitle: { color: '#FFF', fontSize: 18, fontWeight: '900', flexShrink: 1 },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -4,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: yellow,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  subBanner: {
+    backgroundColor: '#0A2552',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
   libraryPill: { backgroundColor: yellow, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
   libraryText: { color: navy, fontSize: 10, fontWeight: '900' },
-  sub: { color: '#C5D4EB', fontSize: 11, marginTop: 3 },
+  sub: { color: '#C5D4EB', fontSize: 12, fontWeight: '700' },
   body: { padding: 16, paddingBottom: 40 },
   state: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   error: { color: '#A63838', fontWeight: '800' },

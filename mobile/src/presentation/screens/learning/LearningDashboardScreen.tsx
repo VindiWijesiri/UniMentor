@@ -1,7 +1,9 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,8 +17,17 @@ import { learningRepository } from '../../../data/repositories/learningRepositor
 import type { LearningDashboard } from '../../../domain/entities/Learning';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
+import {
+  SvgCalendar,
+  SvgChat,
+  SvgCheck,
+  SvgClipboard,
+  SvgFileText,
+  SvgPlay,
+} from '../../components/common/SvgIcons';
 import { card, ice, ink, live, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
+
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
 type StackNav = NativeStackNavigationProp<AppStackParamList>;
@@ -34,6 +45,8 @@ function formatWhen(value?: string) {
 
 export default function LearningDashboardScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const user = useAuthStore((state) => state.user);
   const stack = navigation.getParent<StackNav>();
   const [data, setData] = useState<LearningDashboard | null>(null);
@@ -73,28 +86,25 @@ export default function LearningDashboardScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={[styles.hero, { paddingTop: insets.top + 12 }]}>
-          <View style={styles.topRow}>
-            <View>
-              <Text style={styles.portal}>UNIMENTOR PORTAL</Text>
-              <Text style={styles.heroTitle}>Learning Dashboard</Text>
-            </View>
-            <View style={styles.topActions}>
-              <TouchableOpacity style={styles.bell} onPress={() => navigation.navigate('Alerts')}>
-                <Text style={styles.bellIcon}>●</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </TouchableOpacity>
-            </View>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>Learning Dashboard</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
+      </View>
 
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <View style={styles.shortcutBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutRow}>
             <TouchableOpacity style={[styles.shortcut, styles.shortcutActive]} onPress={() => stack?.navigate('ChatPod')}>
-              <View style={styles.liveDot} />
+              <SvgChat size={15} color={navy} />
               <Text style={styles.shortcutActiveText}>Chat Pod</Text>
               {(data?.header.unreadChat ?? 0) > 0 && (
                 <View style={styles.badge}>
@@ -103,19 +113,20 @@ export default function LearningDashboardScreen({ navigation }: Props) {
               )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyPlans')}>
-              <Text style={styles.shortcutIcon}>▣</Text>
+              <SvgCalendar size={15} color={navy} />
               <Text style={styles.shortcutText}>My Plans</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyMaterials')}>
-              <Text style={styles.shortcutIcon}>▤</Text>
+              <SvgFileText size={15} color={navy} />
               <Text style={styles.shortcutText}>Study Materials</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('Assessments')}>
-              <Text style={styles.shortcutIcon}>☑</Text>
+              <SvgClipboard size={15} color={navy} />
               <Text style={styles.shortcutText}>Assessments</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
+
 
         {loading && !data ? (
           <View style={styles.state}><ActivityIndicator color={navy} /><Text style={styles.stateText}>Loading dashboard...</Text></View>
@@ -166,7 +177,7 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                   }}
                 >
                   <View style={[styles.goalCheck, goal.completed && styles.goalCheckOn]}>
-                    <Text style={styles.goalCheckText}>{goal.completed ? '✓' : ''}</Text>
+                    {goal.completed ? <SvgCheck size={12} color={navy} strokeWidth={3} /> : null}
                   </View>
                   <View style={styles.goalCopy}>
                     <Text style={styles.goalTitle}>{goal.title}</Text>
@@ -192,7 +203,10 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                   style={styles.yellowBtn}
                   onPress={() => stack?.navigate('LearningActivity', { id: activity._id })}
                 >
-                  <Text style={styles.yellowBtnText}>▶  Continue Activity</Text>
+                  <View style={styles.btnInnerRow}>
+                    <SvgPlay size={13} color={navy} />
+                    <Text style={styles.yellowBtnText}>Continue Activity</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             )}
@@ -200,7 +214,7 @@ export default function LearningDashboardScreen({ navigation }: Props) {
             <View style={styles.card}>
               <View style={styles.cardHead}>
                 <Text style={styles.cardTitle}>Academic Sessions</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Sessions')}>
+                <TouchableOpacity onPress={() => navigation.navigate('Bookings')}>
                   <Text style={styles.viewAll}>View All ({data?.sessions.total ?? 0})</Text>
                 </TouchableOpacity>
               </View>
@@ -286,7 +300,13 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                   style={styles.materialRow}
                   onPress={() => stack?.navigate('StudyMaterialDetail', { id: item._id })}
                 >
-                  <View style={styles.fileIcon}><Text style={styles.fileIconText}>{item.kind === 'pdf' ? 'PDF' : 'SET'}</Text></View>
+                  <View style={styles.fileIcon}>
+                    {item.kind === 'pdf' ? (
+                      <SvgFileText size={18} color={navy} />
+                    ) : (
+                      <SvgClipboard size={18} color={navy} />
+                    )}
+                  </View>
                   <View style={styles.goalCopy}>
                     <Text style={styles.goalTitle}>{item.title}</Text>
                     <Text style={styles.goalMeta}>
@@ -306,21 +326,43 @@ export default function LearningDashboardScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
   scroll: { paddingBottom: 24 },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  portal: { color: yellow, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
-  heroTitle: { color: '#FFF', fontSize: 26, fontWeight: '900', marginTop: 4 },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bell: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center', justifyContent: 'center',
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
   },
-  bellIcon: { color: yellow, fontSize: 14 },
-  avatar: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: '#12316B',
-    borderWidth: 2, borderColor: '#4C74B4', alignItems: 'center', justifyContent: 'center',
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
   },
-  avatarText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: yellow,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  btnInnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   shortcutBar: { backgroundColor: ice, paddingVertical: 12, paddingLeft: 12 },
   shortcutRow: { flexDirection: 'row', gap: 8, paddingRight: 16 },
   shortcut: {

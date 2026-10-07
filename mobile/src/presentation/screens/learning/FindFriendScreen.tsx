@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -15,12 +17,15 @@ import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodPerson } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
+import { SvgChevronLeft, SvgSearch } from '../../components/common/SvgIcons';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'FindFriend'>;
 
 export default function FindFriendScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const [query, setQuery] = useState('');
   const [people, setPeople] = useState<PodPerson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,19 +59,22 @@ export default function FindFriendScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity style={styles.backCircle} onPress={() => navigation.goBack()}>
-            <Text style={styles.back}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroTitle}>Chat with Friend</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+              <SvgChevronLeft size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Find Friends</Text>
+          </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
         <View style={styles.search}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <SvgSearch size={16} color={muted} />
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -83,6 +91,7 @@ export default function FindFriendScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
       </View>
+
 
       <View style={styles.infoBar}>
         <Text style={styles.info}>Find anyone in UniMentor by name, email, or user ID.</Text>
@@ -119,17 +128,51 @@ export default function FindFriendScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  backCircle: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)',
-    alignItems: 'center', justifyContent: 'center', marginRight: 10,
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
   },
-  back: { color: '#FFF', fontSize: 26, marginTop: -2 },
-  heroTitle: { flex: 1, color: '#FFF', fontSize: 20, fontWeight: '800' },
-  brandRow: { flexDirection: 'row' },
-  brandUni: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-  brandMentor: { color: '#F5A623', fontSize: 16, fontWeight: '800' },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -4,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: yellow,
+    fontSize: 20,
+    fontWeight: '800',
+  },
   search: {
     marginTop: 12, backgroundColor: '#FFF', borderRadius: 18, flexDirection: 'row',
     alignItems: 'center', paddingHorizontal: 12, minHeight: 42,

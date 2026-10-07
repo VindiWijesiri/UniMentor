@@ -2,8 +2,10 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,6 +18,7 @@ import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodConversation, PodInboxFilter, PodInboxFilterKey } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
+import { SvgChat, SvgChevronLeft, SvgPeople, SvgUser, SvgZap } from '../../components/common/SvgIcons';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ChatPod'>;
@@ -23,17 +26,10 @@ type Props = NativeStackScreenProps<AppStackParamList, 'ChatPod'>;
 function FilterIcon({ name, active }: { name: PodInboxFilter['icon']; active: boolean }) {
   const color = active ? '#FFF' : navy;
   if (name === 'all') return null;
-  if (name === 'groups') {
-    return (
-      <View style={styles.peopleIcon}>
-        <View style={[styles.personHead, { borderColor: color, left: 0 }]} />
-        <View style={[styles.personHead, { borderColor: color, left: 5 }]} />
-      </View>
-    );
-  }
-  if (name === 'tutors') return <Text style={[styles.chipIcon, active && styles.chipIconOn]}>⚙</Text>;
-  return <Text style={[styles.chipIcon, active && styles.chipIconOn]}>👤</Text>;
+  if (name === 'groups') return <SvgPeople size={14} color={color} strokeWidth={2} />;
+  return <SvgUser size={14} color={color} strokeWidth={2} />;
 }
+
 
 const STACK_COLORS = ['#0B1F4C', '#F5C400', '#2F6FED', '#F97316', '#0F766E'];
 
@@ -58,6 +54,8 @@ function StackedAvatars({ initialsList }: { initialsList: string[] }) {
 
 export default function ChatPodScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const [filter, setFilter] = useState<PodInboxFilterKey>('all');
   const [items, setItems] = useState<PodConversation[]>([]);
   const [filters, setFilters] = useState<PodInboxFilter[]>([]);
@@ -95,18 +93,22 @@ export default function ChatPodScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity style={styles.backCircle} onPress={() => navigation.goBack()}>
-            <Text style={styles.back}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroTitle}>Chat POD</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+              <SvgChevronLeft size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Chat POD</Text>
+          </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
       </View>
+
 
       <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
@@ -174,7 +176,10 @@ export default function ChatPodScreen({ navigation }: Props) {
                   )}
                   {item.meta.actionLabel ? (
                     <View style={styles.actionRow}>
-                      <Text style={styles.flash} numberOfLines={1}>⚡ {item.meta.flashLabel ?? 'Flash Kuppiya'}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <SvgZap size={12} color={yellow} />
+                        <Text style={styles.flash} numberOfLines={1}>{item.meta.flashLabel ?? 'Flash Kuppiya'}</Text>
+                      </View>
                       <View style={styles.actionPill}><Text style={styles.actionText}>{item.meta.actionLabel}</Text></View>
                     </View>
                   ) : null}
@@ -189,7 +194,7 @@ export default function ChatPodScreen({ navigation }: Props) {
       )}
 
       <TouchableOpacity style={styles.newChat} onPress={() => setComposer(true)} activeOpacity={0.9}>
-        <Text style={styles.newChatIcon}>💬</Text>
+        <SvgChat size={16} color="#FFFFFF" />
         <Text style={styles.newChatText}>New Chat</Text>
       </TouchableOpacity>
 
@@ -205,7 +210,7 @@ export default function ChatPodScreen({ navigation }: Props) {
                 navigation.navigate('CreateSquad');
               }}
             >
-              <View style={styles.optionIcon}><Text style={styles.optionGlyph}>▣</Text></View>
+              <View style={styles.optionIcon}><SvgPeople size={20} color={navy} /></View>
               <View style={styles.optionCopy}>
                 <Text style={styles.optionTitle}>Create HUB</Text>
                 <Text style={styles.optionMeta}>Open a study squad and invite peers or tutors</Text>
@@ -218,7 +223,7 @@ export default function ChatPodScreen({ navigation }: Props) {
                 navigation.navigate('FindFriend');
               }}
             >
-              <View style={[styles.optionIcon, styles.optionIconGold]}><Text style={styles.optionGlyph}>👤</Text></View>
+              <View style={[styles.optionIcon, styles.optionIconGold]}><SvgUser size={20} color={navy} /></View>
               <View style={styles.optionCopy}>
                 <Text style={styles.optionTitle}>Chat with friend</Text>
                 <Text style={styles.optionMeta}>Search by name or user ID and start a DM</Text>
@@ -238,22 +243,51 @@ export default function ChatPodScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 16 },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  backCircle: {
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  headerBackButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 6,
+    marginLeft: -4,
   },
-  back: { color: '#FFF', fontSize: 26, marginTop: -2 },
-  heroTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: '800' },
-  brandRow: { flexDirection: 'row', alignItems: 'center' },
-  brandUni: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-  brandMentor: { color: '#F5A623', fontSize: 16, fontWeight: '800' },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: yellow,
+    fontSize: 20,
+    fontWeight: '800',
+  },
   filterBar: { backgroundColor: ice, paddingVertical: 12, paddingLeft: 12 },
   filters: { gap: 8, paddingRight: 16, alignItems: 'center' },
   chip: {

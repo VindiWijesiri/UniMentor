@@ -5,6 +5,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -17,8 +18,10 @@ import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodConversation, PodMessage } from '../../../domain/entities/Pod';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { SvgArrowRight, SvgChevronLeft, SvgZap } from '../../components/common/SvgIcons';
 import { ink, muted, navy, yellow } from './learningTheme';
 import ChatMaterialsBar from './ChatMaterialsBar';
+
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PodThread'>;
 
@@ -26,6 +29,8 @@ const formatTime = (date: string) => new Date(date).toLocaleTimeString([], { hou
 
 export default function PodThreadScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const userId = useAuthStore((state) => state.user?._id);
   const conversationId = route.params?.conversationId || route.params?.threadId || route.params?.id || route.params?.podId || '';
   const [tab, setTab] = useState<'chat' | 'notices' | 'analytics'>('chat');
@@ -107,16 +112,25 @@ export default function PodThreadScreen({ route, navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>‹</Text></TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.name} numberOfLines={1}>{conversation?.title ?? 'Chat Pod'}</Text>
-          <Text style={styles.status} numberOfLines={1}>
-            {conversation?.meta.assessmentTitle ?? conversation?.meta.subtitle ?? 'UniMentor Chat Pod'}
-          </Text>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      <View style={[styles.header, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerLeftRow}>
+          <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+            <SvgChevronLeft size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.headerCopy}>
+            <Text style={styles.name} numberOfLines={1}>{conversation?.title ?? 'Chat Pod'}</Text>
+            <Text style={styles.status} numberOfLines={1}>
+              {conversation?.meta.assessmentTitle ?? conversation?.meta.subtitle ?? 'UniMentor Chat Pod'}
+            </Text>
+          </View>
         </View>
-        <Text style={styles.brand}>UniMentor</Text>
+        <View style={styles.brandRow}>
+          <Text style={styles.brandUni}>Uni</Text>
+          <Text style={styles.brandMentor}>Mentor</Text>
+        </View>
       </View>
+
       {group && (
         <View style={styles.tabs}>
           {(['chat', 'notices', 'analytics'] as const).map((key) => (
@@ -163,7 +177,10 @@ export default function PodThreadScreen({ route, navigation }: Props) {
               return (
                 <View style={styles.proposal}>
                   <View style={styles.proposalHead}>
-                    <Text style={styles.proposalTitle}>⚡ Flash Kuppiya Proposed</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <SvgZap size={14} color={yellow} />
+                      <Text style={styles.proposalTitle}>Flash Kuppiya Proposed</Text>
+                    </View>
                     <Text style={styles.price}>{String(item.meta?.price ?? 'LKR 350')}</Text>
                   </View>
                   <Text style={styles.proposalMeta}>{conversation?.meta.scheduleLabel ?? 'Tomorrow at 7:00 PM'}</Text>
@@ -233,7 +250,7 @@ export default function PodThreadScreen({ route, navigation }: Props) {
             onPress={() => void send()}
             disabled={!draft.trim() || sending}
           >
-            {sending ? <ActivityIndicator size="small" color={navy} /> : <Text style={styles.sendIcon}>➤</Text>}
+            {sending ? <ActivityIndicator size="small" color={navy} /> : <SvgArrowRight size={16} color={navy} />}
           </TouchableOpacity>
         </View>
       </View>
@@ -243,12 +260,45 @@ export default function PodThreadScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#EEF2F8' },
-  header: { backgroundColor: navy, paddingHorizontal: 14, paddingBottom: 12, flexDirection: 'row', alignItems: 'center' },
-  back: { color: '#FFF', fontSize: 32, marginRight: 8 },
+  header: {
+    backgroundColor: navy,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+    marginLeft: -4,
+  },
   headerCopy: { flex: 1 },
   name: { color: '#FFF', fontSize: 17, fontWeight: '900' },
   status: { color: '#C5D4EB', fontSize: 11, marginTop: 2 },
-  brand: { color: yellow, fontSize: 12, fontWeight: '800' },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: yellow,
+    fontSize: 18,
+    fontWeight: '800',
+  },
   tabs: { flexDirection: 'row', backgroundColor: navy, paddingHorizontal: 16, gap: 18, paddingBottom: 10 },
   tab: { paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabOn: { borderBottomColor: yellow },

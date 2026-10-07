@@ -1,9 +1,8 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../domain/stores/authStore';
-import { colors } from '../../shared/theme';
 import { getFooterTabs } from './tabConfig';
 
 export default function FooterTabBar({ state, navigation }: BottomTabBarProps) {
@@ -11,14 +10,17 @@ export default function FooterTabBar({ state, navigation }: BottomTabBarProps) {
   const role = useAuthStore((current) => current.user?.role);
   const tabs = getFooterTabs(role);
 
+  const bottomInset = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'android' ? 10 : 8);
+  const barHeight = 56 + bottomInset;
+
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View style={[styles.bar, { height: barHeight, paddingBottom: bottomInset }]}>
       {state.routes.map((route, index) => {
-        const tab = tabs.find((item) => item.name === route.name);
+        const tab = tabs.find((item) => item.screen === route.name || item.name === route.name);
         if (!tab) return null;
 
         const focused = state.index === index;
-        const color = focused ? colors.footerActive : colors.footerInactive;
+        const color = focused ? '#EAA023' : '#64748B';
 
         return (
           <Pressable
@@ -38,8 +40,10 @@ export default function FooterTabBar({ state, navigation }: BottomTabBarProps) {
             }}
             style={styles.item}
           >
-            <tab.Icon color={color} size={24} />
-            <Text style={[styles.label, { color }]} numberOfLines={2}>{tab.label}</Text>
+            <tab.Icon color={color} size={22} />
+            <Text style={[styles.label, { color }]} numberOfLines={1}>
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -50,23 +54,25 @@ export default function FooterTabBar({ state, navigation }: BottomTabBarProps) {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: colors.white,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.footerBorder,
-    paddingTop: 10,
-    paddingHorizontal: 6,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 8,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
   },
   item: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    minHeight: 48,
   },
   label: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.1,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
     textAlign: 'center',
   },
 });

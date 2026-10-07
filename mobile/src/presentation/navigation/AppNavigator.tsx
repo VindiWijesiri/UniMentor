@@ -137,8 +137,8 @@ export type SearchParams = {
 export type AppTabParamList = {
   Home: undefined;
   Bookings: NavigatorScreenParams<BookingsStackParamList> | undefined;
-  Search: SearchParams;
-  Learning?: undefined;
+  Search?: SearchParams;
+  Learning: undefined;
   Messages: undefined;
   Alerts?: undefined;
   Profile: undefined;
@@ -351,8 +351,8 @@ function MainTabs() {
 
           {/* 3. Learning */}
           <Tab.Screen
-            name="Search"
-            component={HomeScreen}
+            name="Learning"
+            component={LearningDashboardScreen as any}
             options={{
               tabBarLabel: 'Learning',
               tabBarIcon: ({ color }) => (
