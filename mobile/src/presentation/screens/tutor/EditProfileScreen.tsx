@@ -8,17 +8,25 @@ import {
   ScrollView,
   Platform,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../shared/theme';
 import { useAuthStore, mockTutorUser } from '../../../domain/stores/authStore';
 import { userRepository } from '../../../data/repositories/userRepository';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export default function EditProfileScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const { user, updateUserProfile } = useAuthStore();
   const tutor = user || mockTutorUser;
 
@@ -59,17 +67,28 @@ export default function EditProfileScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backArrow}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-          <TouchableOpacity style={styles.saveHeaderBtn} onPress={handleSave}>
-            <Text style={styles.saveHeaderText}>Save</Text>
-          </TouchableOpacity>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      {/* Top Header Bar (Matching Student Dashboard Style) */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Profile</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
+      </View>
+
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* Avatar edit badge */}
         <View style={styles.avatarEditSection}>
@@ -177,47 +196,52 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 52 : 32,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 40,
   },
-  headerRow: {
+  headerBar: {
+    backgroundColor: '#061E47',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    minHeight: 36,
   },
-  backButton: {
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
     width: 38,
     height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  backArrow: {
-    fontSize: 24,
-    color: colors.navy,
-    fontWeight: '700',
-    marginTop: -2,
+    marginRight: 6,
+    marginLeft: -4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
-    color: colors.navy,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
-  saveHeaderBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: colors.secondary,
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  saveHeaderText: {
-    color: colors.white,
-    fontSize: 13,
+  brandUni: {
+    fontSize: 20,
     fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  brandMentor: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F59E0B',
   },
   avatarEditSection: {
     alignItems: 'center',

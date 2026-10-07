@@ -359,27 +359,25 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
 
-      {/* Header with Dark Navy Background */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.headerTitle}>Slot Allocation & Bookings</Text>
-            <Text style={styles.headerSubtitle}>Manage time slots, set fees & view registered students</Text>
+      {/* Top Header Bar (Matching Student Dashboard Style) */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation?.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Slot Allocation</Text>
           </View>
-          <TouchableOpacity
-            style={styles.addHeaderBtn}
-            onPress={handleOpenAddModal}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={20} color="#061E47" />
-          </TouchableOpacity>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
       </View>
 
@@ -1219,43 +1217,48 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F4F7FB',
   },
-  headerContainer: {
+  headerBar: {
     backgroundColor: '#061E47',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
   },
-  headerRow: {
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  backBtn: {
+  headerBackButton: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
-  headerSubtitle: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  addHeaderBtn: {
-    backgroundColor: '#EAA023',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  brandRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  brandUni: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  brandMentor: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F59E0B',
   },
   scrollContent: {
     padding: 16,

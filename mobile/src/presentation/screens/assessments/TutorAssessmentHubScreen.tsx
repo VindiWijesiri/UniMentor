@@ -1,12 +1,24 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
 import { ASSESSMENT_KINDS, KIND_META, type AssessmentKind, type TutorAssessmentHub, type TutorHubItem } from '../../../domain/entities/AssessmentWork';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
-import { AssessmentScreen, KuppiyaBar, OrangeButton } from './Chrome';
+import { AssessmentScreen, OrangeButton } from './Chrome';
 import { blue, card, ink, line, muted, navy, orange, soft } from './theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'TutorAssessmentHub'>;
@@ -36,9 +48,35 @@ export default function TutorAssessmentHubScreen({ navigation }: Props) {
 
   const remind = (item: TutorHubItem) => Alert.alert('Reminder queued', `Students in ${item.moduleCode} will be reminded about ${item.title}.`);
 
+  const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
+
   return (
     <AssessmentScreen navigation={navigation}>
-      <KuppiyaBar />
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      {/* Top Header Bar matching StudentDashboardScreen */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation?.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Assessment Hub</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Tutor Assessment Hub</Text>
         <Text style={styles.sub}>{data?.modules ?? 0} modules · {data?.enrolled ?? 0} enrolled students</Text>
@@ -143,6 +181,49 @@ function Mini({ label, on, onPress }: { label: string; on: boolean; onPress: () 
 }
 
 const styles = StyleSheet.create({
+  headerBar: {
+    backgroundColor: '#061E47',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  brandMentor: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
   scroll: { padding: 16, paddingBottom: 28 },
   flex: { flex: 1 },
   title: { color: ink, fontSize: 26, fontWeight: '800' },

@@ -2,7 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +20,7 @@ import type { TutorLearningDashboard, TutorQueueStudent, TutorStudentStatus } fr
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import { card, ink, muted, navy, pageBg, yellow } from './learningTheme';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
 type StackNav = NativeStackNavigationProp<AppStackParamList>;
@@ -96,17 +99,34 @@ export default function TutorLearningDashboardScreen({ navigation }: Props) {
     }
   };
 
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
+
   return (
     <View style={styles.page}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={[styles.hero, { paddingTop: insets.top + 10 }]}>
-          <View style={styles.heroTop}>
-            <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-              <Text style={styles.back}>‹</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      {/* Top Header Bar matching StudentDashboardScreen */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity
+              onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home'))}
+              style={styles.headerBackButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.heroTitle}>Learning Management</Text>
-            <Text style={styles.brand}>UniMentor</Text>
+            <Text style={styles.headerTitle}>Learning Management</Text>
           </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        <View style={styles.hero}>
           <Text style={styles.workspace}>
             Tutor Workspace · {data?.header.enrolled ?? 0} Enrolled · Cohort: {data?.header.cohort ?? 'DSA & OOP'}
           </Text>
@@ -354,11 +374,50 @@ function statusCopy(status: TutorStudentStatus) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
   scroll: { paddingBottom: 24 },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 18 },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  back: { color: '#FFF', fontSize: 28, fontWeight: '300', marginRight: 8 },
-  heroTitle: { flex: 1, color: '#FFF', fontSize: 18, fontWeight: '900' },
-  brand: { color: yellow, fontSize: 13, fontWeight: '800' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  brandMentor: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
+  hero: { backgroundColor: navy, paddingHorizontal: 20, paddingBottom: 18 },
   workspace: { color: '#C5D4EB', fontSize: 12, marginTop: 8 },
   podChip: {
     alignSelf: 'flex-start',

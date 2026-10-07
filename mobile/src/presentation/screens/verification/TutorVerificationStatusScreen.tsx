@@ -6,9 +6,12 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  StatusBar,
   Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../shared/theme';
 import { VerificationStatus } from '../../../domain/entities/User';
 import { useAuthStore } from '../../../domain/stores/authStore';
@@ -138,18 +141,36 @@ export default function TutorVerificationStatusScreen({ navigation }: Props) {
     Alert.alert(meta.title, meta.description);
   };
 
+  const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
+
   return (
     <View style={styles.page}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backArrow}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Verification Status</Text>
-          <View style={styles.headerSpacer} />
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      {/* Top Header Bar matching StudentDashboardScreen */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation?.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Verification Status</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
+      </View>
 
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Current State Hero Card */}
         <View style={styles.heroCard}>
           <View style={styles.heroHeader}>
@@ -260,39 +281,52 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 52 : 32,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 40,
   },
-  headerRow: {
+  headerBar: {
+    backgroundColor: '#061E47',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    minHeight: 36,
   },
-  backButton: {
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
     width: 38,
     height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  backArrow: {
-    fontSize: 24,
-    color: colors.navy,
-    fontWeight: '700',
-    marginTop: -2,
+    marginRight: 6,
+    marginLeft: -4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
-    color: colors.navy,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
-  headerSpacer: {
-    width: 38,
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  brandMentor: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F59E0B',
   },
   stateTesterCard: {
     backgroundColor: '#F1F5F9',

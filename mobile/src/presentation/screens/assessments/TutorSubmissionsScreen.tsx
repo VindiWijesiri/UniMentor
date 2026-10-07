@@ -1,10 +1,23 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
-import { AssessmentScreen, KuppiyaBar, OrangeButton } from './Chrome';
+import { AssessmentScreen, OrangeButton } from './Chrome';
 import { card, ink, line, muted, navy } from './theme';
 
 type Submission = {
@@ -58,11 +71,38 @@ export default function TutorSubmissionsScreen({ navigation, route }: Props) {
     }
   };
 
+  const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
+
   return (
     <AssessmentScreen navigation={navigation}>
-      <KuppiyaBar />
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      {/* Top Header Bar matching StudentDashboardScreen */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation?.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              Submissions
+            </Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scroll}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>Back to hub</Text></TouchableOpacity>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.sub}>{released ? 'Grades are visible to students.' : 'Release grades after you finish marking.'}</Text>
         {loading ? <ActivityIndicator color={navy} /> : null}
@@ -100,6 +140,52 @@ export default function TutorSubmissionsScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  headerBar: {
+    backgroundColor: '#061E47',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  headerBackButton: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+    flexShrink: 1,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  brandMentor: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
   scroll: { padding: 16, paddingBottom: 28, gap: 8 },
   back: { color: navy, fontWeight: '800' },
   title: { color: ink, fontSize: 24, fontWeight: '800' },

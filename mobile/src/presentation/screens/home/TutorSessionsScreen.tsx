@@ -365,11 +365,7 @@ export default function TutorSessionsScreen({ navigation }: any) {
       <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.headerTitle}>Mentoring Sessions</Text>
-            <View style={styles.headerRolePill}>
-              <View style={styles.greenPulseDot} />
-              <Text style={styles.headerRoleText}>TUTOR SESSIONS HUB</Text>
-            </View>
+            <Text style={styles.headerTitle}>Tutor Sessions</Text>
           </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>

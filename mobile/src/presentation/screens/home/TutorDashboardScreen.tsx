@@ -503,46 +503,18 @@ export default function TutorDashboardScreen({ navigation }: any) {
     return (
       <View style={styles.root}>
         <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
-        {/* 1. Header with Dark Navy Background */}
+        {/* Top Header Bar (Matching Student Dashboard Style) */}
         <View style={[styles.headerContainer, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>Tutor Dashboard</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-              <TouchableOpacity
-                style={styles.switchRoleHeaderBtn}
-                activeOpacity={0.85}
-                onPress={() => {
-                  useAuthStore.getState().setUser({
-                    ...(currentUser || {}),
-                    _id: currentUser?._id || 'demo-student-1',
-                    id: currentUser?.id || 'demo-student-1',
-                    name: currentUser?.name || 'Nethmi Silva',
-                    email: currentUser?.email || 'nethmi.silva@student.unimentor.lk',
-                    role: 'student',
-                  } as any);
-                  Alert.alert('Student Mode Active', 'Switched to Student Dashboard & bottom navigation.');
-                  (navigation as any).navigate('MainTabs', { screen: 'Home' });
-                }}
-              >
-                <Ionicons name="swap-horizontal" size={12} color="#061E47" />
-                <Text style={styles.switchRoleHeaderBtnText}>Student Mode ➔</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerMessagesBtn}
-                activeOpacity={0.85}
-                onPress={() => (navigation as any).navigate('Messages')}
-              >
-                <Text style={styles.headerMessagesBtnText}>Messages</Text>
-              </TouchableOpacity>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>Tutor Dashboard</Text>
+            </View>
+            <View style={styles.brandRow}>
+              <Text style={styles.brandUni}>Uni</Text>
+              <Text style={styles.brandMentor}>Mentor</Text>
             </View>
           </View>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandUni}>Uni</Text>
-            <Text style={styles.brandMentor}>Mentor</Text>
-          </View>
         </View>
-      </View>
 
       <ScrollView
         ref={scrollRef}
