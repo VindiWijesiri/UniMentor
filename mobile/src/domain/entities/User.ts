@@ -57,4 +57,10 @@ export interface User {
   totalReviews?: number;
   completedSessions?: number;
   availability?: string;
+  availabilitySlots?: { day: number; start: string; end: string }[];
+  languages?: string[];
+  teachingMode?: string;
+  lessonTypes?: string[];
+  qualification?: string;
+  experience?: string;
 }

@@ -10,6 +10,7 @@ import type {
   TutorLearningDashboard,
   TutorQueueStudent,
 } from '../../domain/entities/Learning';
+import type { GoalBoard, GoalPlanView } from '../../domain/entities/GoalPlan';
 import type { Mentor } from '../../domain/entities/Mentor';
 import type { Session } from '../../domain/entities/Session';
 
@@ -26,6 +27,40 @@ export const learningRepository = {
   getChatPod: async () => (await apiClient.get<ChatPodMessage[]>('/learning/chat-pod')).data,
   sendChatPod: async (text: string) => (await apiClient.post<ChatPodMessage>('/learning/chat-pod/messages', { text })).data,
   toggleGoal: async (id: string) => apiClient.patch(`/learning/goals/${id}`),
+  logPresence: async (seconds: number, date: string) => apiClient.post('/learning/presence', { seconds, date }),
+  logFocus: async (goalId: string, seconds: number, date: string, area?: string) => (
+    await apiClient.post<{ minutes: number; goalTitle: string; progress: number; hoursDone: number }>(
+      '/learning/focus',
+      { goalId, seconds, date, area },
+    )
+  ).data,
+  setWeeklyGoal: async (hoursGoal: number) => apiClient.patch('/learning/week', { hoursGoal }),
+  goalBoard: async () => (await apiClient.get<GoalBoard>('/learning/goals/board')).data,
+  goal: async (id: string) => (await apiClient.get<GoalPlanView>(`/learning/goals/${id}`)).data,
+  logGoal: async (id: string, body: { hours: number; problems: number; confidence: string; notes: string }) => (
+    await apiClient.post<GoalPlanView>(`/learning/goals/${id}/log`, body)
+  ).data,
+  addGoalAssessment: async (id: string, body: Record<string, unknown>) => (
+    await apiClient.post<GoalPlanView>(`/learning/goals/${id}/assessments`, body)
+  ).data,
+  updateGoalAssessment: async (id: string, assessmentId: string, score: number) => (
+    await apiClient.patch<GoalPlanView>(`/learning/goals/${id}/assessments/${assessmentId}`, { score })
+  ).data,
+  advanceMilestone: async (id: string, milestoneId: string) => (
+    await apiClient.post<GoalPlanView>(`/learning/goals/${id}/milestones/${milestoneId}`)
+  ).data,
+  addGoalMilestone: async (id: string, title: string) => (
+    await apiClient.post<GoalPlanView>(`/learning/goals/${id}/milestones`, { title })
+  ).data,
+  addGoalTask: async (id: string, body: { title: string; kind: string; minutes: number }) => (
+    await apiClient.post<GoalPlanView>(`/learning/goals/${id}/tasks`, body)
+  ).data,
+  completeGoalTask: async (goalId: string, taskId: string) => (
+    await apiClient.patch<GoalPlanView>(`/learning/goals/${goalId}/tasks/${taskId}`)
+  ).data,
+  bookGoalTutor: async (id: string, tutorKey: string) => (
+    await apiClient.post<{ sessionId: string; tutorName: string; slot: string }>(`/learning/goals/${id}/book`, { tutorKey })
+  ).data,
   progressActivity: async (id: string) => (await apiClient.patch<LearningActivity>(`/learning/activities/${id}/progress`)).data,
   getSessions: async () => (await apiClient.get<Session[]>('/learning/sessions')).data,
   getTutorDashboard: async () => (await apiClient.get<TutorLearningDashboard>('/learning/tutor/dashboard')).data,

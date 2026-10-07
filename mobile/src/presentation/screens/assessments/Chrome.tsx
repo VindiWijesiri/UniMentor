@@ -22,7 +22,7 @@ export function AssessmentScreen<T extends keyof AppStackParamList>({
   );
 }
 
-export function KuppiyaBar({ onSearch }: { onSearch?: () => void }) {
+export function KuppiyaBar({ onSearch, title }: { onSearch?: () => void; title?: string }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
@@ -30,7 +30,7 @@ export function KuppiyaBar({ onSearch }: { onSearch?: () => void }) {
         <MaterialIcons name="school" size={18} color={orange} />
       </View>
       <View style={styles.brand}>
-        <Text style={styles.brandName}>Kuppiya</Text>
+        <Text style={styles.brandName}>{title || 'Kuppiya'}</Text>
         <Text style={styles.brandSub}>Learning Hub</Text>
       </View>
       <TouchableOpacity style={styles.iconBtn} onPress={onSearch}>

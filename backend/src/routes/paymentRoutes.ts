@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
+import { authenticate } from '../middleware/auth';
+import { listMyPayments } from '../controllers/paymentController';
 
 const router = Router();
+
+router.get('/me', authenticate, listMyPayments);
 
 // In-memory campus wallet balance (synced with user's student wallet)
 let campusWalletBalance = 4800;

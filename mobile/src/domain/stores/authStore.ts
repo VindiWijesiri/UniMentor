@@ -76,6 +76,8 @@ interface AuthState {
   updateVerificationStatus: (status: VerificationStatus, reason?: string) => void;
   pendingRoute: string | null;
   setPendingRoute: (route: string | null) => void;
+  needsGuidance: boolean;
+  setNeedsGuidance: (val: boolean) => void;
   rememberToken: (token: string) => Promise<void>;
   restoreSession: () => Promise<void>;
 }
@@ -84,6 +86,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: mockStudentUser,
   token: 'demo_student_token',
   isAuthenticated: true,
+  needsGuidance: false,
+  setNeedsGuidance: (needsGuidance) => set({ needsGuidance }),
   setUser: (user) => set({ user, isAuthenticated: true }),
   setToken: (token) => set({ token }),
   logout: () => {

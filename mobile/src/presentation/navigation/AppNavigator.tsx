@@ -76,6 +76,23 @@ import NotificationSettingsScreen from '../screens/settings/NotificationSettings
 import HelpSupportScreen from '../screens/settings/HelpSupportScreen';
 import AccountStatusScreen from '../screens/settings/AccountStatusScreen';
 
+// Integrated Learning & Assessments screens from Charuka
+import StudyTaskTrackerScreen from '../screens/goals/StudyTaskTrackerScreen';
+import GoalDetailScreen from '../screens/goals/GoalDetailScreen';
+import GoalMilestonesScreen from '../screens/goals/GoalMilestonesScreen';
+import GoalAnalyticsScreen from '../screens/goals/GoalAnalyticsScreen';
+import LogGoalProgressScreen from '../screens/goals/LogGoalProgressScreen';
+import AddGoalAssessmentScreen from '../screens/goals/AddGoalAssessmentScreen';
+import GoalAssessmentResultScreen from '../screens/goals/GoalAssessmentResultScreen';
+import FindGoalTutorScreen from '../screens/goals/FindGoalTutorScreen';
+import GoalAchievementScreen from '../screens/goals/GoalAchievementScreen';
+import TutorAvailabilityScreen from '../screens/tutor/TutorAvailabilityScreen';
+import TutorPaymentsScreen from '../screens/tutor/TutorPaymentsScreen';
+import TutorReviewsScreen from '../screens/tutor/TutorReviewsScreen';
+import TutorStudentProgressScreen from '../screens/tutor/TutorStudentProgressScreen';
+import TutorBookingsScreen from '../screens/tutor/TutorBookingsScreen';
+import AdminPortalScreen from '../screens/assessments/AdminPortalScreen';
+
 import { useAuthStore } from '../../domain/stores/authStore';
 import { colors } from '../../shared/theme';
 
@@ -207,6 +224,25 @@ export type AppStackParamList = {
   RoleSelection: undefined;
   StudentRegistration: undefined;
   TutorRegistration: undefined;
+
+  // Integrated screens from Charuka
+  StudyTaskTracker: { id?: string; goalId?: string } | undefined;
+  GoalDetail: { id?: string; goalId?: string } | undefined;
+  GoalMilestones: { id?: string; goalId?: string } | undefined;
+  GoalAnalytics: { id?: string; goalId?: string } | undefined;
+  LogGoalProgress: { id?: string; goalId?: string } | undefined;
+  AddGoalAssessment: { id?: string; goalId?: string } | undefined;
+  GoalAssessmentResult: { id?: string; goalId?: string; assessmentId?: string } | undefined;
+  FindGoalTutor: { id?: string; goalId?: string; moduleCode?: string; topic?: string } | undefined;
+  GoalAchievement: { id?: string; goalId?: string } | undefined;
+  TutorAvailability: undefined;
+  TutorPayments: undefined;
+  TutorReviews: undefined;
+  TutorStudentProgress: { studentId?: string } | undefined;
+  TutorBookings: undefined;
+  AdminPortal: undefined;
+  LearningDashboard: undefined;
+  TutorLearningDashboard: undefined;
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
@@ -473,6 +509,25 @@ export default function AppNavigator() {
       <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
       <Stack.Screen name="StudentRegistration" component={StudentRegistrationScreen} />
       <Stack.Screen name="TutorRegistration" component={TutorRegistrationScreen} />
+
+      {/* Integrated screens from Charuka */}
+      <Stack.Screen name="StudyTaskTracker" component={StudyTaskTrackerScreen as any} />
+      <Stack.Screen name="GoalDetail" component={GoalDetailScreen as any} />
+      <Stack.Screen name="GoalMilestones" component={GoalMilestonesScreen as any} />
+      <Stack.Screen name="GoalAnalytics" component={GoalAnalyticsScreen as any} />
+      <Stack.Screen name="LogGoalProgress" component={LogGoalProgressScreen as any} />
+      <Stack.Screen name="AddGoalAssessment" component={AddGoalAssessmentScreen as any} />
+      <Stack.Screen name="GoalAssessmentResult" component={GoalAssessmentResultScreen as any} />
+      <Stack.Screen name="FindGoalTutor" component={FindGoalTutorScreen as any} />
+      <Stack.Screen name="GoalAchievement" component={GoalAchievementScreen as any} />
+      <Stack.Screen name="TutorAvailability" component={TutorAvailabilityScreen as any} />
+      <Stack.Screen name="TutorPayments" component={TutorPaymentsScreen as any} />
+      <Stack.Screen name="TutorReviews" component={TutorReviewsScreen as any} />
+      <Stack.Screen name="TutorStudentProgress" component={TutorStudentProgressScreen as any} />
+      <Stack.Screen name="TutorBookings" component={TutorBookingsScreen as any} />
+      <Stack.Screen name="AdminPortal" component={AdminPortalScreen as any} />
+      <Stack.Screen name="LearningDashboard" component={LearningDashboardScreen as any} />
+      <Stack.Screen name="TutorLearningDashboard" component={TutorLearningDashboardScreen as any} />
     </Stack.Navigator>
   );
 }
