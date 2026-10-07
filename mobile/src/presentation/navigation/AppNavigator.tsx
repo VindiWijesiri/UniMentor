@@ -10,6 +10,7 @@ import type { Review } from '../../domain/entities/Review';
 import HomeScreen from '../screens/home/HomeScreen';
 import SearchScreen from '../screens/search/SearchScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import TutorOwnerProfileScreen from '../screens/profile/TutorOwnerProfileScreen';
 import TutorProfileScreen from '../screens/search/TutorProfileScreen';
 import FiltersScreen from '../screens/search/FiltersScreen';
 import WriteReviewScreen from '../screens/search/WriteReviewScreen';
@@ -27,7 +28,14 @@ import TutorSlotManagementScreen from '../screens/home/TutorSlotManagementScreen
 import TutorSessionsScreen from '../screens/home/TutorSessionsScreen';
 import SessionsScreen from '../screens/sessions/SessionsScreen';
 import BookingFlowScreen from '../screens/booking/BookingFlowScreen';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  SvgHome,
+  SvgCalendar,
+  SvgBook,
+  SvgNotifications,
+  SvgUser,
+  SvgVideocam,
+} from '../components/common/SvgIcons';
 
 export type BookingsStackParamList = {
   SessionsList: undefined;
@@ -127,9 +135,6 @@ function MainTabs() {
   const currentUser = useAuthStore((state) => state.user);
   const isStudent = !currentUser || currentUser.role === 'student';
 
-  // Android navigation bar compatibility:
-  // insets.bottom is > 0 on devices with software 3-button navigation or gesture bar.
-  // On devices without software nav (or when insets.bottom is 0), provide comfortable 10px spacing.
   const bottomInset = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'android' ? 10 : 8);
   const barHeight = 56 + bottomInset;
 
@@ -169,7 +174,7 @@ function MainTabs() {
             options={{
               tabBarLabel: 'Home',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="home-outline" size={24} color={color} />
+                <SvgHome size={22} color={color} />
               ),
             }}
           />
@@ -189,7 +194,7 @@ function MainTabs() {
             options={{
               tabBarLabel: 'Bookings',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="calendar-outline" size={24} color={color} />
+                <SvgCalendar size={22} color={color} />
               ),
             }}
           />
@@ -201,7 +206,7 @@ function MainTabs() {
             options={{
               tabBarLabel: 'Learning',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="book-outline" size={24} color={color} />
+                <SvgBook size={22} color={color} />
               ),
             }}
           />
@@ -213,7 +218,7 @@ function MainTabs() {
             options={{
               tabBarLabel: 'Alerts',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="notifications-outline" size={24} color={color} />
+                <SvgNotifications size={22} color={color} />
               ),
             }}
           />
@@ -225,7 +230,7 @@ function MainTabs() {
             options={{
               tabBarLabel: 'Profile',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="person-outline" size={24} color={color} />
+                <SvgUser size={22} color={color} />
               ),
             }}
           />
@@ -239,7 +244,7 @@ function MainTabs() {
             options={{
               tabBarLabel: 'Home',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="home-outline" size={24} color={color} />
+                <SvgHome size={22} color={color} />
               ),
             }}
           />
@@ -251,7 +256,7 @@ function MainTabs() {
             options={{
               tabBarLabel: 'Scheduling',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="calendar-outline" size={24} color={color} />
+                <SvgCalendar size={22} color={color} />
               ),
             }}
           />
@@ -263,7 +268,7 @@ function MainTabs() {
             options={{
               tabBarLabel: 'Sessions',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="videocam-outline" size={24} color={color} />
+                <SvgVideocam size={22} color={color} />
               ),
             }}
           />
@@ -271,11 +276,11 @@ function MainTabs() {
           {/* 4. Profile */}
           <Tab.Screen
             name="Profile"
-            component={ProfileScreen}
+            component={TutorOwnerProfileScreen}
             options={{
               tabBarLabel: 'Profile',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="person-outline" size={24} color={color} />
+                <SvgUser size={22} color={color} />
               ),
             }}
           />

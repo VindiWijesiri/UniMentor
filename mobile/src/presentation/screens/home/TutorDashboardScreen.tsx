@@ -103,11 +103,15 @@ export default function TutorDashboardScreen({ navigation }: any) {
 
   useEffect(() => {
     loadTutorSettingsAndSlots();
-  }, []);
+    const unsub = tutorSlotRepository.subscribe(() => {
+      loadTutorSettingsAndSlots();
+    });
+    return unsub;
+  }, [tutorMentorId, tutorMentorName]);
 
   const loadTutorSettingsAndSlots = async () => {
     try {
-      const slots = await tutorSlotRepository.getAllSlots(tutorMentorId);
+      const slots = await tutorSlotRepository.getAllSlots(tutorMentorId, tutorMentorName);
       setTutorSlots(slots);
       const settings = await tutorSettingsRepository.getSettings(
         tutorMentorId,

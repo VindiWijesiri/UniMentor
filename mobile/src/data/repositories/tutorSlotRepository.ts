@@ -183,6 +183,17 @@ const INITIAL_SLOTS: TutorSlot[] = [
 ];
 
 let inMemorySlots: TutorSlot[] = [...INITIAL_SLOTS];
+const slotListeners = new Set<() => void>();
+
+function notifySlotListeners() {
+  slotListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (e) {
+      console.warn('Listener error in tutorSlotRepository:', e);
+    }
+  });
+}
 
 function transformBackendSlot(item: any): TutorSlot {
   return {
@@ -301,7 +312,7 @@ export const tutorSlotRepository = {
     return slots;
   },
 
-  async getAllSlots(mentorId?: string): Promise<TutorSlot[]> {
+  async getAllSlots(mentorId?: string, mentorName?: string): Promise<TutorSlot[]> {
     try {
       const response = await apiClient.get<any[]>('/slots');
       if (Array.isArray(response.data) && response.data.length > 0) {
@@ -342,17 +353,35 @@ export const tutorSlotRepository = {
     }
 
     if (mentorId) {
-      return inMemorySlots.filter((s) => {
-        // ALWAYS include slots that have bookings so tutor dashboard displays all student bookings!
-        if (s.registeredAttendees && s.registeredAttendees.length > 0) return true;
-        if (s.bookedCount && s.bookedCount > 0) return true;
-        return (
-          s.mentorId === mentorId ||
-          s.mentorId === 'demo-tutor-1' ||
-          s.mentorId === 'mentor-alex' ||
-          !mentorId
-        );
+      const mIdClean = mentorId.toLowerCase().trim();
+      const mNameClean = (mentorName || '').toLowerCase().trim();
+
+      const filtered = inMemorySlots.filter((s) => {
+        const slotMId = (s.mentorId || '').toLowerCase().trim();
+        const slotMName = (s.mentorName || '').toLowerCase().trim();
+
+        // Exact or partial ID match
+        if (slotMId === mIdClean || slotMId.includes(mIdClean) || mIdClean.includes(slotMId)) {
+          return true;
+        }
+
+        // Mentor name match if tutor name is provided
+        if (mNameClean && slotMName.length > 0 && (slotMName.includes(mNameClean) || mNameClean.includes(slotMName))) {
+          return true;
+        }
+
+        // Demo tutor fallback only if logged in as default demo tutor
+        if (
+          (mIdClean === 'demo-tutor-1' || mNameClean.includes('tharushi')) &&
+          (slotMId === 'demo-tutor-1' || slotMName.includes('tharushi'))
+        ) {
+          return true;
+        }
+
+        return false;
       });
+
+      return filtered;
     }
     return [...inMemorySlots];
   },
@@ -401,11 +430,13 @@ export const tutorSlotRepository = {
       // Local addition remains effective
     }
 
+    notifySlotListeners();
     return newSlot;
   },
 
   async updateSlot(slotId: string, updates: Partial<TutorSlot>): Promise<TutorSlot | null> {
     inMemorySlots = inMemorySlots.map((s) => (s.id === slotId ? { ...s, ...updates } : s));
+    notifySlotListeners();
     try {
       await apiClient.put(`/slots/${slotId}`, updates);
     } catch {}
@@ -414,6 +445,7 @@ export const tutorSlotRepository = {
 
   async deleteSlot(slotId: string): Promise<void> {
     inMemorySlots = inMemorySlots.filter((s) => s.id !== slotId);
+    notifySlotListeners();
     try {
       await apiClient.delete(`/slots/${slotId}`);
     } catch {}
@@ -443,6 +475,7 @@ export const tutorSlotRepository = {
     slot.registeredAttendees = updatedAttendees;
     slot.bookedCount = newBookedCount;
     slot.isAvailable = !isNowFull;
+    notifySlotListeners();
 
     try {
       await apiClient.post(`/slots/${slotId}/register`, {
@@ -532,6 +565,7 @@ export const tutorSlotRepository = {
         slot.isAvailable = false;
       }
     }
+    notifySlotListeners();
 
     try {
       await apiClient.post(`/slots/${slotId}/register`, {
@@ -558,19 +592,105 @@ export const tutorSlotRepository = {
     }
   },
 
-  async cancelRegistration(slotId: string, attendeeId: string): Promise<void> {
-    const slot = inMemorySlots.find((s) => s.id === slotId);
-    if (!slot) return;
+  async cancelRegistration(
+    slotIdOrOptions:
+      | string
+      | {
+          slotId?: string;
+          attendeeId?: string;
+          studentEmail?: string;
+          studentName?: string;
+          mentorId?: string;
+          mentorName?: string;
+        },
+    attendeeIdParam?: string
+  ): Promise<boolean> {
+    let slotId: string | undefined;
+    let attendeeId: string | undefined;
+    let studentEmail: string | undefined;
+    let studentName: string | undefined;
+    let mentorId: string | undefined;
+    let mentorName: string | undefined;
 
-    const att = (slot.registeredAttendees || []).find((a) => a.id === attendeeId);
-    const countToRemove = att?.bookingType === 'group' ? (att.groupSize || 1) : 1;
+    if (typeof slotIdOrOptions === 'string') {
+      slotId = slotIdOrOptions;
+      attendeeId = attendeeIdParam;
+    } else {
+      slotId = slotIdOrOptions.slotId;
+      attendeeId = slotIdOrOptions.attendeeId;
+      studentEmail = slotIdOrOptions.studentEmail;
+      studentName = slotIdOrOptions.studentName;
+      mentorId = slotIdOrOptions.mentorId;
+      mentorName = slotIdOrOptions.mentorName;
+    }
 
-    slot.registeredAttendees = (slot.registeredAttendees || []).filter((a) => a.id !== attendeeId);
-    slot.bookedCount = Math.max(0, (slot.bookedCount || 0) - countToRemove);
-    slot.isAvailable = slot.bookedCount < slot.maxCapacity;
+    let targetSlot = slotId ? inMemorySlots.find((s) => s.id === slotId) : undefined;
+
+    // If not found by slotId, search slots belonging to this mentor that contain the attendee
+    if (!targetSlot && (mentorId || mentorName)) {
+      targetSlot = inMemorySlots.find((s) => {
+        const matchMentor =
+          (mentorId && s.mentorId === mentorId) ||
+          (mentorName && s.mentorName.toLowerCase().includes(mentorName.toLowerCase()));
+        if (!matchMentor) return false;
+        if (!s.registeredAttendees || s.registeredAttendees.length === 0) return false;
+        if (attendeeId && s.registeredAttendees.some((a) => a.id === attendeeId)) return true;
+        if (studentEmail && s.registeredAttendees.some((a) => a.studentEmail?.toLowerCase() === studentEmail?.toLowerCase()))
+          return true;
+        if (studentName && s.registeredAttendees.some((a) => a.studentName?.toLowerCase().includes(studentName?.toLowerCase() || '')))
+          return true;
+        return true;
+      });
+    }
+
+    if (!targetSlot) return false;
+
+    let attendeeIdx = -1;
+    if (attendeeId) {
+      attendeeIdx = (targetSlot.registeredAttendees || []).findIndex((a) => a.id === attendeeId);
+    }
+    if (attendeeIdx === -1 && studentEmail) {
+      attendeeIdx = (targetSlot.registeredAttendees || []).findIndex(
+        (a) => a.studentEmail && a.studentEmail.toLowerCase() === studentEmail.toLowerCase()
+      );
+    }
+    if (attendeeIdx === -1 && studentName) {
+      attendeeIdx = (targetSlot.registeredAttendees || []).findIndex(
+        (a) => a.studentName && a.studentName.toLowerCase().includes(studentName.toLowerCase())
+      );
+    }
+
+    let countToRemove = 1;
+    if (attendeeIdx >= 0 && targetSlot.registeredAttendees) {
+      const att = targetSlot.registeredAttendees[attendeeIdx];
+      countToRemove = att.bookingType === 'group' ? (att.groupSize || 1) : 1;
+      targetSlot.registeredAttendees.splice(attendeeIdx, 1);
+    } else if (targetSlot.registeredAttendees && targetSlot.registeredAttendees.length > 0) {
+      targetSlot.registeredAttendees.pop();
+    }
+
+    targetSlot.bookedCount = Math.max(0, (targetSlot.bookedCount || 0) - countToRemove);
+    targetSlot.isAvailable = targetSlot.bookedCount < targetSlot.maxCapacity;
+
+    notifySlotListeners();
 
     try {
-      await apiClient.post(`/slots/${slotId}/cancel-registration`, { attendeeId });
-    } catch {}
+      await apiClient.post(`/slots/${targetSlot.id}/cancel-registration`, {
+        attendeeId,
+        studentEmail,
+        studentName,
+      });
+    } catch (e) {
+      console.log('[tutorSlotRepository] Backend cancel notice:', e);
+    }
+
+    return true;
+  },
+
+  subscribe(callback: () => void): () => void {
+    slotListeners.add(callback);
+    return () => {
+      slotListeners.delete(callback);
+    };
   },
 };

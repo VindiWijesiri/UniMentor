@@ -557,6 +557,7 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         paymentStatus: 'PAID',
         paidAmount: totalPayable,
         transactionId,
+        slotId: selectedSlot?.id,
         faceVerificationPhoto: facePhotoUri || undefined,
         isFaceVerified: true,
       });

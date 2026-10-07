@@ -25,6 +25,7 @@ export interface BookedTutorItem {
   paymentStatus?: 'PAID' | 'PENDING';
   paidAmount?: number;
   transactionId?: string;
+  slotId?: string;
   faceVerificationPhoto?: string;
   isFaceVerified?: boolean;
 }

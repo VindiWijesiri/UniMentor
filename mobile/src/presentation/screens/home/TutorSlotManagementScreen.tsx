@@ -75,7 +75,7 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
   const loadSlots = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await tutorSlotRepository.getAllSlots(tutorMentorId);
+      const data = await tutorSlotRepository.getAllSlots(tutorMentorId, tutorMentorName);
       setSlots(data);
       if (data.length > 0) {
         const bookedSlot = data.find((s) => (s.registeredAttendees?.length || 0) > 0 || (s.bookedCount || 0) > 0);
@@ -90,10 +90,14 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  }, [tutorMentorId, expandedSlotId]);
+  }, [tutorMentorId, tutorMentorName, expandedSlotId]);
 
   useEffect(() => {
     loadSlots();
+    const unsub = tutorSlotRepository.subscribe(() => {
+      loadSlots();
+    });
+    return unsub;
   }, [loadSlots]);
 
   const onRefresh = async () => {

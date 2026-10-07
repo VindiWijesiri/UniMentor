@@ -12,15 +12,15 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: {
-    _id: 'demo-tutor-1',
-    id: 'demo-tutor-1',
-    name: 'Tharushi Perera',
-    email: 'tharushi.p@unimentor.sliit.lk',
-    role: 'mentor',
+    _id: 'student-oslo-1',
+    id: 'student-oslo-1',
+    name: 'Nethmi Silva',
+    email: 'nethmi.silva@student.unimentor.lk',
+    role: 'student',
     faculty: 'Faculty of Computing',
     department: 'Software Engineering',
   },
-  token: 'demo-mentor-token-xyz',
+  token: 'demo-student-token-xyz',
   isAuthenticated: true,
   setUser: (user) => set({ user, isAuthenticated: true }),
   setToken: (token) => set({ token }),

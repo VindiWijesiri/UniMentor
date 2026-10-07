@@ -23,6 +23,22 @@ import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import { bookedTutorsRepository, BookedTutorItem } from '../../../data/repositories/bookedTutorsRepository';
+import { paymentRepository } from '../../../data/repositories/paymentRepository';
+import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
+import {
+  SvgVideocam,
+  SvgChat,
+  SvgTrash,
+  SvgClose,
+  SvgCheckCircle,
+  SvgWallet,
+  SvgCalendar,
+  SvgClock,
+  SvgAlertTriangle,
+  SvgPricetag,
+  SvgPeople,
+  SvgChevronRight,
+} from '../../components/common/SvgIcons';
 import { Ionicons } from '@expo/vector-icons';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
@@ -119,6 +135,84 @@ export default function StudentDashboardScreen({ navigation }: Props) {
   const [editingModuleProgress, setEditingModuleProgress] = useState<EnrolledModule | null>(null);
   const [progressVal, setProgressVal] = useState('75');
   const [nextSessionTopic, setNextSessionTopic] = useState('');
+
+  // Cancel Booking & Wallet Refund State
+  const [cancellingBooking, setCancellingBooking] = useState<BookedTutorItem | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('Timetable / Lecture clash');
+  const [cancellationReasonDetails, setCancellationReasonDetails] = useState('');
+  const [cancellationSubmitting, setCancellationSubmitting] = useState(false);
+  const [studentWalletBalance, setStudentWalletBalance] = useState(4800);
+
+  useEffect(() => {
+    paymentRepository.getWalletBalance().then(setStudentWalletBalance);
+  }, []);
+
+  const handleInitiateCancelBooking = (item: BookedTutorItem) => {
+    setCancellingBooking(item);
+    setCancellationReason('Timetable / Lecture clash');
+    setCancellationReasonDetails('');
+    paymentRepository.getWalletBalance().then(setStudentWalletBalance);
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancellation = async () => {
+    if (!cancellingBooking) return;
+    if (cancellationReasonDetails.trim().length < 10) {
+      Alert.alert(
+        'Valid Reason Required',
+        'Please enter at least 10 characters explaining your cancellation reason so the tutor can be notified and your wallet refund can be processed.'
+      );
+      return;
+    }
+
+    try {
+      setCancellationSubmitting(true);
+      const isGroup = cancellingBooking.studyMode === 'group';
+      const defaultRate = isGroup ? 1200 : 2500;
+      const refundAmount =
+        cancellingBooking.paidAmount ||
+        (cancellingBooking.mentor.hourlyRate
+          ? cancellingBooking.mentor.hourlyRate * (isGroup ? (cancellingBooking.groupSize || 1) : 1)
+          : defaultRate);
+
+      // 1. Credit paid amount back to student wallet
+      const refundResult = await paymentRepository.refundToWallet(
+        refundAmount,
+        `Cancelled booking with ${cancellingBooking.mentor.name}: ${cancellationReason} - ${cancellationReasonDetails.trim()}`
+      );
+      setStudentWalletBalance(refundResult.newBalance);
+
+      // 2. Remove booked tutor from repository
+      await bookedTutorsRepository.removeBookedTutor(cancellingBooking.id);
+
+      // 3. Update tutor dashboard slot (decrement count, release slot, remove attendee)
+      await tutorSlotRepository.cancelRegistration({
+        slotId: cancellingBooking.slotId,
+        mentorId: cancellingBooking.mentor.id,
+        mentorName: cancellingBooking.mentor.name,
+        studentEmail: authUser?.email,
+        studentName: authUser?.name,
+      });
+
+      // 4. Reload local booked pods
+      await loadBookedPods();
+
+      setShowCancelModal(false);
+      const tutorName = cancellingBooking.mentor.name;
+      setCancellingBooking(null);
+      setCancellationReasonDetails('');
+
+      Alert.alert(
+        'Booking Cancelled & Refunded! 💰',
+        `Your session with ${tutorName} has been cancelled successfully.\n\nRs. ${refundAmount.toLocaleString()} has been credited back to your UniMentor Campus Wallet.\n\nYour new Campus Wallet balance is Rs. ${refundResult.newBalance.toLocaleString()}. The tutor's schedule has been freed up.`
+      );
+    } catch (err: any) {
+      Alert.alert('Cancellation Error', err?.message || 'Could not complete cancellation.');
+    } finally {
+      setCancellationSubmitting(false);
+    }
+  };
 
   // Exam Review Modal state
   const [showExamReviewModal, setShowExamReviewModal] = useState(false);
@@ -449,14 +543,14 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.avatarWrapper}
-              onPress={() => navigation.navigate('Profile')}
+              onPress={() => (navigation as any).navigate('Profile', { viewAs: 'student' })}
             >
               <Image
                 source={{
                   uri:
                     authUser?.profilePicture ||
                     dashboard?.user?.profilePicture ||
-                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+                    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
                 }}
                 style={styles.avatarImg}
               />
@@ -498,33 +592,6 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             </View>
           </View>
         </View>
-
-        {/* Dedicated Tutor Portal & Slot Management Card */}
-        <TouchableOpacity
-          style={styles.tutorHeroAccessCard}
-          activeOpacity={0.88}
-          onPress={() => (navigation as any).navigate('TutorSlotManagement')}
-        >
-          <View style={styles.tutorHeroAccessLeft}>
-            <View style={styles.tutorHeroAccessIcon}>
-              <Ionicons name="calendar" size={20} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.tutorHeroAccessTitle}>Tutor Slot Allocation & Fees</Text>
-                <View style={styles.tutorHeroNewPill}>
-                  <Text style={styles.tutorHeroNewPillText}>TUTOR</Text>
-                </View>
-              </View>
-              <Text style={styles.tutorHeroAccessSubtitle}>
-                Schedule slots, set session fees & view registered students and groups
-              </Text>
-            </View>
-          </View>
-          <View style={styles.tutorHeroAccessArrow}>
-            <Ionicons name="arrow-forward" size={16} color="#061E47" />
-          </View>
-        </TouchableOpacity>
 
         {/* Deadline Approaching Alert Card */}
         {alert && (
@@ -582,7 +649,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <Text style={styles.launchpadCardLabel}>Pods</Text>
           </TouchableOpacity>
 
-          {/* Join session */}
+          {/* Join session (Renamed from Kuppiya) */}
           <TouchableOpacity
             style={styles.launchpadCardUnified}
             activeOpacity={0.85}
@@ -596,7 +663,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <View style={[styles.launchpadIconSquare, { backgroundColor: '#ECFDF5' }]}>
               <Ionicons name="videocam" size={20} color="#059669" />
             </View>
-            <Text style={styles.launchpadCardLabel}>Kuppiya</Text>
+            <Text style={styles.launchpadCardLabel}>Join Session</Text>
           </TouchableOpacity>
 
           {/* Library */}
@@ -672,6 +739,30 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Student Campus Wallet Quick Status Card (Positioned lower on dashboard) */}
+        <View style={styles.studentWalletQuickCard}>
+          <View style={styles.studentWalletLeft}>
+            <View style={styles.studentWalletIcon}>
+              <SvgWallet size={20} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.studentWalletTitle}>Campus Wallet</Text>
+                <View style={styles.studentWalletActivePill}>
+                  <Text style={styles.studentWalletActivePillText}>STUDENT</Text>
+                </View>
+              </View>
+              <Text style={styles.studentWalletSubtitle}>
+                Session fees & instant booking refunds are credited here
+              </Text>
+            </View>
+          </View>
+          <View style={styles.studentWalletRight}>
+            <Text style={styles.studentWalletBalanceVal}>Rs. {studentWalletBalance.toLocaleString()}</Text>
+            <Text style={styles.studentWalletBalanceLbl}>Available</Text>
+          </View>
+        </View>
 
         {/* UPCOMING BOOKINGS & GROUP STUDY PODS */}
         <View style={styles.bookingsSectionWrap}>
@@ -792,9 +883,9 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                         }}
                         activeOpacity={0.85}
                       >
-                        <Ionicons name="videocam" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
-                        <Text style={styles.joinPodBtnText}>
-                          {isGroup ? 'Join Study Pod' : 'Join Session'}
+                        <SvgVideocam size={13} color="#FFFFFF" />
+                        <Text style={[styles.joinPodBtnText, { marginLeft: 4 }]}>
+                          Join Session
                         </Text>
                       </TouchableOpacity>
 
@@ -818,8 +909,17 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                         }}
                         activeOpacity={0.85}
                       >
-                        <Ionicons name="chatbubbles-outline" size={14} color="#061E47" style={{ marginRight: 4 }} />
-                        <Text style={styles.podChatBtnText}>Chat</Text>
+                        <SvgChat size={13} color="#061E47" />
+                        <Text style={[styles.podChatBtnText, { marginLeft: 4 }]}>Chat</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.podCancelBtn}
+                        onPress={() => handleInitiateCancelBooking(item)}
+                        activeOpacity={0.85}
+                      >
+                        <SvgTrash size={13} color="#DC2626" />
+                        <Text style={styles.podCancelBtnText}>Cancel</Text>
                       </TouchableOpacity>
                     </View>
 
@@ -2041,6 +2141,212 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             <TouchableOpacity style={styles.closeSheetBtn} onPress={() => setShowLibraryModal(false)}>
               <Text style={styles.closeSheetBtnText}>Close</Text>
             </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ================= CANCEL BOOKING & WALLET REFUND MODAL ================= */}
+      <Modal
+        visible={showCancelModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          if (!cancellationSubmitting) setShowCancelModal(false);
+        }}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            if (!cancellationSubmitting) setShowCancelModal(false);
+          }}
+        >
+          <Pressable style={styles.cancelModalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+
+            {/* Header */}
+            <View style={styles.cancelModalHeaderRow}>
+              <View style={styles.cancelModalHeaderLeft}>
+                <View style={styles.cancelModalIconWrap}>
+                  <SvgAlertTriangle size={20} color="#DC2626" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cancelModalTitle}>Cancel Booked Tutor</Text>
+                  <Text style={styles.cancelModalSub}>
+                    Valid reason required • Instant Campus Wallet refund
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowCancelModal(false)}
+                disabled={cancellationSubmitting}
+                style={styles.cancelModalCloseBtn}
+              >
+                <SvgClose size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              {/* Session Overview Card */}
+              {cancellingBooking && (
+                <View style={styles.cancelSummaryCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <TutorAvatar
+                      name={cancellingBooking.mentor.name}
+                      imageUrl={cancellingBooking.mentor.avatar}
+                      size={42}
+                      borderRadius={14}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cancelSummaryTutorName}>{cancellingBooking.mentor.name}</Text>
+                      <Text style={styles.cancelSummaryModule}>
+                        {cancellingBooking.moduleCode ? `${cancellingBooking.moduleCode}: ` : ''}
+                        {cancellingBooking.moduleName}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 4 }}>
+                        <SvgClock size={12} color="#D97706" />
+                        <Text style={styles.cancelSummaryTime}>{cancellingBooking.nextSession}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* Refund Notice Box */}
+              {cancellingBooking && (
+                <View style={styles.refundHighlightCard}>
+                  <View style={styles.refundHighlightTopRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <SvgWallet size={18} color="#059669" />
+                      <Text style={styles.refundHighlightTitle}>100% Wallet Refund</Text>
+                    </View>
+                    <Text style={styles.refundHighlightAmount}>
+                      Rs.{' '}
+                      {(
+                        cancellingBooking.paidAmount ||
+                        (cancellingBooking.studyMode === 'group'
+                          ? 1200 * (cancellingBooking.groupSize || 1)
+                          : cancellingBooking.mentor.hourlyRate || 2500)
+                      ).toLocaleString()}
+                    </Text>
+                  </View>
+                  <Text style={styles.refundHighlightExpl}>
+                    This fee will be refunded directly into your UniMentor Campus Wallet immediately upon cancellation.
+                  </Text>
+                  <View style={styles.refundBalancePreviewRow}>
+                    <Text style={styles.refundBalancePreviewLbl}>Current Wallet:</Text>
+                    <Text style={styles.refundBalancePreviewVal}>Rs. {studentWalletBalance.toLocaleString()}</Text>
+                    <SvgChevronRight size={12} color="#059669" />
+                    <Text style={styles.refundBalancePreviewLbl}>After Refund:</Text>
+                    <Text style={[styles.refundBalancePreviewVal, { color: '#059669', fontWeight: '800' }]}>
+                      Rs.{' '}
+                      {(
+                        studentWalletBalance +
+                        (cancellingBooking.paidAmount ||
+                          (cancellingBooking.studyMode === 'group'
+                            ? 1200 * (cancellingBooking.groupSize || 1)
+                            : cancellingBooking.mentor.hourlyRate || 2500))
+                      ).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Mandatory Reason Selector */}
+              <Text style={styles.cancelReasonLabel}>SELECT CANCELLATION REASON *</Text>
+              {[
+                'Timetable / Lecture clash',
+                'Coursework or exam rescheduled',
+                'Medical / Personal emergency',
+                'Found alternative peer study group',
+                'Other academic reason',
+              ].map((reason) => {
+                const isSelected = cancellationReason === reason;
+                return (
+                  <TouchableOpacity
+                    key={reason}
+                    style={[styles.reasonOptionPill, isSelected && styles.reasonOptionPillSelected]}
+                    onPress={() => setCancellationReason(reason)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.reasonRadioOuter, isSelected && styles.reasonRadioOuterSelected]}>
+                      {isSelected && <View style={styles.reasonRadioInner} />}
+                    </View>
+                    <Text style={[styles.reasonOptionText, isSelected && styles.reasonOptionTextSelected]}>
+                      {reason}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* Mandatory Detailed Explanation */}
+              <View style={{ marginTop: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.cancelReasonLabel}>DETAILED REASON (REQUIRED) *</Text>
+                  <Text
+                    style={[
+                      styles.cancelCharCounter,
+                      cancellationReasonDetails.trim().length < 10 ? { color: '#EF4444' } : { color: '#059669' },
+                    ]}
+                  >
+                    {cancellationReasonDetails.trim().length}/10 chars min
+                  </Text>
+                </View>
+                <TextInput
+                  style={styles.cancelReasonTextInput}
+                  placeholder="Explain why you are cancelling this booking (minimum 10 characters required for tutor notification & refund confirmation)..."
+                  placeholderTextColor="#94A3B8"
+                  value={cancellationReasonDetails}
+                  onChangeText={setCancellationReasonDetails}
+                  multiline
+                  numberOfLines={3}
+                />
+                {cancellationReasonDetails.trim().length > 0 && cancellationReasonDetails.trim().length < 10 && (
+                  <Text style={styles.cancelValidationError}>
+                    Please enter at least 10 characters explaining your reason.
+                  </Text>
+                )}
+              </View>
+
+              {/* Tutor Notification Disclaimer */}
+              <View style={styles.cancelDisclaimerBox}>
+                <SvgCheckCircle size={14} color="#0284C7" />
+                <Text style={styles.cancelDisclaimerText}>
+                  The tutor will be informed of this slot release, and their scheduled capacity will update automatically.
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.cancelModalActionsRow}>
+              <TouchableOpacity
+                style={styles.cancelKeepBookingBtn}
+                onPress={() => setShowCancelModal(false)}
+                disabled={cancellationSubmitting}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.cancelKeepBookingBtnText}>Keep Booking</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.cancelConfirmRefundBtn,
+                  (cancellationReasonDetails.trim().length < 10 || cancellationSubmitting) &&
+                    styles.cancelConfirmRefundBtnDisabled,
+                ]}
+                onPress={handleConfirmCancellation}
+                disabled={cancellationReasonDetails.trim().length < 10 || cancellationSubmitting}
+                activeOpacity={0.85}
+              >
+                {cancellationSubmitting ? (
+                  <Text style={styles.cancelConfirmRefundBtnText}>Processing...</Text>
+                ) : (
+                  <>
+                    <SvgTrash size={14} color="#FFFFFF" />
+                    <Text style={styles.cancelConfirmRefundBtnText}>Confirm Cancel & Refund</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -4171,5 +4477,344 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1E293B',
     textAlign: 'center',
+  },
+  studentWalletQuickCard: {
+    backgroundColor: '#0F2B5C',
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginBottom: 16,
+  },
+  studentWalletLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  studentWalletIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#0284C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studentWalletTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  studentWalletActivePill: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  studentWalletActivePillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#34D399',
+  },
+  studentWalletSubtitle: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  studentWalletRight: {
+    alignItems: 'flex-end',
+    marginLeft: 10,
+  },
+  studentWalletBalanceVal: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#38BDF8',
+  },
+  studentWalletBalanceLbl: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  podCancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    gap: 4,
+  },
+  podCancelBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  cancelModalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+    width: '100%',
+    maxHeight: '90%',
+  },
+  cancelModalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  cancelModalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  cancelModalIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cancelModalSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  cancelModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelSummaryCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+  },
+  cancelSummaryTutorName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cancelSummaryModule: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 1,
+  },
+  cancelSummaryTime: {
+    fontSize: 11,
+    color: '#D97706',
+    fontWeight: '700',
+  },
+  refundHighlightCard: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    marginBottom: 14,
+  },
+  refundHighlightTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  refundHighlightTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  refundHighlightAmount: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#059669',
+  },
+  refundHighlightExpl: {
+    fontSize: 11,
+    color: '#047857',
+    marginTop: 4,
+  },
+  refundBalancePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+  },
+  refundBalancePreviewLbl: {
+    fontSize: 10.5,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  refundBalancePreviewVal: {
+    fontSize: 11,
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  cancelReasonLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  reasonOptionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    marginBottom: 7,
+    gap: 10,
+  },
+  reasonOptionPillSelected: {
+    borderColor: '#061E47',
+    backgroundColor: '#EFF6FF',
+  },
+  reasonRadioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#94A3B8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reasonRadioOuterSelected: {
+    borderColor: '#061E47',
+  },
+  reasonRadioInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#061E47',
+  },
+  reasonOptionText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#334155',
+    flex: 1,
+  },
+  reasonOptionTextSelected: {
+    color: '#061E47',
+    fontWeight: '700',
+  },
+  cancelCharCounter: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  cancelReasonTextInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    fontSize: 12.5,
+    color: '#0F172A',
+    textAlignVertical: 'top',
+    minHeight: 65,
+    marginTop: 4,
+  },
+  cancelValidationError: {
+    fontSize: 10.5,
+    color: '#EF4444',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  cancelDisclaimerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F0F9FF',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  cancelDisclaimerText: {
+    fontSize: 11,
+    color: '#0369A1',
+    flex: 1,
+    lineHeight: 15,
+  },
+  cancelModalActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  cancelKeepBookingBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelKeepBookingBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  cancelConfirmRefundBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#DC2626',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  cancelConfirmRefundBtnDisabled: {
+    backgroundColor: '#FDA4AF',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  cancelConfirmRefundBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

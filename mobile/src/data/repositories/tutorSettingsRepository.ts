@@ -287,6 +287,40 @@ export const tutorSettingsRepository = {
     return { ...map[key] };
   },
 
+  async saveSettings(
+    settings: Partial<TutorBookingSettings> & { mentorId?: string; mentorName?: string }
+  ): Promise<TutorBookingSettings> {
+    const map = await ensureLoaded();
+    const mentorId = settings.mentorId || 'mentor-alex';
+    const mentorName = settings.mentorName || 'Alex Ferreira';
+    const current = await this.getSettings(mentorId, mentorName);
+
+    const updated: TutorBookingSettings = {
+      ...current,
+      ...(settings.mentorName !== undefined ? { mentorName: settings.mentorName } : {}),
+      ...(settings.profileImage !== undefined ? { profileImage: settings.profileImage } : {}),
+      ...(settings.hourlyRate1on1 !== undefined ? { hourlyRate1on1: settings.hourlyRate1on1 } : {}),
+      ...(settings.hourlyRateGroup !== undefined ? { hourlyRateGroup: settings.hourlyRateGroup } : {}),
+      ...(settings.teachingModules !== undefined ? { teachingModules: [...settings.teachingModules] } : {}),
+      ...(settings.subjectPreferences !== undefined ? { subjectPreferences: [...settings.subjectPreferences] } : {}),
+      ...(settings.availableDates !== undefined ? { availableDates: [...settings.availableDates] } : {}),
+    };
+
+    map[mentorId] = updated;
+
+    // Sync any alias entries with the same mentorName
+    Object.keys(map).forEach((k) => {
+      if (map[k].mentorName.toLowerCase() === updated.mentorName.toLowerCase()) {
+        map[k] = { ...map[k], ...updated, mentorId: k };
+      }
+    });
+
+    inMemorySettings = map;
+    await setStorageItem(STORAGE_KEY, JSON.stringify(map));
+    notifyListeners(map);
+    return updated;
+  },
+
   async updateTeachingModules(
     mentorId: string = 'mentor-alex',
     teachingModules: string[]

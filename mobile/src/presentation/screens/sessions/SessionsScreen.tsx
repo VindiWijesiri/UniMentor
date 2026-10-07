@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
+  Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -16,14 +19,29 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAuthStore } from '../../../domain/stores/authStore';
 import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { bookedTutorsRepository, BookedTutorItem } from '../../../data/repositories/bookedTutorsRepository';
+import { paymentRepository } from '../../../data/repositories/paymentRepository';
+import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
+import {
+  SvgTrash,
+  SvgClose,
+  SvgCheckCircle,
+  SvgWallet,
+  SvgClock,
+  SvgAlertTriangle,
+  SvgChevronRight,
+  SvgVideocam,
+  SvgChat,
+} from '../../components/common/SvgIcons';
 import { Ionicons } from '@expo/vector-icons';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
 type FacultyFilter = 'all' | 'Computing' | 'Engineering' | 'Business' | 'Architecture';
+type ViewMode = 'tutors' | 'modules';
 
 export default function SessionsScreen() {
   const insets = useSafeAreaInsets();
@@ -36,6 +54,101 @@ export default function SessionsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState<FacultyFilter>('all');
   const [bookedTutors, setBookedTutors] = useState<BookedTutorItem[]>([]);
+
+  // Two tabs: 'tutors' (Booked Tutors) and 'modules' (Registered Modules) - NO side-by-side dual
+  const [activeViewMode, setActiveViewMode] = useState<ViewMode>('tutors');
+
+  // Join session modal state
+  const [joiningSessionTutor, setJoiningSessionTutor] = useState<BookedTutorItem | null>(null);
+  const [showJoinSessionModal, setShowJoinSessionModal] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+
+  const handleOpenJoinSessionModal = (item: BookedTutorItem) => {
+    setJoiningSessionTutor(item);
+    setIsMicMuted(false);
+    setIsVideoOff(false);
+    setShowJoinSessionModal(true);
+  };
+
+  // Cancellation & Wallet Refund state
+  const authUser = useAuthStore((state) => state.user);
+  const [cancellingBooking, setCancellingBooking] = useState<BookedTutorItem | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('Timetable / Lecture clash');
+  const [cancellationReasonDetails, setCancellationReasonDetails] = useState('');
+  const [cancellationSubmitting, setCancellationSubmitting] = useState(false);
+  const [studentWalletBalance, setStudentWalletBalance] = useState(4800);
+
+  useEffect(() => {
+    paymentRepository.getWalletBalance().then(setStudentWalletBalance);
+  }, []);
+
+  const handleInitiateCancelBooking = (item: BookedTutorItem) => {
+    setCancellingBooking(item);
+    setCancellationReason('Timetable / Lecture clash');
+    setCancellationReasonDetails('');
+    paymentRepository.getWalletBalance().then(setStudentWalletBalance);
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancellation = async () => {
+    if (!cancellingBooking) return;
+    if (cancellationReasonDetails.trim().length < 10) {
+      Alert.alert(
+        'Valid Reason Required',
+        'Please enter at least 10 characters explaining your cancellation reason so the tutor can be notified and your wallet refund can be processed.'
+      );
+      return;
+    }
+
+    try {
+      setCancellationSubmitting(true);
+      const isGroup = cancellingBooking.studyMode === 'group';
+      const defaultRate = isGroup ? 1200 : 2500;
+      const refundAmount =
+        cancellingBooking.paidAmount ||
+        (cancellingBooking.mentor.hourlyRate
+          ? cancellingBooking.mentor.hourlyRate * (isGroup ? (cancellingBooking.groupSize || 1) : 1)
+          : defaultRate);
+
+      // 1. Credit paid amount back to student wallet
+      const refundResult = await paymentRepository.refundToWallet(
+        refundAmount,
+        `Cancelled booking with ${cancellingBooking.mentor.name}: ${cancellationReason} - ${cancellationReasonDetails.trim()}`
+      );
+      setStudentWalletBalance(refundResult.newBalance);
+
+      // 2. Remove booked tutor from repository
+      await bookedTutorsRepository.removeBookedTutor(cancellingBooking.id);
+
+      // 3. Update tutor dashboard slot (decrement count, release slot, remove attendee)
+      await tutorSlotRepository.cancelRegistration({
+        slotId: cancellingBooking.slotId,
+        mentorId: cancellingBooking.mentor.id,
+        mentorName: cancellingBooking.mentor.name,
+        studentEmail: authUser?.email,
+        studentName: authUser?.name,
+      });
+
+      // 4. Reload local booked tutors
+      await loadBookedTutors();
+
+      setShowCancelModal(false);
+      const tutorName = cancellingBooking.mentor.name;
+      setCancellingBooking(null);
+      setCancellationReasonDetails('');
+
+      Alert.alert(
+        'Booking Cancelled & Refunded! 💰',
+        `Your session with ${tutorName} has been cancelled successfully.\n\nRs. ${refundAmount.toLocaleString()} has been credited back to your UniMentor Campus Wallet.\n\nYour new Campus Wallet balance is Rs. ${refundResult.newBalance.toLocaleString()}. The tutor's schedule has been freed up.`
+      );
+    } catch (err: any) {
+      Alert.alert('Cancellation Error', err?.message || 'Could not complete cancellation.');
+    } finally {
+      setCancellationSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (!dashboard) {
@@ -215,7 +328,7 @@ export default function SessionsScreen() {
 
       {/* Main Content List */}
       <FlatList
-        data={filteredModules}
+        data={activeViewMode === 'modules' ? filteredModules : []}
         keyExtractor={(item) => item.code}
         contentContainerStyle={[
           styles.listContent,
@@ -243,48 +356,83 @@ export default function SessionsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* SECTION 1: BOOKED TUTORS (Separately Displayed) */}
-            <View style={styles.bookedTutorsBarSection}>
-              <View style={styles.bookedTutorsBarHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                  <View style={styles.sectionHeaderIconWrap}>
-                    <Ionicons name="people" size={15} color="#061E47" />
-                  </View>
-                  <View>
-                    <Text style={styles.bookedTutorsBarTitle}>Booked Tutors</Text>
-                    <Text style={styles.bookedTutorsBarSub}>Active peer mentors & tutors</Text>
-                  </View>
-                </View>
-                <View style={styles.bookedTutorsCountBadge}>
-                  <Text style={styles.bookedTutorsCountBadgeText}>
-                    {bookedTutors.length} Active
-                  </Text>
-                </View>
-              </View>
-
-              {bookedTutors.length > 0 ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.bookedTutorsScroll}
+            {/* TABS: One side Booked Tutors, other side Registered Modules (NO side-by-side dual) */}
+            <View style={styles.viewModeSelector}>
+              <TouchableOpacity
+                style={[styles.viewModeBtn, activeViewMode === 'tutors' && styles.viewModeBtnActive]}
+                onPress={() => setActiveViewMode('tutors')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="people"
+                  size={15}
+                  color={activeViewMode === 'tutors' ? '#061E47' : '#64748B'}
+                />
+                <Text
+                  style={[styles.viewModeBtnText, activeViewMode === 'tutors' && styles.viewModeBtnTextActive]}
                 >
-                  {bookedTutors.map((bt) => (
-                    <View key={bt.mentor.id || bt.mentor.name} style={styles.bookedTutorPillCard}>
+                  Booked Tutors ({bookedTutors.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.viewModeBtn, activeViewMode === 'modules' && styles.viewModeBtnActive]}
+                onPress={() => setActiveViewMode('modules')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="book"
+                  size={15}
+                  color={activeViewMode === 'modules' ? '#061E47' : '#64748B'}
+                />
+                <Text
+                  style={[styles.viewModeBtnText, activeViewMode === 'modules' && styles.viewModeBtnTextActive]}
+                >
+                  Registered Modules ({enrolledModules.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ================================================================= */}
+            {/* VIEW MODE 2: BOOKED TUTORS ONLY (FULL WIDTH WITH JOIN SESSION) */}
+            {/* ================================================================= */}
+            {activeViewMode === 'tutors' && (
+              <View style={styles.bookedTutorsFullSection}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    <View style={styles.sectionHeaderIconWrap}>
+                      <Ionicons name="people" size={15} color="#061E47" />
+                    </View>
+                    <View>
+                      <Text style={styles.bookedTutorsBarTitle}>Booked Tutors</Text>
+                      <Text style={styles.bookedTutorsBarSub}>Active peer mentors & tutors</Text>
+                    </View>
+                  </View>
+                  <View style={styles.bookedTutorsCountBadge}>
+                    <Text style={styles.bookedTutorsCountBadgeText}>
+                      {bookedTutors.length} Active
+                    </Text>
+                  </View>
+                </View>
+
+                {bookedTutors.length > 0 ? (
+                  bookedTutors.map((bt) => (
+                    <View key={bt.mentor.id || bt.mentor.name} style={styles.bookedTutorFullCard}>
                       {/* Top Row: Avatar & Name */}
                       <View style={styles.tutorCardTopPart}>
                         <TutorAvatar
                           name={bt.mentor.name}
                           imageUrl={bt.mentor.avatar}
-                          size={46}
-                          borderRadius={16}
+                          size={50}
+                          borderRadius={18}
                           showOnlineDot
                         />
-                        <View style={{ flex: 1, marginLeft: 10 }}>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={styles.bookedTutorPillName} numberOfLines={1}>
                               {bt.mentor.name}
                             </Text>
-                            <Ionicons name="checkmark-circle" size={13} color="#10B981" style={{ marginLeft: 3 }} />
+                            <Ionicons name="checkmark-circle" size={14} color="#10B981" style={{ marginLeft: 3 }} />
                           </View>
                           <Text style={styles.bookedTutorPillRole} numberOfLines={1}>
                             {bt.mentor.roleTitle || 'Senior Peer Mentor'}
@@ -297,7 +445,7 @@ export default function SessionsScreen() {
                         </View>
                       </View>
 
-                      {/* Stats Row (Rate & Rating) */}
+                      {/* Stats Row */}
                       <View style={styles.tutorCardStatsMini}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                           <Ionicons name="pricetag" size={11} color="#065F46" />
@@ -325,14 +473,23 @@ export default function SessionsScreen() {
                         </Text>
                       </View>
 
-                      {/* Actions: Chat & Profile ONLY (NO Book button!) */}
+                      {/* Action Buttons Row including Join Session */}
                       <View style={styles.tutorCardActionRow}>
+                        <TouchableOpacity
+                          style={styles.tutorJoinActionBtn}
+                          onPress={() => handleOpenJoinSessionModal(bt)}
+                          activeOpacity={0.85}
+                        >
+                          <SvgVideocam size={13} color="#FFFFFF" />
+                          <Text style={styles.tutorJoinActionBtnText}>Join Session</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                           style={styles.tutorChatActionBtn}
                           onPress={() => handleOpenChat(bt.mentor)}
                           activeOpacity={0.85}
                         >
-                          <Ionicons name="chatbubbles-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                          <Ionicons name="chatbubbles-outline" size={13} color="#FFFFFF" style={{ marginRight: 3 }} />
                           <Text style={styles.tutorChatActionBtnText}>Chat</Text>
                         </TouchableOpacity>
 
@@ -344,101 +501,116 @@ export default function SessionsScreen() {
                           <Ionicons name="person-outline" size={13} color="#061E47" style={{ marginRight: 3 }} />
                           <Text style={styles.tutorProfileActionBtnText}>Profile</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.tutorCancelActionBtn}
+                          onPress={() => handleInitiateCancelBooking(bt)}
+                          activeOpacity={0.85}
+                        >
+                          <SvgTrash size={12} color="#DC2626" />
+                          <Text style={styles.tutorCancelActionBtnText}>Cancel</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                  ))}
-                </ScrollView>
-              ) : (
-                <View style={styles.emptyBookedTutorsBox}>
-                  <Text style={styles.emptyBookedTutorsText}>
-                    No tutors booked yet. Connect with verified peer mentors for your modules.
-                  </Text>
+                  ))
+                ) : (
+                  <View style={styles.emptyBookedTutorsBox}>
+                    <Text style={styles.emptyBookedTutorsText}>
+                      No tutors booked yet. Connect with verified peer mentors for your modules.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ================================================================= */}
+            {/* VIEW MODE 3: MODULES HEADER (ONLY SHOWN IN MODULES MODE) */}
+            {/* ================================================================= */}
+            {activeViewMode === 'modules' && (
+              <>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    <View style={styles.sectionHeaderIconWrap}>
+                      <Ionicons name="book-outline" size={15} color="#061E47" />
+                    </View>
+                    <View>
+                      <Text style={styles.bookedTutorsBarTitle}>Registered Modules</Text>
+                      <Text style={styles.bookedTutorsBarSub}>Track progress & course milestones</Text>
+                    </View>
+                  </View>
+                  <View style={styles.bookedTutorsCountBadge}>
+                    <Text style={styles.bookedTutorsCountBadgeText}>
+                      {enrolledModules.length} Modules
+                    </Text>
+                  </View>
                 </View>
-              )}
-            </View>
 
-            {/* SECTION 2: REGISTERED MODULES */}
-            <View style={styles.sectionHeaderRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                <View style={styles.sectionHeaderIconWrap}>
-                  <Ionicons name="book-outline" size={15} color="#061E47" />
+                {/* Stats Row */}
+                <View style={styles.statsCard}>
+                  <View style={styles.statCol}>
+                    <Text style={styles.statVal}>{enrolledModules.length}</Text>
+                    <Text style={styles.statLbl}>Modules</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statCol}>
+                    <Text style={styles.statVal}>{totalCredits}</Text>
+                    <Text style={styles.statLbl}>Credits</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statCol}>
+                    <Text style={styles.statVal}>{avgProgress}%</Text>
+                    <Text style={styles.statLbl}>Avg Progress</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.bookedTutorsBarTitle}>Registered Modules</Text>
-                  <Text style={styles.bookedTutorsBarSub}>Track progress & course milestones</Text>
-                </View>
-              </View>
-              <View style={styles.bookedTutorsCountBadge}>
-                <Text style={styles.bookedTutorsCountBadgeText}>
-                  {enrolledModules.length} Modules
-                </Text>
-              </View>
-            </View>
 
-            {/* Stats Row */}
-            <View style={styles.statsCard}>
-              <View style={styles.statCol}>
-                <Text style={styles.statVal}>{enrolledModules.length}</Text>
-                <Text style={styles.statLbl}>Modules</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statCol}>
-                <Text style={styles.statVal}>{totalCredits}</Text>
-                <Text style={styles.statLbl}>Credits</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statCol}>
-                <Text style={styles.statVal}>{avgProgress}%</Text>
-                <Text style={styles.statLbl}>Avg Progress</Text>
-              </View>
-            </View>
-
-            {/* Search Bar */}
-            <View style={styles.searchBox}>
-              <Ionicons name="search" size={17} color="#8997AF" style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search registered modules, codes, or mentors..."
-                placeholderTextColor="#8997AF"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery ? (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color="#8997AF" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            {/* Filter Pills */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRow}
-            >
-              {(['all', 'Computing', 'Engineering', 'Business', 'Architecture'] as FacultyFilter[]).map(
-                (fac) => {
-                  const isActive = selectedFaculty === fac;
-                  const label = fac === 'all' ? `All (${enrolledModules.length})` : fac;
-                  return (
-                    <TouchableOpacity
-                      key={fac}
-                      style={[styles.filterChip, isActive && styles.filterChipActive]}
-                      onPress={() => setSelectedFaculty(fac)}
-                    >
-                      <Text
-                        style={[
-                          styles.filterChipText,
-                          isActive && styles.filterChipTextActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
+                {/* Search Bar */}
+                <View style={styles.searchBox}>
+                  <Ionicons name="search" size={17} color="#8997AF" style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search registered modules, codes, or mentors..."
+                    placeholderTextColor="#8997AF"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                  {searchQuery ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={18} color="#8997AF" />
                     </TouchableOpacity>
-                  );
-                }
-              )}
-            </ScrollView>
+                  ) : null}
+                </View>
+
+                {/* Filter Pills */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterRow}
+                >
+                  {(['all', 'Computing', 'Engineering', 'Business', 'Architecture'] as FacultyFilter[]).map(
+                    (fac) => {
+                      const isActive = selectedFaculty === fac;
+                      const label = fac === 'all' ? `All (${enrolledModules.length})` : fac;
+                      return (
+                        <TouchableOpacity
+                          key={fac}
+                          style={[styles.filterChip, isActive && styles.filterChipActive]}
+                          onPress={() => setSelectedFaculty(fac)}
+                        >
+                          <Text
+                            style={[
+                              styles.filterChipText,
+                              isActive && styles.filterChipTextActive,
+                            ]}
+                          >
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    }
+                  )}
+                </ScrollView>
+              </>
+            )}
           </View>
         }
         ListEmptyComponent={
@@ -631,6 +803,343 @@ export default function SessionsScreen() {
           );
         }}
       />
+
+      {/* ================= CANCEL BOOKING & WALLET REFUND MODAL ================= */}
+      <Modal
+        visible={showCancelModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          if (!cancellationSubmitting) setShowCancelModal(false);
+        }}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            if (!cancellationSubmitting) setShowCancelModal(false);
+          }}
+        >
+          <Pressable style={styles.cancelModalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+
+            {/* Header */}
+            <View style={styles.cancelModalHeaderRow}>
+              <View style={styles.cancelModalHeaderLeft}>
+                <View style={styles.cancelModalIconWrap}>
+                  <SvgAlertTriangle size={20} color="#DC2626" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cancelModalTitle}>Cancel Booked Tutor</Text>
+                  <Text style={styles.cancelModalSub}>
+                    Valid reason required • Instant Campus Wallet refund
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowCancelModal(false)}
+                disabled={cancellationSubmitting}
+                style={styles.cancelModalCloseBtn}
+              >
+                <SvgClose size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              {/* Session Overview Card */}
+              {cancellingBooking && (
+                <View style={styles.cancelSummaryCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <TutorAvatar
+                      name={cancellingBooking.mentor.name}
+                      imageUrl={cancellingBooking.mentor.avatar}
+                      size={42}
+                      borderRadius={14}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cancelSummaryTutorName}>{cancellingBooking.mentor.name}</Text>
+                      <Text style={styles.cancelSummaryModule}>
+                        {cancellingBooking.moduleCode ? `${cancellingBooking.moduleCode}: ` : ''}
+                        {cancellingBooking.moduleName}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 4 }}>
+                        <SvgClock size={12} color="#D97706" />
+                        <Text style={styles.cancelSummaryTime}>{cancellingBooking.nextSession}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* Refund Notice Box */}
+              {cancellingBooking && (
+                <View style={styles.refundHighlightCard}>
+                  <View style={styles.refundHighlightTopRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <SvgWallet size={18} color="#059669" />
+                      <Text style={styles.refundHighlightTitle}>100% Wallet Refund</Text>
+                    </View>
+                    <Text style={styles.refundHighlightAmount}>
+                      Rs.{' '}
+                      {(
+                        cancellingBooking.paidAmount ||
+                        (cancellingBooking.studyMode === 'group'
+                          ? 1200 * (cancellingBooking.groupSize || 1)
+                          : cancellingBooking.mentor.hourlyRate || 2500)
+                      ).toLocaleString()}
+                    </Text>
+                  </View>
+                  <Text style={styles.refundHighlightExpl}>
+                    This fee will be refunded directly into your UniMentor Campus Wallet immediately upon cancellation.
+                  </Text>
+                  <View style={styles.refundBalancePreviewRow}>
+                    <Text style={styles.refundBalancePreviewLbl}>Current Wallet:</Text>
+                    <Text style={styles.refundBalancePreviewVal}>Rs. {studentWalletBalance.toLocaleString()}</Text>
+                    <SvgChevronRight size={12} color="#059669" />
+                    <Text style={styles.refundBalancePreviewLbl}>After Refund:</Text>
+                    <Text style={[styles.refundBalancePreviewVal, { color: '#059669', fontWeight: '800' }]}>
+                      Rs.{' '}
+                      {(
+                        studentWalletBalance +
+                        (cancellingBooking.paidAmount ||
+                          (cancellingBooking.studyMode === 'group'
+                            ? 1200 * (cancellingBooking.groupSize || 1)
+                            : cancellingBooking.mentor.hourlyRate || 2500))
+                      ).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Mandatory Reason Selector */}
+              <Text style={styles.cancelReasonLabel}>SELECT CANCELLATION REASON *</Text>
+              {[
+                'Timetable / Lecture clash',
+                'Coursework or exam rescheduled',
+                'Medical / Personal emergency',
+                'Found alternative peer study group',
+                'Other academic reason',
+              ].map((reason) => {
+                const isSelected = cancellationReason === reason;
+                return (
+                  <TouchableOpacity
+                    key={reason}
+                    style={[styles.reasonOptionPill, isSelected && styles.reasonOptionPillSelected]}
+                    onPress={() => setCancellationReason(reason)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.reasonRadioOuter, isSelected && styles.reasonRadioOuterSelected]}>
+                      {isSelected && <View style={styles.reasonRadioInner} />}
+                    </View>
+                    <Text style={[styles.reasonOptionText, isSelected && styles.reasonOptionTextSelected]}>
+                      {reason}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* Mandatory Detailed Explanation */}
+              <View style={{ marginTop: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.cancelReasonLabel}>DETAILED REASON (REQUIRED) *</Text>
+                  <Text
+                    style={[
+                      styles.cancelCharCounter,
+                      cancellationReasonDetails.trim().length < 10 ? { color: '#EF4444' } : { color: '#059669' },
+                    ]}
+                  >
+                    {cancellationReasonDetails.trim().length}/10 chars min
+                  </Text>
+                </View>
+                <TextInput
+                  style={styles.cancelReasonTextInput}
+                  placeholder="Explain why you are cancelling this booking (minimum 10 characters required for tutor notification & refund confirmation)..."
+                  placeholderTextColor="#94A3B8"
+                  value={cancellationReasonDetails}
+                  onChangeText={setCancellationReasonDetails}
+                  multiline
+                  numberOfLines={3}
+                />
+                {cancellationReasonDetails.trim().length > 0 && cancellationReasonDetails.trim().length < 10 && (
+                  <Text style={styles.cancelValidationError}>
+                    Please enter at least 10 characters explaining your reason.
+                  </Text>
+                )}
+              </View>
+
+              {/* Tutor Notification Disclaimer */}
+              <View style={styles.cancelDisclaimerBox}>
+                <SvgCheckCircle size={14} color="#0284C7" />
+                <Text style={styles.cancelDisclaimerText}>
+                  The tutor will be informed of this slot release, and their scheduled capacity will update automatically.
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.cancelModalActionsRow}>
+              <TouchableOpacity
+                style={styles.cancelKeepBookingBtn}
+                onPress={() => setShowCancelModal(false)}
+                disabled={cancellationSubmitting}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.cancelKeepBookingBtnText}>Keep Booking</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.cancelConfirmRefundBtn,
+                  (cancellationReasonDetails.trim().length < 10 || cancellationSubmitting) &&
+                    styles.cancelConfirmRefundBtnDisabled,
+                ]}
+                onPress={handleConfirmCancellation}
+                disabled={cancellationReasonDetails.trim().length < 10 || cancellationSubmitting}
+                activeOpacity={0.85}
+              >
+                {cancellationSubmitting ? (
+                  <Text style={styles.cancelConfirmRefundBtnText}>Processing...</Text>
+                ) : (
+                  <>
+                    <SvgTrash size={14} color="#FFFFFF" />
+                    <Text style={styles.cancelConfirmRefundBtnText}>Confirm Cancel & Refund</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ================= JOIN SESSION VIDEO ROOM MODAL ================= */}
+      <Modal
+        visible={showJoinSessionModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowJoinSessionModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowJoinSessionModal(false)}>
+          <Pressable style={styles.joinSessionModalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+
+            {/* Header */}
+            <View style={styles.joinSessionHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <View style={styles.liveRoomPulseWrap}>
+                  <View style={styles.greenPulseDot} />
+                  <Text style={styles.liveRoomPulseText}>LIVE SESSION ROOM</Text>
+                </View>
+                <Text style={styles.joinSessionRoomCode}>POD-782</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowJoinSessionModal(false)}
+                style={styles.cancelModalCloseBtn}
+              >
+                <SvgClose size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Tutor Overview Card */}
+            {joiningSessionTutor && (
+              <View style={styles.joinSessionTutorCard}>
+                <TutorAvatar
+                  name={joiningSessionTutor.mentor.name}
+                  imageUrl={joiningSessionTutor.mentor.avatar}
+                  size={50}
+                  borderRadius={18}
+                  showOnlineDot
+                />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.joinSessionTutorName}>{joiningSessionTutor.mentor.name}</Text>
+                  <Text style={styles.joinSessionModuleName}>
+                    {joiningSessionTutor.moduleCode ? `${joiningSessionTutor.moduleCode}: ` : ''}
+                    {joiningSessionTutor.moduleName}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 4 }}>
+                    <SvgClock size={12} color="#D97706" />
+                    <Text style={styles.joinSessionTimeText}>{joiningSessionTutor.nextSession}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Video Call Simulation Frame */}
+            <View style={styles.videoSimContainer}>
+              <View style={styles.videoSimInner}>
+                <Ionicons
+                  name={isVideoOff ? 'videocam-off' : 'videocam'}
+                  size={36}
+                  color={isVideoOff ? '#EF4444' : '#10B981'}
+                />
+                <Text style={styles.videoSimStatusText}>
+                  {isVideoOff ? 'Camera Off (Voice Only Mode)' : 'HD Video Feed Ready (SLIIT Malabe Pod)'}
+                </Text>
+                <Text style={styles.videoSimSub}>
+                  {isMicMuted ? 'Microphone is muted' : 'Microphone is active'}
+                </Text>
+              </View>
+
+              {/* Call Controls Bar */}
+              <View style={styles.callControlsBar}>
+                <TouchableOpacity
+                  style={[styles.callControlBtn, isMicMuted && styles.callControlBtnMuted]}
+                  onPress={() => setIsMicMuted(!isMicMuted)}
+                >
+                  <Ionicons
+                    name={isMicMuted ? 'mic-off' : 'mic'}
+                    size={20}
+                    color={isMicMuted ? '#EF4444' : '#FFFFFF'}
+                  />
+                  <Text style={styles.callControlBtnLbl}>{isMicMuted ? 'Unmute' : 'Mute'}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.callControlBtn, isVideoOff && styles.callControlBtnMuted]}
+                  onPress={() => setIsVideoOff(!isVideoOff)}
+                >
+                  <Ionicons
+                    name={isVideoOff ? 'videocam-off' : 'videocam'}
+                    size={20}
+                    color={isVideoOff ? '#EF4444' : '#FFFFFF'}
+                  />
+                  <Text style={styles.callControlBtnLbl}>{isVideoOff ? 'Start Cam' : 'Stop Cam'}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.callControlBtn}
+                  onPress={() => Alert.alert('Screen Share', 'Whiteboard / Slides sharing active.')}
+                >
+                  <Ionicons name="share-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.callControlBtnLbl}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Join Room CTA */}
+            <View style={styles.joinSessionActionsRow}>
+              <TouchableOpacity
+                style={styles.leaveSessionBtn}
+                onPress={() => setShowJoinSessionModal(false)}
+              >
+                <Text style={styles.leaveSessionBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.connectSessionBtn}
+                onPress={() => {
+                  setShowJoinSessionModal(false);
+                  Alert.alert(
+                    'Connected to Session! 🎓',
+                    `You have joined the live study room with ${joiningSessionTutor?.mentor.name}. Whiteboard and audio are live.`
+                  );
+                }}
+              >
+                <SvgVideocam size={16} color="#FFFFFF" />
+                <Text style={styles.connectSessionBtnText}>Enter Video Call Room</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1392,5 +1901,513 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 12,
     textAlign: 'center',
+  },
+  tutorCancelActionBtn: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 9,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  tutorCancelActionBtnText: {
+    color: '#DC2626',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 30, 71, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  sheetHandle: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#CBD5E1',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+  cancelModalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+    width: '100%',
+    maxHeight: '90%',
+  },
+  cancelModalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  cancelModalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  cancelModalIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cancelModalSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  cancelModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelSummaryCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+  },
+  cancelSummaryTutorName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cancelSummaryModule: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 1,
+  },
+  cancelSummaryTime: {
+    fontSize: 11,
+    color: '#D97706',
+    fontWeight: '700',
+  },
+  refundHighlightCard: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    marginBottom: 14,
+  },
+  refundHighlightTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  refundHighlightTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  refundHighlightAmount: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#059669',
+  },
+  refundHighlightExpl: {
+    fontSize: 11,
+    color: '#047857',
+    marginTop: 4,
+  },
+  refundBalancePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+  },
+  refundBalancePreviewLbl: {
+    fontSize: 10.5,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  refundBalancePreviewVal: {
+    fontSize: 11,
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  cancelReasonLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  reasonOptionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    marginBottom: 7,
+    gap: 10,
+  },
+  reasonOptionPillSelected: {
+    borderColor: '#061E47',
+    backgroundColor: '#EFF6FF',
+  },
+  reasonRadioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#94A3B8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reasonRadioOuterSelected: {
+    borderColor: '#061E47',
+  },
+  reasonRadioInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#061E47',
+  },
+  reasonOptionText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#334155',
+    flex: 1,
+  },
+  reasonOptionTextSelected: {
+    color: '#061E47',
+    fontWeight: '700',
+  },
+  cancelCharCounter: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  cancelReasonTextInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    fontSize: 12.5,
+    color: '#0F172A',
+    textAlignVertical: 'top',
+    minHeight: 65,
+    marginTop: 4,
+  },
+  cancelValidationError: {
+    fontSize: 10.5,
+    color: '#EF4444',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  cancelDisclaimerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F0F9FF',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  cancelDisclaimerText: {
+    fontSize: 11,
+    color: '#0369A1',
+    flex: 1,
+    lineHeight: 15,
+  },
+  cancelModalActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  cancelKeepBookingBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelKeepBookingBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  cancelConfirmRefundBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#DC2626',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  cancelConfirmRefundBtnDisabled: {
+    backgroundColor: '#FDA4AF',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  cancelConfirmRefundBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
+  /* VIEW MODE SELECTOR */
+  viewModeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 16,
+    gap: 4,
+  },
+  viewModeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    gap: 4,
+  },
+  viewModeBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  viewModeBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  viewModeBtnTextActive: {
+    color: '#061E47',
+    fontWeight: '800',
+  },
+
+  /* FULL BOOKED TUTOR CARD */
+  bookedTutorsFullSection: {
+    marginBottom: 16,
+  },
+  bookedTutorFullCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  tutorJoinActionBtn: {
+    backgroundColor: '#059669',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    gap: 5,
+  },
+  tutorJoinActionBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
+  /* JOIN SESSION ROOM MODAL */
+  joinSessionModalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 18,
+    paddingBottom: 28,
+  },
+  joinSessionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  liveRoomPulseWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  liveRoomPulseText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  greenPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
+  joinSessionRoomCode: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  joinSessionTutorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  joinSessionTutorName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  joinSessionModuleName: {
+    fontSize: 12,
+    color: '#0369A1',
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  joinSessionTimeText: {
+    fontSize: 11,
+    color: '#D97706',
+    fontWeight: '600',
+  },
+  videoSimContainer: {
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  videoSimInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  videoSimStatusText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  videoSimSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  callControlsBar: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    width: '100%',
+    justifyContent: 'center',
+  },
+  callControlBtn: {
+    backgroundColor: '#1E293B',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    gap: 3,
+  },
+  callControlBtnMuted: {
+    backgroundColor: '#450A0A',
+  },
+  callControlBtnLbl: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  joinSessionActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  leaveSessionBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leaveSessionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  connectSessionBtn: {
+    flex: 2,
+    backgroundColor: '#059669',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 13,
+    borderRadius: 12,
+    shadowColor: '#059669',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  connectSessionBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });
