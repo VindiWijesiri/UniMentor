@@ -180,6 +180,96 @@ const INITIAL_SLOTS: TutorSlot[] = [
     ],
     isAvailable: false,
   },
+  {
+    id: 'slot-tharushi-1',
+    mentorId: 'demo-tutor-1',
+    mentorName: 'Tharushi Perera',
+    title: 'Graph Traversals: BFS vs DFS & Cycle Detection',
+    module: 'Data Structures & Algorithms',
+    date: 'Today',
+    startTime: '02:30 PM',
+    endTime: '04:00 PM',
+    duration: '90 Mins',
+    timeRange: '02:30 PM - 04:00 PM',
+    fee: 1500,
+    type: 'group',
+    maxCapacity: 6,
+    bookedCount: 4,
+    description:
+      'Detailed walkthrough of adjacency lists, BFS queue traversal, recursive DFS and cycle detection in directed graphs.',
+    prerequisites: 'Basic arrays and recursion concepts.',
+    mode: 'Online',
+    location: 'UniMentor Live Room • Pod Alpha',
+    targetBatch: 'Year 2 & Year 3',
+    registeredAttendees: [
+      {
+        id: 'att-t-1',
+        studentName: 'Kavindu Perera',
+        studentEmail: 'kavindu.p@my.sliit.lk',
+        registeredAt: 'Today, 10:30 AM',
+        status: 'confirmed',
+        bookingType: 'group',
+        notes: 'Struggling with finding back-edges in directed DFS.',
+        feePaid: 1500,
+      },
+      {
+        id: 'att-t-2',
+        studentName: 'Nethmi Silva',
+        studentEmail: 'nethmi.silva@student.unimentor.lk',
+        registeredAt: 'Today, 11:15 AM',
+        status: 'confirmed',
+        bookingType: 'group',
+        notes: 'Need clarity on time complexity analysis O(V+E).',
+        feePaid: 1500,
+      },
+      {
+        id: 'att-t-3',
+        studentName: 'Dulitha Bandara',
+        studentEmail: 'dulitha.b@my.sliit.lk',
+        registeredAt: 'Today, 01:20 PM',
+        status: 'confirmed',
+        bookingType: 'group',
+        notes: 'Ready with test cases.',
+        feePaid: 1500,
+      },
+    ],
+    isAvailable: true,
+  },
+  {
+    id: 'slot-tharushi-2',
+    mentorId: 'demo-tutor-1',
+    mentorName: 'Tharushi Perera',
+    title: 'Clean Architecture Patterns & SOLID Principles Mentoring',
+    module: 'Software Architecture & Design',
+    date: 'Tomorrow',
+    startTime: '04:30 PM',
+    endTime: '06:00 PM',
+    duration: '90 Mins',
+    timeRange: '04:30 PM - 06:00 PM',
+    fee: 2000,
+    type: '1-on-1',
+    maxCapacity: 2,
+    bookedCount: 1,
+    description:
+      'Individual review for Clean Architecture layers, Repository pattern, and Dependency Inversion.',
+    prerequisites: 'Object Oriented Programming basics.',
+    mode: 'Online',
+    location: 'UniMentor Live Room • Hall B',
+    targetBatch: 'Year 3',
+    registeredAttendees: [
+      {
+        id: 'att-t-4',
+        studentName: 'Chamath Vihanga',
+        studentEmail: 'chamath.v@my.sliit.lk',
+        registeredAt: 'Yesterday, 04:00 PM',
+        status: 'confirmed',
+        bookingType: 'individual',
+        notes: 'Layer boundaries and entity modeling queries.',
+        feePaid: 2000,
+      },
+    ],
+    isAvailable: true,
+  },
 ];
 
 let inMemorySlots: TutorSlot[] = [...INITIAL_SLOTS];
@@ -238,6 +328,31 @@ function transformBackendSlot(item: any): TutorSlot {
     conflictDetails: item.conflictDetails,
     isAvailable: item.isAvailable !== false,
   };
+}
+
+export function parseTimeToMinutes(timeStr: string): number | null {
+  if (!timeStr) return null;
+  const cleaned = timeStr.trim().toUpperCase();
+  const match = cleaned.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const modifier = match[3];
+
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+
+  return hours * 60 + minutes;
+}
+
+export function normalizeDateKey(dateStr: string): string {
+  if (!dateStr) return '';
+  const cleaned = dateStr.trim().toLowerCase();
+  const withoutDay = cleaned.replace(
+    /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)[,\s]+/i,
+    ''
+  ).trim();
+  return withoutDay.replace(/[,\.]/g, '').replace(/\s+/g, ' ');
 }
 
 export const tutorSlotRepository = {
@@ -370,10 +485,10 @@ export const tutorSlotRepository = {
           return true;
         }
 
-        // Demo tutor fallback only if logged in as default demo tutor
+        // Demo tutor alias matching
         if (
-          (mIdClean === 'demo-tutor-1' || mNameClean.includes('tharushi')) &&
-          (slotMId === 'demo-tutor-1' || slotMName.includes('tharushi'))
+          (mIdClean === 'demo-tutor-1' || mIdClean === 'mentor-demo-1' || mNameClean.includes('tharushi')) &&
+          (slotMId === 'demo-tutor-1' || slotMId === 'mentor-demo-1' || slotMName.includes('tharushi'))
         ) {
           return true;
         }
@@ -685,6 +800,58 @@ export const tutorSlotRepository = {
     }
 
     return true;
+  },
+
+  checkOverlap(
+    mentorId: string,
+    mentorName: string,
+    date: string,
+    startTime: string,
+    endTime: string,
+    excludeSlotId?: string
+  ): { hasOverlap: boolean; overlappingSlot?: TutorSlot } {
+    const newStart = parseTimeToMinutes(startTime);
+    const newEnd = parseTimeToMinutes(endTime);
+
+    if (newStart === null || newEnd === null || newEnd <= newStart) {
+      return { hasOverlap: false };
+    }
+
+    const normNewDate = normalizeDateKey(date);
+
+    const tutorSlots = inMemorySlots.filter((s) => {
+      if (excludeSlotId && s.id === excludeSlotId) return false;
+      const idMatch =
+        mentorId &&
+        s.mentorId &&
+        (s.mentorId === mentorId || s.mentorId.includes(mentorId) || mentorId.includes(s.mentorId));
+      const nameMatch =
+        mentorName &&
+        s.mentorName &&
+        (s.mentorName.toLowerCase().includes(mentorName.toLowerCase()) ||
+          mentorName.toLowerCase().includes(s.mentorName.toLowerCase()));
+      return idMatch || nameMatch || (!mentorId && !mentorName);
+    });
+
+    for (const existing of tutorSlots) {
+      const normExistingDate = normalizeDateKey(existing.date);
+      const datesMatch =
+        normNewDate === normExistingDate ||
+        (existing.date && date && (existing.date.includes(date) || date.includes(existing.date)));
+
+      if (datesMatch) {
+        const existStart = parseTimeToMinutes(existing.startTime);
+        const existEnd = parseTimeToMinutes(existing.endTime);
+
+        if (existStart !== null && existEnd !== null) {
+          if (newStart < existEnd && newEnd > existStart) {
+            return { hasOverlap: true, overlappingSlot: existing };
+          }
+        }
+      }
+    }
+
+    return { hasOverlap: false };
   },
 
   subscribe(callback: () => void): () => void {

@@ -204,7 +204,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
       setCancellationReasonDetails('');
 
       Alert.alert(
-        'Booking Cancelled & Refunded! 💰',
+        'Booking Cancelled & Refunded',
         `Your session with ${tutorName} has been cancelled successfully.\n\nRs. ${refundAmount.toLocaleString()} has been credited back to your UniMentor Campus Wallet.\n\nYour new Campus Wallet balance is Rs. ${refundResult.newBalance.toLocaleString()}. The tutor's schedule has been freed up.`
       );
     } catch (err: any) {
@@ -370,7 +370,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
       if (quizAnswers[idx] === q.correctIndex) score += 1;
     });
     setQuizScore(score);
-    Alert.alert('Quiz Results 📊', `You scored ${score} out of ${quizQuestions.length} (${Math.round((score / quizQuestions.length) * 100)}%)!`);
+    Alert.alert('Quiz Results', `You scored ${score} out of ${quizQuestions.length} (${Math.round((score / quizQuestions.length) * 100)}%)!`);
   };
 
   const handleRegisterNewModule = async () => {
@@ -414,7 +414,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
     setGoalsList((prev) => [newG, ...prev]);
     await incrementGoal();
     setGoalText('');
-    Alert.alert('Goal Added! 🎯', 'Keep pushing forward to achieve your academic milestones.');
+    Alert.alert('Goal Added', 'Keep pushing forward to achieve your academic milestones.');
   };
 
   const handleToggleGoal = (id: string) => {
@@ -449,7 +449,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
     };
     setPodsList((prev) => [newPod, ...prev]);
     setNewPodName('');
-    Alert.alert('Study Pod Created! 👥', `Your peer pod "${newPod.name}" is now active.`);
+    Alert.alert('Study Pod Created', `Your peer pod "${newPod.name}" is now active.`);
   };
 
   const handleDeletePod = (id: string) => {
@@ -475,7 +475,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
     };
     setLibraryList((prev) => [newRes, ...prev]);
     setNewResourceTitle('');
-    Alert.alert('Resource Uploaded! 📄', 'Study material has been added to your Library.');
+    Alert.alert('Resource Uploaded', 'Study material has been added to your Library.');
   };
 
   const handleDeleteLibraryResource = (id: string) => {
@@ -1670,7 +1670,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
             <TouchableOpacity
               style={styles.controlBtn}
-              onPress={() => Alert.alert('Hand Raised ✋', `Mentor ${activePodSession?.mentor.name || 'Peer Mentor'} has been notified that you have a question.`)}
+              onPress={() => Alert.alert('Hand Raised', `Mentor ${activePodSession?.mentor.name || 'Peer Mentor'} has been notified that you have a question.`)}
             >
               <Ionicons name="hand-right" size={20} color="#FFFFFF" />
               <Text style={styles.controlBtnLabel}>Raise Hand</Text>
@@ -1678,7 +1678,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
             <TouchableOpacity
               style={styles.controlBtn}
-              onPress={() => Alert.alert('Session Material 📄', `${activePodSession?.moduleName || 'Study Session'} Cheatsheet & Code Samples downloaded to your UniMentor Library.`)}
+              onPress={() => Alert.alert('Session Material', `${activePodSession?.moduleName || 'Study Session'} Cheatsheet & Code Samples downloaded to your UniMentor Library.`)}
             >
               <Ionicons name="document-text" size={20} color="#FFFFFF" />
               <Text style={styles.controlBtnLabel}>Notes</Text>

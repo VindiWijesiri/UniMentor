@@ -436,10 +436,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             onPress={() => navigation.navigate('Messages')}
             activeOpacity={0.84}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="chatbubbles-outline" size={17} color="#061E47" />
-              <Text style={styles.mentorTabActionText}>Student Messages</Text>
-            </View>
+            <Text style={styles.mentorTabActionText}>Student Messages</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.mentorTabLogoutBtn}

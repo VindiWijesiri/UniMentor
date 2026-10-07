@@ -36,11 +36,50 @@ const COMMON_MODULES = [
 
 const PRESET_FEES = [1500, 2000, 2500, 3000, 3500];
 
+const TIME_OPTIONS = [
+  '08:30 AM',
+  '09:00 AM',
+  '10:00 AM',
+  '11:00 AM',
+  '12:00 PM',
+  '01:30 PM',
+  '02:30 PM',
+  '03:30 PM',
+  '04:30 PM',
+  '05:30 PM',
+  '06:30 PM',
+  '07:30 PM',
+];
+
+function getUpcomingDatesList(count = 14) {
+  const dates = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const fullDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayNum = d.getDate();
+    const month = d.toLocaleDateString('en-US', { month: 'short' });
+    const year = d.getFullYear();
+    const formatted = `${fullDay}, ${dayNum} ${month} ${year}`;
+    dates.push({
+      formatted,
+      dayName: i === 0 ? 'Today' : i === 1 ? 'Tmrw' : dayName,
+      dateLabel: `${dayNum} ${month}`,
+      isToday: i === 0,
+      isTomorrow: i === 1,
+    });
+  }
+  return dates;
+}
+
 export default function TutorSlotManagementScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const currentUser = useAuthStore((state) => state.user);
   const tutorMentorId = currentUser?._id || (currentUser as any)?.id || 'demo-tutor-1';
   const tutorMentorName = currentUser?.name || 'Tharushi Perera';
+
+  const upcomingDatesList = getUpcomingDatesList(14);
 
   const [slots, setSlots] = useState<TutorSlot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,7 +98,7 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
   // Form Fields
   const [slotTitle, setSlotTitle] = useState('');
   const [slotModule, setSlotModule] = useState(COMMON_MODULES[0]);
-  const [slotDate, setSlotDate] = useState('Friday, 19 Sep 2025');
+  const [slotDate, setSlotDate] = useState(upcomingDatesList[0].formatted);
   const [slotStartTime, setSlotStartTime] = useState('10:00 AM');
   const [slotDuration, setSlotDuration] = useState('90 Mins');
   const [slotEndTime, setSlotEndTime] = useState('11:30 AM');
@@ -191,6 +230,27 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
       Alert.alert('Required Field', 'Please specify start and end times.');
       return;
     }
+
+    // 1. OVERLAP CHECK: Check conflicts with existing sessions created by the same tutor
+    const conflictResult = tutorSlotRepository.checkOverlap(
+      tutorMentorId,
+      tutorMentorName,
+      slotDate,
+      slotStartTime,
+      slotEndTime,
+      editingSlotId || undefined
+    );
+
+    if (conflictResult.hasOverlap && conflictResult.overlappingSlot) {
+      const conflict = conflictResult.overlappingSlot;
+      Alert.alert(
+        'Session Time Overlap Detected',
+        `You already have an existing session scheduled on:\n\nDate: ${conflict.date}\nTime: ${conflict.startTime} - ${conflict.endTime}\nSession: "${conflict.title}"\n\nPlease select a different date or time slot. Tutors cannot have overlapping live sessions.`,
+        [{ text: 'Change Time', style: 'default' }]
+      );
+      return; // Do NOT add or update if overlap exists!
+    }
+
     const feeNum = parseInt(slotFee, 10);
     if (isNaN(feeNum) || feeNum < 0) {
       Alert.alert('Invalid Fee', 'Please enter a valid session fee (e.g. 2000 LKR).');
@@ -219,7 +279,7 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
       if (updated) {
         setSlots((prev) => prev.map((s) => (s.id === editingSlotId ? updated : s)));
       }
-      Alert.alert('Slot Updated 🎉', `"${slotTitle}" has been updated.`);
+      Alert.alert('Slot Updated', `"${slotTitle}" has been updated.`);
     } else {
       const created = await tutorSlotRepository.addSlot({
         mentorId: tutorMentorId,
@@ -244,7 +304,7 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
       setSlots((prev) => [created, ...prev]);
       setExpandedSlotId(created.id);
       Alert.alert(
-        'Time Slot Allocated & Published! 🚀',
+        'Time Slot Allocated & Published',
         `"${slotTitle}" (${slotDuration}, LKR ${feeNum.toLocaleString()}) is now visible to students for booking.`
       );
     }
@@ -257,7 +317,7 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
       'Delete Allocated Slot?',
       `Are you sure you want to remove "${slot.title}"?\n${
         (slot.registeredAttendees?.length || 0) > 0
-          ? `⚠️ Warning: ${slot.registeredAttendees?.length} student(s)/groups are already registered.`
+          ? `Warning: ${slot.registeredAttendees?.length} student(s)/groups are already registered.`
           : ''
       }`,
       [
@@ -691,7 +751,6 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
                                 );
                               }}
                             >
-                              <Ionicons name="chatbubble-ellipses-outline" size={13} color="#0D4F9E" />
                               <Text style={styles.chatActionText}>Message</Text>
                             </TouchableOpacity>
 
@@ -814,32 +873,54 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
                 ))}
               </ScrollView>
 
-              {/* 3. Date & Start Time */}
-              <View style={styles.twoColRow}>
-                <View style={{ flex: 1, marginRight: 6 }}>
-                  <Text style={styles.inputLabel}>DATE *</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={slotDate}
-                    onChangeText={setSlotDate}
-                    placeholder="e.g. Friday, 19 Sep 2025"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: 6 }}>
-                  <Text style={styles.inputLabel}>START TIME *</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={slotStartTime}
-                    onChangeText={handleStartTimeChange}
-                    placeholder="e.g. 10:00 AM"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
+              {/* 3. DATE SELECTION (TAP TO PICK - NO TYPING) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={styles.inputLabel}>DATE (TAP TO PICK) *</Text>
+                <Text style={styles.selectedDateBadge}>{slotDate.split(',')[0]}</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.datePickerScroll}>
+                {upcomingDatesList.map((item) => {
+                  const isSelected = slotDate === item.formatted;
+                  return (
+                    <TouchableOpacity
+                      key={item.formatted}
+                      style={[styles.dateChipItem, isSelected && styles.dateChipItemActive]}
+                      onPress={() => setSlotDate(item.formatted)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.dateChipDayText, isSelected && styles.dateChipDayTextActive]}>
+                        {item.dayName}
+                      </Text>
+                      <Text style={[styles.dateChipNumText, isSelected && styles.dateChipNumTextActive]}>
+                        {item.dateLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* 4. START TIME SELECTION (TAP TO PICK - NO TYPING) */}
+              <Text style={[styles.inputLabel, { marginTop: 12 }]}>START TIME (TAP TO PICK) *</Text>
+              <View style={styles.timeChipsGrid}>
+                {TIME_OPTIONS.map((t) => {
+                  const isSelected = slotStartTime === t;
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.timeOptionChip, isSelected && styles.timeOptionChipActive]}
+                      onPress={() => handleStartTimeChange(t)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.timeOptionChipText, isSelected && styles.timeOptionChipTextActive]}>
+                        {t}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
-              {/* 4. Duration Selector & Computed End Time */}
-              <Text style={styles.inputLabel}>SESSION DURATION *</Text>
+              {/* 5. Duration Selector & Computed End Time */}
+              <Text style={[styles.inputLabel, { marginTop: 12 }]}>SESSION DURATION *</Text>
               <View style={styles.durationSelectorRow}>
                 {DURATION_OPTIONS.map((dur) => (
                   <TouchableOpacity
@@ -861,9 +942,14 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={styles.computedEndText}>
-                Calculated End Time: <Text style={{ fontWeight: '700', color: '#0D4F9E' }}>{slotEndTime}</Text>
-              </Text>
+
+              {/* Selected Schedule Preview Banner */}
+              <View style={styles.schedulePreviewBanner}>
+                <Text style={styles.schedulePreviewBannerLabel}>SCHEDULE PREVIEW:</Text>
+                <Text style={styles.schedulePreviewBannerVal}>
+                  {slotStartTime} - {slotEndTime} ({slotDuration})
+                </Text>
+              </View>
 
               {/* 5. Pricing / Fee Setting */}
               <Text style={styles.inputLabel}>SLOT BOOKING FEE (LKR) *</Text>
@@ -1014,7 +1100,7 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
                 onPress={handleSaveSlot}
               >
                 <Text style={styles.modalSubmitText}>
-                  {editingSlotId ? 'Update Slot' : 'Publish Slot Live 🚀'}
+                  {editingSlotId ? 'Update Slot' : 'Publish Slot Live'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -2069,5 +2155,101 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  selectedDateBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  datePickerScroll: {
+    paddingVertical: 6,
+    gap: 8,
+  },
+  dateChipItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    minWidth: 70,
+  },
+  dateChipItemActive: {
+    backgroundColor: '#061E47',
+    borderColor: '#F59E0B',
+  },
+  dateChipDayText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  dateChipDayTextActive: {
+    color: '#F59E0B',
+  },
+  dateChipNumText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginTop: 2,
+  },
+  dateChipNumTextActive: {
+    color: '#FFFFFF',
+  },
+  timeChipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  timeOptionChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    minWidth: 78,
+    alignItems: 'center',
+  },
+  timeOptionChipActive: {
+    backgroundColor: '#061E47',
+    borderColor: '#F59E0B',
+  },
+  timeOptionChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  timeOptionChipTextActive: {
+    color: '#F59E0B',
+  },
+  schedulePreviewBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  schedulePreviewBannerLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    letterSpacing: 0.5,
+  },
+  schedulePreviewBannerVal: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1E3A8A',
   },
 });

@@ -408,7 +408,7 @@ export default function SearchScreen({ route, navigation }: Props) {
 
       setShowBookingModal(false);
       Alert.alert(
-        'Session Booked! 🎉',
+        'Session Booked',
         `Your tutoring session with ${bookingTargetMentor.name} for ${bookingSubject} has been confirmed.`,
         [
           {

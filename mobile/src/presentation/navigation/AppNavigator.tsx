@@ -28,6 +28,7 @@ import TutorSlotManagementScreen from '../screens/home/TutorSlotManagementScreen
 import TutorSessionsScreen from '../screens/home/TutorSessionsScreen';
 import SessionsScreen from '../screens/sessions/SessionsScreen';
 import BookingFlowScreen from '../screens/booking/BookingFlowScreen';
+import LiveSessionRoomScreen from '../screens/sessions/LiveSessionRoomScreen';
 import {
   SvgHome,
   SvgCalendar,
@@ -88,11 +89,11 @@ export type AppStackParamList = {
   GuidanceWizard: undefined;
   TutorDashboard: undefined;
   TutorSlotManagement: undefined;
-  TutorSessions: undefined;
   BookSession: {
     mentor: any;
     initialMode?: '1-on-1' | 'group';
   };
+  LiveSessionRoom: { session: any } | undefined;
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
@@ -309,6 +310,7 @@ export default function AppNavigator() {
       <Stack.Screen name="GuidanceWizard" component={HomeScreen} />
       <Stack.Screen name="TutorDashboard" component={TutorDashboardScreen} />
       <Stack.Screen name="TutorSlotManagement" component={TutorSlotManagementScreen} />
+      <Stack.Screen name="LiveSessionRoom" component={LiveSessionRoomScreen} />
     </Stack.Navigator>
   );
 }

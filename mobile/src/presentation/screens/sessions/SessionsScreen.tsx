@@ -140,7 +140,7 @@ export default function SessionsScreen() {
       setCancellationReasonDetails('');
 
       Alert.alert(
-        'Booking Cancelled & Refunded! 💰',
+        'Booking Cancelled & Refunded',
         `Your session with ${tutorName} has been cancelled successfully.\n\nRs. ${refundAmount.toLocaleString()} has been credited back to your UniMentor Campus Wallet.\n\nYour new Campus Wallet balance is Rs. ${refundResult.newBalance.toLocaleString()}. The tutor's schedule has been freed up.`
       );
     } catch (err: any) {
@@ -1126,11 +1126,17 @@ export default function SessionsScreen() {
               <TouchableOpacity
                 style={styles.connectSessionBtn}
                 onPress={() => {
+                  const tutorItem = joiningSessionTutor;
                   setShowJoinSessionModal(false);
-                  Alert.alert(
-                    'Connected to Session! 🎓',
-                    `You have joined the live study room with ${joiningSessionTutor?.mentor.name}. Whiteboard and audio are live.`
-                  );
+                  navigation.navigate('LiveSessionRoom', {
+                    session: {
+                      title: tutorItem?.moduleName ? `${tutorItem.moduleName} Live Session` : 'Database Performance Lab',
+                      mentorName: tutorItem?.mentor?.name || 'Alex Ferreira',
+                      timeRange: tutorItem?.nextSession || '02:30 PM - 04:00 PM',
+                      moduleCode: tutorItem?.moduleCode || 'IT2040',
+                      moduleName: tutorItem?.moduleName || 'Data Structures & Algorithms',
+                    },
+                  });
                 }}
               >
                 <SvgVideocam size={16} color="#FFFFFF" />

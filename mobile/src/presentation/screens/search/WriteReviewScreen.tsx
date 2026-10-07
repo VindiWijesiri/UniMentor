@@ -232,7 +232,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
         // 4. Show notification AFTER review has been updated and shown on review page
         setTimeout(() => {
           Alert.alert(
-            'Review Updated! ⭐',
+            'Review Updated',
             `Your review for ${mentor.name} has been updated successfully.`
           );
         }, 350);
@@ -246,7 +246,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
         // 4. Show notification AFTER review is published
         setTimeout(() => {
           Alert.alert(
-            'Review Published! ⭐',
+            'Review Published',
             `Thank you! Your review for ${mentor.name} is now published and visible on their profile.`
           );
         }, 350);

@@ -279,7 +279,7 @@ export default function ReviewsScreen({ navigation }: Props) {
           }
           ListEmptyComponent={
             <View style={styles.emptyStateWrap}>
-              <Text style={{ fontSize: 40, marginBottom: 8 }}>✍️</Text>
+              <Ionicons name="create-outline" size={38} color="#94A3B8" style={{ marginBottom: 8 }} />
               <Text style={styles.emptyTitle}>No Reviews Submitted Yet</Text>
               <Text style={styles.emptySub}>
                 Select a tutor from the "Review a Tutor" tab to share your feedback!

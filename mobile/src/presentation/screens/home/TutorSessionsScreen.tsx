@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Alert,
   Modal,
@@ -15,6 +15,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../domain/stores/authStore';
+import {
+  tutorSlotRepository,
+  parseTimeToMinutes,
+  normalizeDateKey,
+} from '../../../data/repositories/tutorSlotRepository';
+import type { TutorSlot } from '../../../domain/entities/TutorSlot';
 
 type SessionTab = 'upcoming' | 'today' | 'pods' | 'completed';
 
@@ -47,159 +53,137 @@ interface TutorSessionItem {
   agenda: string;
 }
 
-const INITIAL_SESSIONS: TutorSessionItem[] = [
-  {
-    id: 'sess-1',
-    title: 'Graph Traversals: BFS vs DFS & Cycle Detection',
-    moduleCode: 'IT2040',
-    moduleName: 'Data Structures & Algorithms',
-    type: 'pod',
-    groupName: 'Algorithms Sprint Pod Alpha',
-    date: 'Today',
-    timeRange: '02:30 PM - 04:00 PM',
-    isToday: true,
-    isLiveNow: true,
-    mode: 'Online',
-    location: 'Microsoft Teams • Room A1',
-    feePerStudent: 1500,
-    totalEarnings: 6000,
-    status: 'in-progress',
-    agenda: 'Detailed walkthrough of adjacency lists, BFS queue traversal, recursive DFS and cycle detection in directed graphs.',
-    attendees: [
-      {
-        id: 'att-1',
-        name: 'Kavindu Perera',
-        email: 'kavindu.p@my.sliit.lk',
-        avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
-        notes: 'Struggling with finding back-edges in directed DFS.',
-        attendance: 'confirmed',
-      },
-      {
-        id: 'att-2',
-        name: 'Nethmi Silva',
-        email: 'nethmi.silva@student.unimentor.lk',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-        notes: 'Need clarity on time complexity analysis O(V+E).',
-        attendance: 'attended',
-      },
-      {
-        id: 'att-3',
-        name: 'Dulitha Bandara',
-        email: 'dulitha.b@my.sliit.lk',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-        notes: 'Ready with assignment question 3 test cases.',
-        attendance: 'confirmed',
-      },
-      {
-        id: 'att-4',
-        name: 'Sanduni Fernando',
-        email: 'sanduni.f@my.sliit.lk',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
-        attendance: 'confirmed',
-      },
-    ],
-  },
-  {
-    id: 'sess-2',
-    title: 'Normalization (1NF to BCNF) & SQL Joins',
-    moduleCode: 'IT2030',
-    moduleName: 'Database Management Systems',
-    type: '1-on-1',
-    date: 'Tomorrow, 08 Oct 2026',
-    timeRange: '10:00 AM - 11:30 AM',
-    isToday: false,
-    mode: 'In-Person',
-    location: 'Computing Block • Level 4 Lab 402',
-    feePerStudent: 2500,
-    totalEarnings: 2500,
-    status: 'upcoming',
-    agenda: 'Deconstruction of anomalous relations into BCNF with dependency preservation and multi-table nested SQL queries.',
-    attendees: [
-      {
-        id: 'att-5',
-        name: 'Dineth Jayawardena',
-        email: 'dineth.j@my.sliit.lk',
-        avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=400&q=80',
-        notes: 'Need to review functional dependencies for past exam paper 2024.',
-        attendance: 'confirmed',
-      },
-    ],
-  },
-  {
-    id: 'sess-3',
-    title: 'React Native Navigation & Global State Architecture',
-    moduleCode: 'IT3020',
-    moduleName: 'Mobile Application Development',
-    type: 'pod',
-    groupName: 'Mobile Dev Final Project Pod',
-    date: 'Thursday, 09 Oct 2026',
-    timeRange: '04:00 PM - 05:30 PM',
-    isToday: false,
-    mode: 'Online',
-    location: 'Zoom Meeting • Passcode: 884210',
-    feePerStudent: 2000,
-    totalEarnings: 6000,
-    status: 'upcoming',
-    agenda: 'Architecting Zustand stores with TypeScript and debugging React Navigation deep links on Android devices.',
-    attendees: [
-      {
-        id: 'att-6',
-        name: 'Chamath Vihanga',
-        email: 'chamath.v@my.sliit.lk',
-        avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
-        notes: 'Stack vs Tab navigation params passing questions.',
-        attendance: 'confirmed',
-      },
-      {
-        id: 'att-7',
-        name: 'Sachini Wickramasinghe',
-        email: 'sachini.w@my.sliit.lk',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-        attendance: 'confirmed',
-      },
-      {
-        id: 'att-8',
-        name: 'Kusal Mendis',
-        email: 'kusal.m@my.sliit.lk',
-        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-        attendance: 'confirmed',
-      },
-    ],
-  },
-  {
-    id: 'sess-4',
-    title: 'Probability Distributions & Central Limit Theorem',
-    moduleCode: 'IT2010',
-    moduleName: 'Probability & Statistics',
-    type: 'kuppiya',
-    groupName: 'Midterm Mass Kuppiya Session',
-    date: '02 Oct 2026',
-    timeRange: '06:00 PM - 08:00 PM',
-    isToday: false,
-    mode: 'Online',
-    location: 'UniMentor Live Room • Hall B',
-    feePerStudent: 1000,
-    totalEarnings: 15000,
-    status: 'completed',
-    agenda: 'Covered Poisson, Binomial, and Normal distributions with step-by-step midterm past paper question solving.',
-    attendees: [
-      {
-        id: 'att-9',
-        name: 'Akindu Senaratne',
-        email: 'akindu.s@my.sliit.lk',
-        avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
-        attendance: 'attended',
-      },
-      {
-        id: 'att-10',
-        name: 'Nethmi Silva',
-        email: 'nethmi.silva@student.unimentor.lk',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-        attendance: 'attended',
-      },
-    ],
-  },
-];
+const INITIAL_SESSIONS: TutorSessionItem[] = [];
+
+function isSlotDateToday(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const lower = dateStr.toLowerCase().trim();
+  if (lower.includes('today')) return true;
+
+  const now = new Date();
+  const dNum = now.getDate();
+  const mShort = now.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+  const mLong = now.toLocaleString('en-US', { month: 'long' }).toLowerCase();
+
+  const hasMonth = lower.includes(mShort) || lower.includes(mLong);
+  const dStr1 = String(dNum);
+  const dStr2 = dNum < 10 ? `0${dNum}` : String(dNum);
+  const hasDay =
+    lower.includes(` ${dStr1} `) ||
+    lower.includes(` ${dStr1},`) ||
+    lower.includes(`${dStr1} `) ||
+    lower.includes(` ${dStr2} `) ||
+    lower.includes(` ${dStr2},`) ||
+    lower.includes(`${dStr2} `);
+
+  return hasMonth && hasDay;
+}
+
+function checkSessionJoinEligibility(session: TutorSessionItem): {
+  canJoinDirectly: boolean;
+  statusLabel: string;
+  reason: string;
+} {
+  if (session.isLiveNow) {
+    return {
+      canJoinDirectly: true,
+      statusLabel: 'Live Now',
+      reason: 'This session is currently active and broadcasting live.',
+    };
+  }
+
+  const isToday = isSlotDateToday(session.date);
+  const timeStr = session.timeRange || '';
+  const parts = timeStr.split('-');
+  const startStr = parts[0]?.trim();
+  const endStr = parts[1]?.trim();
+
+  const startMins = parseTimeToMinutes(startStr);
+  const endMins = parseTimeToMinutes(endStr);
+
+  const now = new Date();
+  const currentMins = now.getHours() * 60 + now.getMinutes();
+
+  if (isToday && startMins !== null && endMins !== null) {
+    if (currentMins >= startMins - 15 && currentMins <= endMins + 30) {
+      return {
+        canJoinDirectly: true,
+        statusLabel: 'Active Time Window',
+        reason: 'Session room is active right now (opens 15 min before scheduled start).',
+      };
+    } else if (currentMins < startMins - 15) {
+      const minsLeft = startMins - 15 - currentMins;
+      return {
+        canJoinDirectly: false,
+        statusLabel: 'Upcoming Today',
+        reason: `Session is scheduled for today at ${startStr}. Room opens 15 minutes before (${minsLeft} minutes remaining).`,
+      };
+    } else {
+      return {
+        canJoinDirectly: false,
+        statusLabel: 'Past Scheduled Window',
+        reason: `The scheduled time window for this session has already passed today (${session.timeRange}).`,
+      };
+    }
+  }
+
+  return {
+    canJoinDirectly: false,
+    statusLabel: 'Upcoming Scheduled',
+    reason: `This session is scheduled for ${session.date} (${session.timeRange}).`,
+  };
+}
+
+function transformSlotToSessionItem(slot: TutorSlot): TutorSessionItem {
+  const isToday = isSlotDateToday(slot.date);
+  const startMins = parseTimeToMinutes(slot.startTime);
+  const endMins = parseTimeToMinutes(slot.endTime);
+  const now = new Date();
+  const currentMins = now.getHours() * 60 + now.getMinutes();
+
+  let isTimeActive = false;
+  if (isToday && startMins !== null && endMins !== null) {
+    isTimeActive = currentMins >= startMins - 15 && currentMins <= endMins + 30;
+  }
+
+  const attendees: SessionAttendee[] = (slot.registeredAttendees || []).map((ra, idx) => ({
+    id: ra.id || `att-${idx}`,
+    name: ra.studentName || 'Student Attendee',
+    email: ra.studentEmail || 'student@my.sliit.lk',
+    avatar:
+      ra.faceVerificationPhoto ||
+      ra.studentAvatar ||
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    notes: ra.notes,
+    attendance: ra.status === 'attended' ? 'attended' : 'confirmed',
+  }));
+
+  let sessionType: '1-on-1' | 'pod' | 'kuppiya' = 'pod';
+  if (slot.type === '1-on-1') sessionType = '1-on-1';
+  else if (slot.type === 'group') sessionType = 'pod';
+
+  const earnings = (attendees.length || slot.bookedCount || 0) * (slot.fee || 2000);
+
+  return {
+    id: slot.id,
+    title: slot.title || `${slot.module} Mentoring`,
+    moduleCode: slot.module?.includes('IT') ? slot.module.split(' ')[0] : 'IT2040',
+    moduleName: slot.module || 'Computing Module',
+    type: sessionType,
+    groupName: slot.targetBatch || (slot.type === 'group' ? 'Revision Pod' : undefined),
+    date: slot.date,
+    timeRange: slot.timeRange || `${slot.startTime} - ${slot.endTime}`,
+    isToday,
+    isLiveNow: isTimeActive,
+    mode: slot.mode === 'In-Person' ? 'In-Person' : 'Online',
+    location: slot.location || 'UniMentor Live Room • Online',
+    feePerStudent: slot.fee ?? 2000,
+    totalEarnings: earnings,
+    status: isTimeActive ? 'in-progress' : 'upcoming',
+    attendees,
+    agenda: slot.description || slot.prerequisites || 'Comprehensive peer mentoring session.',
+  };
+}
 
 export default function TutorSessionsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -212,6 +196,7 @@ export default function TutorSessionsScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSessionForRoster, setSelectedSessionForRoster] = useState<TutorSessionItem | null>(null);
   const [liveRoomModalSession, setLiveRoomModalSession] = useState<TutorSessionItem | null>(null);
+  const [confirmJoinModalSession, setConfirmJoinModalSession] = useState<TutorSessionItem | null>(null);
 
   // New instant session modal
   const [createInstantModalVisible, setCreateInstantModalVisible] = useState(false);
@@ -220,10 +205,71 @@ export default function TutorSessionsScreen({ navigation }: any) {
   const [newMode, setNewMode] = useState<'Online' | 'In-Person'>('Online');
   const [newDuration, setNewDuration] = useState('60 Mins');
 
+  const loadTutorSessions = useCallback(async () => {
+    try {
+      const slots = await tutorSlotRepository.getAllSlots(currentUser?.id, currentUser?.name);
+      const convertedSlots = slots.map(transformSlotToSessionItem);
+
+      setSessions((prev) => {
+        const existingSlotIds = new Set(convertedSlots.map((s) => s.id));
+        const remainingInitial = prev.filter((p) => !existingSlotIds.has(p.id));
+        return [...convertedSlots, ...remainingInitial];
+      });
+    } catch (err) {
+      console.log('[TutorSessionsScreen] Error loading slots:', err);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    loadTutorSessions();
+    const unsubscribe = tutorSlotRepository.subscribe(() => {
+      loadTutorSessions();
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [loadTutorSessions]);
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 600));
+    await loadTutorSessions();
     setRefreshing(false);
+  };
+
+  const handleJoinSessionPress = (session: TutorSessionItem) => {
+    const eligibility = checkSessionJoinEligibility(session);
+
+    if (eligibility.canJoinDirectly) {
+      setConfirmJoinModalSession(session);
+    } else {
+      Alert.alert(
+        'Session Time Check',
+        `${eligibility.reason}\n\nAs the host tutor, would you like to launch and open this meeting early right now?`,
+        [
+          {
+            text: 'Launch Meeting Now',
+            onPress: () => {
+              const liveSession = { ...session, isLiveNow: true, status: 'in-progress' as const };
+              setSessions((prev) =>
+                prev.map((s) => (s.id === session.id ? liveSession : s))
+              );
+              setConfirmJoinModalSession(liveSession);
+            },
+          },
+          {
+            text: 'Wait for Scheduled Time',
+            style: 'cancel',
+          },
+        ]
+      );
+    }
+  };
+
+  const handleConfirmEnterLiveRoom = () => {
+    if (!confirmJoinModalSession) return;
+    const targetSession = confirmJoinModalSession;
+    setConfirmJoinModalSession(null);
+    navigation.navigate('LiveSessionRoom', { session: targetSession });
   };
 
   const filteredSessions = sessions.filter((s) => {
@@ -283,7 +329,7 @@ export default function TutorSessionsScreen({ navigation }: any) {
       isToday: true,
       isLiveNow: true,
       mode: newMode,
-      location: newMode === 'Online' ? 'Microsoft Teams • Instant Hall' : 'Computing Lab 304',
+      location: newMode === 'Online' ? 'UniMentor Live Room • Instant Hall' : 'Computing Lab 304',
       feePerStudent: 1500,
       totalEarnings: 1500,
       status: 'in-progress',
@@ -302,7 +348,7 @@ export default function TutorSessionsScreen({ navigation }: any) {
     setSessions((prev) => [newSession, ...prev]);
     setCreateInstantModalVisible(false);
     setNewTitle('');
-    Alert.alert('Session Launched Live! 🚀', `Instant Kuppiya "${newTitle}" is open for students.`);
+    setConfirmJoinModalSession(newSession);
   };
 
   return (
@@ -374,7 +420,7 @@ export default function TutorSessionsScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Quick Launch Kuppiya Banner */}
+        {/* Quick Launch Any Meeting Banner */}
         <TouchableOpacity
           style={styles.instantHeroCard}
           activeOpacity={0.88}
@@ -382,15 +428,15 @@ export default function TutorSessionsScreen({ navigation }: any) {
         >
           <View style={styles.instantHeroLeft}>
             <View style={styles.instantHeroIcon}>
-              <Ionicons name="flash" size={20} color="#061E47" />
+              <Ionicons name="videocam" size={20} color="#061E47" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.instantHeroTitle}>Start Instant Kuppiya</Text>
-              <Text style={styles.instantHeroSub}>Launch a live peer session immediately for asking students</Text>
+              <Text style={styles.instantHeroTitle}>Launch Any Meeting / Instant Kuppiya</Text>
+              <Text style={styles.instantHeroSub}>Host an immediate live room or peer session anytime</Text>
             </View>
           </View>
           <View style={styles.instantHeroBtn}>
-            <Text style={styles.instantHeroBtnText}>+ Launch</Text>
+            <Text style={styles.instantHeroBtnText}>+ Launch Now</Text>
           </View>
         </TouchableOpacity>
 
@@ -492,12 +538,23 @@ export default function TutorSessionsScreen({ navigation }: any) {
                     </Text>
                   </View>
 
-                  {session.isLiveNow && (
-                    <View style={styles.liveNowPill}>
-                      <View style={styles.livePulseDot} />
-                      <Text style={styles.liveNowPillText}>LIVE NOW</Text>
-                    </View>
-                  )}
+                  {(() => {
+                    const elig = checkSessionJoinEligibility(session);
+                    if (session.isLiveNow || elig.canJoinDirectly) {
+                      return (
+                        <View style={styles.liveNowPill}>
+                          <View style={styles.livePulseDot} />
+                          <Text style={styles.liveNowPillText}>LIVE NOW</Text>
+                        </View>
+                      );
+                    }
+                    return (
+                      <View style={styles.upcomingPill}>
+                        <Ionicons name="time-outline" size={10} color="#0D4F9E" />
+                        <Text style={styles.upcomingPillText}>UPCOMING</Text>
+                      </View>
+                    );
+                  })()}
                 </View>
 
                 <View style={styles.feeBadge}>
@@ -570,9 +627,14 @@ export default function TutorSessionsScreen({ navigation }: any) {
               <View style={styles.cardActionsRow}>
                 {session.status !== 'completed' ? (
                   <TouchableOpacity
-                    style={[styles.primaryActionBtn, session.isLiveNow && styles.liveActionBtn]}
+                    style={[
+                      styles.primaryActionBtn,
+                      (session.isLiveNow || checkSessionJoinEligibility(session).canJoinDirectly)
+                        ? styles.liveActionBtn
+                        : styles.upcomingActionBtn,
+                    ]}
                     activeOpacity={0.85}
-                    onPress={() => setLiveRoomModalSession(session)}
+                    onPress={() => handleJoinSessionPress(session)}
                   >
                     <Ionicons
                       name={session.mode === 'Online' ? 'videocam' : 'enter'}
@@ -580,7 +642,9 @@ export default function TutorSessionsScreen({ navigation }: any) {
                       color="#FFFFFF"
                     />
                     <Text style={styles.primaryActionBtnText}>
-                      {session.isLiveNow ? 'Enter Live Room' : 'Start Session'}
+                      {session.isLiveNow || checkSessionJoinEligibility(session).canJoinDirectly
+                        ? 'Join Live Room'
+                        : 'Join Session (Scheduled)'}
                     </Text>
                   </TouchableOpacity>
                 ) : (
@@ -598,6 +662,16 @@ export default function TutorSessionsScreen({ navigation }: any) {
                       'Session Options',
                       `Manage "${session.title}"`,
                       [
+                        {
+                          text: 'Launch Meeting Now (Host Early Access)',
+                          onPress: () => {
+                            const liveSession = { ...session, isLiveNow: true, status: 'in-progress' as const };
+                            setSessions((prev) =>
+                              prev.map((s) => (s.id === session.id ? liveSession : s))
+                            );
+                            setConfirmJoinModalSession(liveSession);
+                          },
+                        },
                         {
                           text: 'Message All Students',
                           onPress: () => Alert.alert('Chat Notice', 'Broadcast notice sent to registered pod members.'),
@@ -695,7 +769,6 @@ export default function TutorSessionsScreen({ navigation }: any) {
                         Alert.alert('Message Sent', `Notification opened for ${attendee.name}`);
                       }}
                     >
-                      <Ionicons name="chatbubble-outline" size={14} color="#0D4F9E" />
                       <Text style={styles.messageStudentBtnText}>Message</Text>
                     </TouchableOpacity>
                   </View>
@@ -713,63 +786,96 @@ export default function TutorSessionsScreen({ navigation }: any) {
         </View>
       </Modal>
 
-      {/* ================= LIVE ROOM PREVIEW MODAL ================= */}
+      {/* ================= PRE-JOIN CONFIRMATION OVERLAY MODAL ================= */}
       <Modal
-        visible={!!liveRoomModalSession}
+        visible={!!confirmJoinModalSession}
         animationType="fade"
         transparent
-        onRequestClose={() => setLiveRoomModalSession(null)}
+        onRequestClose={() => setConfirmJoinModalSession(null)}
       >
-        <View style={styles.liveRoomOverlay}>
-          <View style={styles.liveRoomCard}>
-            <View style={styles.liveRoomHeader}>
-              <View style={styles.liveRoomBadge}>
-                <View style={styles.livePulseDot} />
-                <Text style={styles.liveRoomBadgeText}>VIRTUAL KUPPIYA ACTIVE</Text>
+        <View style={styles.confirmJoinOverlay}>
+          <View style={styles.confirmJoinCard}>
+            <View style={styles.confirmJoinHeader}>
+              <View style={styles.confirmHostBadge}>
+                <Ionicons name="shield-checkmark" size={13} color="#059669" />
+                <Text style={styles.confirmHostBadgeText}>HOST ACCESS VERIFIED</Text>
               </View>
-              <TouchableOpacity onPress={() => setLiveRoomModalSession(null)}>
-                <Ionicons name="close-circle" size={26} color="#94A3B8" />
+              <TouchableOpacity
+                onPress={() => setConfirmJoinModalSession(null)}
+                style={styles.confirmCloseCircle}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.liveRoomTitle}>{liveRoomModalSession?.title}</Text>
-            <Text style={styles.liveRoomModule}>
-              {liveRoomModalSession?.moduleCode}: {liveRoomModalSession?.moduleName}
+            <Text style={styles.confirmJoinTitle}>Confirm Join Session</Text>
+            <Text style={styles.confirmJoinSub}>
+              You are about to launch and enter this session room as the lead tutor.
             </Text>
 
-            <View style={styles.livePlatformInfo}>
-              <Ionicons name="videocam" size={20} color="#EAA023" />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.livePlatformTitle}>Platform & Link</Text>
-                <Text style={styles.livePlatformLink}>{liveRoomModalSession?.location}</Text>
+            <View style={styles.confirmDetailsBox}>
+              <Text style={styles.confirmSessionName} numberOfLines={2}>
+                {confirmJoinModalSession?.title}
+              </Text>
+              <Text style={styles.confirmSessionModule}>
+                {confirmJoinModalSession?.moduleCode} • {confirmJoinModalSession?.moduleName}
+              </Text>
+
+              <View style={styles.confirmMetaRow}>
+                <View style={styles.confirmMetaItem}>
+                  <Ionicons name="time-outline" size={13} color="#64748B" />
+                  <Text style={styles.confirmMetaText}>{confirmJoinModalSession?.timeRange}</Text>
+                </View>
+                <View style={styles.confirmMetaItem}>
+                  <Ionicons name="calendar-outline" size={13} color="#64748B" />
+                  <Text style={styles.confirmMetaText}>{confirmJoinModalSession?.date}</Text>
+                </View>
+              </View>
+
+              <View style={styles.confirmLocationRow}>
+                <Ionicons
+                  name={confirmJoinModalSession?.mode === 'Online' ? 'videocam' : 'location'}
+                  size={13}
+                  color="#0D4F9E"
+                />
+                <Text style={styles.confirmLocationText} numberOfLines={1}>
+                  {confirmJoinModalSession?.location}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.liveAttendeesSummary}>
-              <Text style={styles.liveAttendeesCount}>
-                👥 {liveRoomModalSession?.attendees.length} Students in Waiting Room
-              </Text>
-              <View style={styles.liveAvatarList}>
-                {liveRoomModalSession?.attendees.map((a) => (
-                  <View key={a.id} style={styles.liveAvatarCircle}>
-                    <Text style={styles.liveAvatarInitial}>{a.name.charAt(0)}</Text>
-                  </View>
-                ))}
+            <View style={styles.preflightBox}>
+              <View style={styles.preflightItem}>
+                <Ionicons name="mic-outline" size={14} color="#059669" />
+                <Text style={styles.preflightText}>Microphone ready</Text>
+              </View>
+              <View style={styles.preflightItem}>
+                <Ionicons name="videocam-outline" size={14} color="#059669" />
+                <Text style={styles.preflightText}>HD Camera ready</Text>
+              </View>
+              <View style={styles.preflightItem}>
+                <Ionicons name="people-outline" size={14} color="#059669" />
+                <Text style={styles.preflightText}>
+                  {confirmJoinModalSession?.attendees.length || 0} student(s) registered
+                </Text>
               </View>
             </View>
 
             <TouchableOpacity
-              style={styles.launchCallBtn}
-              onPress={() => {
-                Alert.alert(
-                  'Connected to Session! 🎧',
-                  `Live virtual session "${liveRoomModalSession?.title}" is broadcasting.`
-                );
-                setLiveRoomModalSession(null);
-              }}
+              style={styles.confirmEnterBtn}
+              onPress={handleConfirmEnterLiveRoom}
+              activeOpacity={0.88}
             >
-              <Ionicons name="call" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={styles.launchCallBtnText}>Join Virtual Room</Text>
+              <Ionicons name="videocam" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.confirmEnterBtnText}>Confirm & Enter Live Room</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.confirmCancelBtn}
+              onPress={() => setConfirmJoinModalSession(null)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.confirmCancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1383,110 +1489,183 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  liveRoomOverlay: {
+  upcomingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  upcomingPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#1D4ED8',
+  },
+  upcomingActionBtn: {
+    backgroundColor: '#061E47',
+  },
+  confirmJoinOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(6, 30, 71, 0.85)',
+    backgroundColor: 'rgba(6, 30, 71, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
-  liveRoomCard: {
+  confirmJoinCard: {
     width: '100%',
+    maxWidth: 420,
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 20,
+    borderRadius: 24,
+    padding: 22,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
   },
-  liveRoomHeader: {
+  confirmJoinHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  liveRoomBadge: {
+  confirmHostBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FEF3C7',
+    gap: 5,
+    backgroundColor: '#ECFDF5',
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
-  liveRoomBadgeText: {
+  confirmHostBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#B45309',
+    color: '#059669',
+    letterSpacing: 0.4,
   },
-  liveRoomTitle: {
-    fontSize: 17,
+  confirmCloseCircle: {
+    padding: 4,
+  },
+  confirmJoinTitle: {
+    fontSize: 19,
     fontWeight: '800',
     color: '#0F172A',
+    letterSpacing: -0.2,
   },
-  liveRoomModule: {
+  confirmJoinSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 4,
+    lineHeight: 17,
+    marginBottom: 16,
+  },
+  confirmDetailsBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  confirmSessionName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    lineHeight: 20,
+  },
+  confirmSessionModule: {
     fontSize: 12,
     color: '#0D4F9E',
     fontWeight: '700',
     marginTop: 3,
-    marginBottom: 14,
+    marginBottom: 10,
   },
-  livePlatformInfo: {
+  confirmMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 14,
+    gap: 12,
+    marginBottom: 8,
+  },
+  confirmMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  confirmMetaText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  confirmLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  livePlatformTitle: {
+  confirmLocationText: {
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '700',
+    color: '#334155',
+    fontWeight: '600',
+    flex: 1,
   },
-  livePlatformLink: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginTop: 2,
-  },
-  liveAttendeesSummary: {
-    marginBottom: 16,
-  },
-  liveAttendeesCount: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 8,
-  },
-  liveAvatarList: {
-    flexDirection: 'row',
+  preflightBox: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    padding: 12,
     gap: 6,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
   },
-  liveAvatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#EAA023',
+  preflightItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 7,
   },
-  liveAvatarInitial: {
-    color: '#061E47',
-    fontWeight: '800',
-    fontSize: 13,
+  preflightText: {
+    fontSize: 11.5,
+    color: '#166534',
+    fontWeight: '600',
   },
-  launchCallBtn: {
-    backgroundColor: '#22C55E',
+  confirmEnterBtn: {
+    backgroundColor: '#061E47',
     borderRadius: 14,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#061E47',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  launchCallBtnText: {
+  confirmEnterBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  confirmCancelBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  confirmCancelBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748B',
   },
   inputLabel: {
     fontSize: 12,

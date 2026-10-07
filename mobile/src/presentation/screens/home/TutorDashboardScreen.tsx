@@ -41,11 +41,76 @@ const POPULAR_CURRICULUM_MODULES = [
   'DevOps & CI/CD',
 ];
 
+const TIME_OPTIONS = [
+  '08:30 AM',
+  '09:00 AM',
+  '10:00 AM',
+  '11:00 AM',
+  '12:00 PM',
+  '01:30 PM',
+  '02:30 PM',
+  '03:30 PM',
+  '04:30 PM',
+  '05:30 PM',
+  '06:30 PM',
+  '07:30 PM',
+];
+
+const DURATION_CHOICES = [
+  { label: '30 Mins', mins: 30 },
+  { label: '45 Mins', mins: 45 },
+  { label: '60 Mins', mins: 60 },
+  { label: '90 Mins', mins: 90 },
+  { label: '120 Mins', mins: 120 },
+];
+
+function getUpcomingDatesList(count = 14) {
+  const dates = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const fullDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayNum = d.getDate();
+    const month = d.toLocaleDateString('en-US', { month: 'short' });
+    const year = d.getFullYear();
+    const formatted = `${fullDay}, ${dayNum} ${month} ${year}`;
+    dates.push({
+      formatted,
+      dayName: i === 0 ? 'Today' : i === 1 ? 'Tmrw' : dayName,
+      dateLabel: `${dayNum} ${month}`,
+      isToday: i === 0,
+      isTomorrow: i === 1,
+    });
+  }
+  return dates;
+}
+
+function calculateEndTimeFromStart(startTime: string, durationMinutes: number): string {
+  const match = startTime.trim().toUpperCase().match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/);
+  if (!match) return '03:30 PM';
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const modifier = match[3];
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+
+  const totalEndMins = (hours * 60 + minutes + durationMinutes) % (24 * 60);
+  let endH = Math.floor(totalEndMins / 60);
+  const endM = totalEndMins % 60;
+  const ampm = endH >= 12 ? 'PM' : 'AM';
+  if (endH > 12) endH -= 12;
+  if (endH === 0) endH = 12;
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')} ${ampm}`;
+}
+
 export default function TutorDashboardScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const currentUser = useAuthStore((state) => state.user);
   const tutorMentorId = currentUser?._id || (currentUser as any)?.id || 'demo-tutor-1';
   const tutorMentorName = currentUser?.name || 'Tharushi Perera';
+
+  const upcomingDatesList = getUpcomingDatesList(14);
 
   const [refreshing, setRefreshing] = useState(false);
   const [pulseActive, setPulseActive] = useState(true);
@@ -64,12 +129,13 @@ export default function TutorDashboardScreen({ navigation }: any) {
   // Slot management state
   const [tutorSlots, setTutorSlots] = useState<TutorSlot[]>([]);
   const [addSlotModalVisible, setAddSlotModalVisible] = useState(false);
-  const [newSlotDate, setNewSlotDate] = useState('Friday, 19 Sep 2025');
-  const [newSlotStartTime, setNewSlotStartTime] = useState('02:30 PM');
-  const [newSlotEndTime, setNewSlotEndTime] = useState('03:30 PM');
+  const [newSlotDate, setNewSlotDate] = useState(upcomingDatesList[0].formatted);
+  const [newSlotStartTime, setNewSlotStartTime] = useState('10:00 AM');
+  const [newSlotDuration, setNewSlotDuration] = useState(60);
+  const [newSlotEndTime, setNewSlotEndTime] = useState('11:00 AM');
   const [newSlotType, setNewSlotType] = useState<'1-on-1' | 'group' | 'both'>('both');
   const [newSlotCapacity, setNewSlotCapacity] = useState('5');
-  const [newSlotModule, setNewSlotModule] = useState('Database Systems');
+  const [newSlotModule, setNewSlotModule] = useState('Database Management Systems');
 
   // Tutor Profile Image state
   const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
@@ -178,7 +244,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
       await apiClient.put('/users/profile', { subjects: updated });
     } catch {}
     Alert.alert(
-      'Module Added! 📚',
+      'Module Added',
       `"${trimmed}" added. Students searching for this module in Find Your Mentor will now find your profile.`
     );
   };
@@ -209,7 +275,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
     setProfileImageUri(url);
     setImageModalVisible(false);
     Alert.alert(
-      url ? 'Photo Updated 🎉' : 'Initials Avatar Selected',
+      url ? 'Photo Updated' : 'Initials Avatar Selected',
       url
         ? 'Your tutor profile photo has been updated successfully.'
         : 'You are now displaying your stylish initials avatar.'
@@ -231,7 +297,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
       await apiClient.put('/users/profile', { hourlyRate: r1 });
     } catch {}
     Alert.alert(
-      'Rates Saved! 🎉',
+      'Rates Saved',
       `1-on-1 Rate set to LKR ${r1.toLocaleString()}/hr and Group Rate set to LKR ${rg.toLocaleString()}/student/hr.`
     );
   };
@@ -256,30 +322,51 @@ export default function TutorDashboardScreen({ navigation }: any) {
 
   const handleAddSlot = async () => {
     if (!newSlotStartTime.trim() || !newSlotEndTime.trim()) {
-      Alert.alert('Missing Field', 'Please enter slot start and end times.');
+      Alert.alert('Missing Field', 'Please select a session start and end time.');
       return;
     }
+
+    // 1. OVERLAP CHECK: Verify against other sessions created by this same tutor
+    const conflictResult = tutorSlotRepository.checkOverlap(
+      tutorMentorId,
+      tutorMentorName,
+      newSlotDate,
+      newSlotStartTime,
+      newSlotEndTime
+    );
+
+    if (conflictResult.hasOverlap && conflictResult.overlappingSlot) {
+      const conflict = conflictResult.overlappingSlot;
+      Alert.alert(
+        'Session Time Overlap Detected',
+        `You already have an existing session scheduled on:\n\nDate: ${conflict.date}\nTime: ${conflict.startTime} - ${conflict.endTime}\nSession: "${conflict.title}"\n\nPlease select a different date or time. Tutors cannot have overlapping live sessions.`,
+        [{ text: 'Pick Another Time', style: 'default' }]
+      );
+      return; // Do NOT add if there is an overlap!
+    }
+
+    // 2. Add slot only if no overlap exists!
     const created = await tutorSlotRepository.addSlot({
-      mentorId: currentUser?._id || 'mentor-alex',
-      mentorName: currentUser?.name || 'Alex Ferreira',
+      mentorId: tutorMentorId,
+      mentorName: tutorMentorName,
       title: `${newSlotModule} Guidance Session`,
       date: newSlotDate,
       startTime: newSlotStartTime,
       endTime: newSlotEndTime,
       timeRange: `${newSlotStartTime} - ${newSlotEndTime}`,
-      duration: '60 Mins',
-      fee: parseInt(rate1on1, 10) || 2000,
+      duration: `${newSlotDuration} Mins`,
+      fee: parseInt(rate1on1, 10) || 2500,
       type: newSlotType,
       maxCapacity: parseInt(newSlotCapacity, 10) || 5,
       module: newSlotModule,
-      description: `Comprehensive interactive mentoring for ${newSlotModule}.`,
+      description: `Comprehensive interactive peer session for ${newSlotModule}.`,
       mode: 'Online',
     });
     setTutorSlots((prev) => [created, ...prev]);
     setAddSlotModalVisible(false);
     Alert.alert(
-      'Slot Published Live! 🎉',
-      `New booking slot (${newSlotStartTime} - ${newSlotEndTime}, ${newSlotType.toUpperCase()}) published for students.`
+      'Slot Published Live',
+      `New booking slot (${newSlotDate}, ${newSlotStartTime} - ${newSlotEndTime}) is now live for student bookings.`
     );
   };
 
@@ -347,25 +434,34 @@ export default function TutorDashboardScreen({ navigation }: any) {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.headerTitle}>Tutor Dashboard</Text>
-            <TouchableOpacity
-              style={styles.switchRoleHeaderBtn}
-              activeOpacity={0.85}
-              onPress={() => {
-                useAuthStore.getState().setUser({
-                  ...(currentUser || {}),
-                  _id: currentUser?._id || 'demo-student-1',
-                  id: currentUser?.id || 'demo-student-1',
-                  name: currentUser?.name || 'Nethmi Silva',
-                  email: currentUser?.email || 'nethmi.silva@student.unimentor.lk',
-                  role: 'student',
-                } as any);
-                Alert.alert('Student Mode Active 🎓', 'Switched to Student Dashboard & bottom navigation.');
-                (navigation as any).navigate('MainTabs', { screen: 'Home' });
-              }}
-            >
-              <Ionicons name="swap-horizontal" size={12} color="#061E47" />
-              <Text style={styles.switchRoleHeaderBtnText}>Student Mode ➔</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <TouchableOpacity
+                style={styles.switchRoleHeaderBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  useAuthStore.getState().setUser({
+                    ...(currentUser || {}),
+                    _id: currentUser?._id || 'demo-student-1',
+                    id: currentUser?.id || 'demo-student-1',
+                    name: currentUser?.name || 'Nethmi Silva',
+                    email: currentUser?.email || 'nethmi.silva@student.unimentor.lk',
+                    role: 'student',
+                  } as any);
+                  Alert.alert('Student Mode Active', 'Switched to Student Dashboard & bottom navigation.');
+                  (navigation as any).navigate('MainTabs', { screen: 'Home' });
+                }}
+              >
+                <Ionicons name="swap-horizontal" size={12} color="#061E47" />
+                <Text style={styles.switchRoleHeaderBtnText}>Student Mode ➔</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerMessagesBtn}
+                activeOpacity={0.85}
+                onPress={() => (navigation as any).navigate('Messages')}
+              >
+                <Text style={styles.headerMessagesBtnText}>Messages</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
@@ -914,26 +1010,50 @@ export default function TutorDashboardScreen({ navigation }: any) {
                               <Text style={styles.dashAttendeeEmailText}>{att.studentEmail}</Text>
 
                               {!!att.notes && (
-                                <Text style={styles.dashAttendeeNotesText} numberOfLines={2}>
-                                  💬 {att.notes}
-                                </Text>
+                                <View style={styles.dashAttendeeNotesBox}>
+                                  <Text style={styles.dashAttendeeNotesLabel}>Message:</Text>
+                                  <Text style={styles.dashAttendeeNotesText} numberOfLines={2}>
+                                    "{att.notes}"
+                                  </Text>
+                                </View>
                               )}
 
                               <View style={styles.dashAttendeeMetaRow}>
                                 <Text style={styles.dashAttendeePaidText}>
                                   Paid: LKR {(att.feePaid || slot.fee || 2500).toLocaleString()}
                                 </Text>
-                                <TouchableOpacity
-                                  style={styles.dashViewImgLink}
-                                  onPress={() => {
-                                    setSelectedVerifiedAttendee(att);
-                                    setVerifiedPhotoModalVisible(true);
-                                  }}
-                                  activeOpacity={0.7}
-                                >
-                                  <Ionicons name="eye-outline" size={11} color="#0D4F9E" />
-                                  <Text style={styles.dashViewImgLinkText}>View Verified Photo</Text>
-                                </TouchableOpacity>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  <TouchableOpacity
+                                    style={styles.dashMessageBtn}
+                                    onPress={() => {
+                                      Alert.alert(
+                                        'Direct Message',
+                                        `Opening direct chat with ${att.studentName}...`,
+                                        [
+                                          { text: 'Cancel', style: 'cancel' },
+                                          {
+                                            text: 'Open Chat',
+                                            onPress: () => (navigation as any).navigate('Messages'),
+                                          },
+                                        ]
+                                      );
+                                    }}
+                                    activeOpacity={0.75}
+                                  >
+                                    <Text style={styles.dashMessageBtnText}>Message</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={styles.dashViewImgLink}
+                                    onPress={() => {
+                                      setSelectedVerifiedAttendee(att);
+                                      setVerifiedPhotoModalVisible(true);
+                                    }}
+                                    activeOpacity={0.7}
+                                  >
+                                    <Ionicons name="eye-outline" size={11} color="#0D4F9E" />
+                                    <Text style={styles.dashViewImgLinkText}>View Verified Photo</Text>
+                                  </TouchableOpacity>
+                                </View>
                               </View>
                             </View>
                           </View>
@@ -1227,77 +1347,133 @@ export default function TutorDashboardScreen({ navigation }: any) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Upload Available Booking Slot</Text>
+            <Text style={styles.modalTitle}>Allocate New Time Slot</Text>
             <Text style={styles.modalSub}>
-              Students will be able to book 1-on-1 or group study sessions during this time.
+              Select session date, time, and duration below without typing. Overlaps are checked automatically.
             </Text>
 
-            <Text style={styles.modalLabel}>Date</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={newSlotDate}
-              onChangeText={setNewSlotDate}
-              placeholder="e.g. Friday, 19 Sep 2025"
-            />
-
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.modalLabel}>Start Time</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={newSlotStartTime}
-                  onChangeText={setNewSlotStartTime}
-                  placeholder="e.g. 10:00 AM"
-                />
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 440 }}>
+              {/* 1. DATE PICKER (INTERACTIVE CHIPS - NO TYPING) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={styles.modalLabel}>1. SELECT DATE (TAP TO PICK)</Text>
+                <Text style={styles.selectedDateBadgeText}>{newSlotDate.split(',')[0]}</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.modalLabel}>End Time</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={newSlotEndTime}
-                  onChangeText={setNewSlotEndTime}
-                  placeholder="e.g. 11:30 AM"
-                />
-              </View>
-            </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.datePickerRow}>
+                {upcomingDatesList.map((item) => {
+                  const isSelected = newSlotDate === item.formatted;
+                  return (
+                    <TouchableOpacity
+                      key={item.formatted}
+                      style={[styles.datePickChip, isSelected && styles.datePickChipActive]}
+                      onPress={() => setNewSlotDate(item.formatted)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.datePickDay, isSelected && styles.datePickDayActive]}>
+                        {item.dayName}
+                      </Text>
+                      <Text style={[styles.datePickNum, isSelected && styles.datePickNumActive]}>
+                        {item.dateLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
 
-            <Text style={styles.modalLabel}>Booking Mode Allowed</Text>
-            <View style={styles.modePickerRow}>
-              {(['1-on-1', 'group', 'both'] as const).map((m) => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.modePickerBtn, newSlotType === m && styles.modePickerBtnActive]}
-                  onPress={() => setNewSlotType(m)}
-                >
-                  <Text style={[styles.modePickerBtnText, newSlotType === m && styles.modePickerBtnTextActive]}>
-                    {m === 'both' ? 'Both' : m === 'group' ? 'Group Only' : '1-on-1 Only'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.modalLabel}>Max Students (Group)</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={newSlotCapacity}
-                  onChangeText={setNewSlotCapacity}
-                  keyboardType="numeric"
-                  placeholder="5"
-                />
+              {/* 2. START TIME PICKER (INTERACTIVE CHIPS - NO TYPING) */}
+              <Text style={[styles.modalLabel, { marginTop: 12 }]}>2. SELECT START TIME (TAP TO PICK)</Text>
+              <View style={styles.timeChipsGrid}>
+                {TIME_OPTIONS.map((t) => {
+                  const isSelected = newSlotStartTime === t;
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.timePickChip, isSelected && styles.timePickChipActive]}
+                      onPress={() => {
+                        setNewSlotStartTime(t);
+                        setNewSlotEndTime(calculateEndTimeFromStart(t, newSlotDuration));
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.timePickChipText, isSelected && styles.timePickChipTextActive]}>
+                        {t}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <View style={{ flex: 1.5 }}>
-                <Text style={styles.modalLabel}>Module / Subject</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={newSlotModule}
-                  onChangeText={setNewSlotModule}
-                  placeholder="Database Systems"
-                />
-              </View>
-            </View>
 
+              {/* 3. SESSION DURATION (CHIPS - NO TYPING) */}
+              <Text style={[styles.modalLabel, { marginTop: 12 }]}>3. SESSION DURATION</Text>
+              <View style={styles.durationPillsRow}>
+                {DURATION_CHOICES.map((dur) => {
+                  const isSelected = newSlotDuration === dur.mins;
+                  return (
+                    <TouchableOpacity
+                      key={dur.label}
+                      style={[styles.durationPill, isSelected && styles.durationPillActive]}
+                      onPress={() => {
+                        setNewSlotDuration(dur.mins);
+                        setNewSlotEndTime(calculateEndTimeFromStart(newSlotStartTime, dur.mins));
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.durationPillText, isSelected && styles.durationPillTextActive]}>
+                        {dur.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Timing Preview Banner */}
+              <View style={styles.selectedTimePreviewBanner}>
+                <Text style={styles.selectedTimePreviewTitle}>SCHEDULE PREVIEW:</Text>
+                <Text style={styles.selectedTimePreviewVal}>
+                  {newSlotStartTime} - {newSlotEndTime} ({newSlotDuration} Mins)
+                </Text>
+              </View>
+
+              {/* 4. Booking Mode Allowed */}
+              <Text style={[styles.modalLabel, { marginTop: 10 }]}>BOOKING MODE ALLOWED</Text>
+              <View style={styles.modePickerRow}>
+                {(['1-on-1', 'group', 'both'] as const).map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.modePickerBtn, newSlotType === m && styles.modePickerBtnActive]}
+                    onPress={() => setNewSlotType(m)}
+                  >
+                    <Text style={[styles.modePickerBtnText, newSlotType === m && styles.modePickerBtnTextActive]}>
+                      {m === 'both' ? 'Both' : m === 'group' ? 'Group Only' : '1-on-1 Only'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* 5. Max Students & Module */}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalLabel}>Max Students</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={newSlotCapacity}
+                    onChangeText={setNewSlotCapacity}
+                    keyboardType="numeric"
+                    placeholder="5"
+                  />
+                </View>
+                <View style={{ flex: 1.5 }}>
+                  <Text style={styles.modalLabel}>Module / Subject</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={newSlotModule}
+                    onChangeText={setNewSlotModule}
+                    placeholder="Database Management Systems"
+                  />
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* BUTTON ROW: Publish Slot Live (NO ICONS ON BUTTON) */}
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
@@ -1309,7 +1485,9 @@ export default function TutorDashboardScreen({ navigation }: any) {
                 style={[styles.modalConfirmBtn, { backgroundColor: '#F59E0B' }]}
                 onPress={handleAddSlot}
               >
-                <Text style={[styles.modalConfirmText, { color: '#061E47' }]}>Publish Slot Live</Text>
+                <Text style={[styles.modalConfirmText, { color: '#061E47', fontWeight: '800' }]}>
+                  Publish Slot Live
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2262,6 +2440,133 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
+  /* Date & Time Picker Styles */
+  selectedDateBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0284C7',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  datePickerRow: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  datePickChip: {
+    width: 68,
+    paddingVertical: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  datePickChipActive: {
+    backgroundColor: '#061E47',
+    borderColor: '#061E47',
+    shadowColor: '#061E47',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  datePickDay: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 2,
+  },
+  datePickDayActive: {
+    color: '#F59E0B',
+    fontWeight: '800',
+  },
+  datePickNum: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  datePickNumActive: {
+    color: '#FFFFFF',
+  },
+  timeChipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 4,
+  },
+  timePickChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  timePickChipActive: {
+    backgroundColor: '#061E47',
+    borderColor: '#061E47',
+  },
+  timePickChipText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  timePickChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  durationPillsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  durationPill: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  durationPillActive: {
+    backgroundColor: '#0284C7',
+    borderColor: '#0284C7',
+  },
+  durationPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  durationPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  selectedTimePreviewBanner: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectedTimePreviewTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#059669',
+    letterSpacing: 0.5,
+  },
+  selectedTimePreviewVal: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+
   /* Pricing & Topics Section Styles */
   pricingAndTopicsCard: {
     backgroundColor: '#FFFFFF',
@@ -2651,6 +2956,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#061E47',
   },
+  headerMessagesBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  headerMessagesBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
 
   // 3.3 Booked Slots & Verified Students Dashboard Section
   bookedSlotsDashboardSection: {
@@ -2900,13 +3220,43 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 1,
   },
+  dashAttendeeNotesBox: {
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dashAttendeeNotesLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#0D4F9E',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
   dashAttendeeNotesText: {
     fontSize: 11,
     color: '#334155',
-    marginTop: 3,
-    backgroundColor: '#F8FAFC',
-    padding: 4,
-    borderRadius: 4,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  dashMessageBtn: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dashMessageBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1D4ED8',
   },
   dashAttendeeMetaRow: {
     flexDirection: 'row',
