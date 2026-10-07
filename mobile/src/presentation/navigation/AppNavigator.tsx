@@ -64,6 +64,9 @@ import FaceVerificationScreen from '../screens/verification/FaceVerificationScre
 import VerificationResultScreen from '../screens/verification/VerificationResultScreen';
 import TutorVerificationStatusScreen from '../screens/verification/TutorVerificationStatusScreen';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import AddAdminScreen from '../screens/admin/AddAdminScreen';
+import AdminReportsScreen from '../screens/admin/AdminReportsScreen';
+import AdminProfileScreen from '../screens/admin/AdminProfileScreen';
 import TutorApplicationsScreen from '../screens/admin/TutorApplicationsScreen';
 import TutorApplicationDetailsScreen from '../screens/admin/TutorApplicationDetailsScreen';
 import DocumentReviewScreen from '../screens/admin/DocumentReviewScreen';
@@ -103,6 +106,10 @@ import {
   SvgNotifications,
   SvgUser,
   SvgVideocam,
+  SvgPeople,
+  SvgLock,
+  SvgUserPlus,
+  SvgBarChart,
 } from '../components/common/SvgIcons';
 
 export type BookingsStackParamList = {
@@ -146,6 +153,12 @@ export type AppTabParamList = {
   TutorProfileTab?: undefined;
   Scheduling?: undefined;
   Sessions?: undefined;
+  Tutors?: undefined;
+  Users?: undefined;
+  Settings?: undefined;
+  AddAdmin?: undefined;
+  Reports?: undefined;
+  AdminProfile?: undefined;
 };
 
 export type AppStackParamList = {
@@ -212,6 +225,9 @@ export type AppStackParamList = {
     user?: any;
   } | undefined;
   AdminDashboard: undefined;
+  AddAdmin: undefined;
+  AdminReports: undefined;
+  AdminProfile: undefined;
   TutorApplications: undefined;
   TutorApplicationDetails: { applicationId?: string } | undefined;
   DocumentReview: { documentType?: string; fileName?: string } | undefined;
@@ -283,6 +299,7 @@ function LogoTitle() {
 function MainTabs() {
   const insets = useSafeAreaInsets();
   const currentUser = useAuthStore((state) => state.user);
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'lic';
   const isStudent = !currentUser || currentUser.role === 'student';
 
   const bottomInset = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'android' ? 10 : 8);
@@ -315,7 +332,57 @@ function MainTabs() {
         },
       }}
     >
-      {isStudent ? (
+      {isAdmin ? (
+        <>
+          {/* 1. Dashboard */}
+          <Tab.Screen
+            name="Home"
+            component={AdminDashboardScreen}
+            options={{
+              tabBarLabel: 'Dashboard',
+              tabBarIcon: ({ color }) => (
+                <SvgHome size={22} color={color} />
+              ),
+            }}
+          />
+
+          {/* 2. Add Admin */}
+          <Tab.Screen
+            name="AddAdmin"
+            component={AddAdminScreen}
+            options={{
+              tabBarLabel: 'Add Admin',
+              tabBarIcon: ({ color }) => (
+                <SvgUserPlus size={22} color={color} />
+              ),
+            }}
+          />
+
+          {/* 3. Reports */}
+          <Tab.Screen
+            name="Reports"
+            component={AdminReportsScreen}
+            options={{
+              tabBarLabel: 'Reports',
+              tabBarIcon: ({ color }) => (
+                <SvgBarChart size={22} color={color} />
+              ),
+            }}
+          />
+
+          {/* 4. Profile */}
+          <Tab.Screen
+            name="AdminProfile"
+            component={AdminProfileScreen}
+            options={{
+              tabBarLabel: 'Profile',
+              tabBarIcon: ({ color }) => (
+                <SvgUser size={22} color={color} />
+              ),
+            }}
+          />
+        </>
+      ) : isStudent ? (
         <>
           {/* 1. Student Home */}
           <Tab.Screen
@@ -443,6 +510,7 @@ function MainTabs() {
 export default function AppNavigator() {
   return (
     <Stack.Navigator
+      initialRouteName="MainTabs"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#F4F7FB' },
@@ -497,6 +565,9 @@ export default function AppNavigator() {
       <Stack.Screen name="VerificationResult" component={VerificationResultScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="AddAdmin" component={AddAdminScreen} />
+      <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
+      <Stack.Screen name="AdminProfile" component={AdminProfileScreen} />
       <Stack.Screen name="TutorApplications" component={TutorApplicationsScreen} />
       <Stack.Screen name="TutorApplicationDetails" component={TutorApplicationDetailsScreen} />
       <Stack.Screen name="DocumentReview" component={DocumentReviewScreen} />

@@ -24,6 +24,19 @@ export default function DemoSwitcherModal({ visible, onClose }: DemoSwitcherModa
   const handleRoleSelect = (role: 'student' | 'mentor' | 'admin') => {
     switchDemoRole(role);
     onClose();
+    if (role === 'admin') {
+      try {
+        navigation.navigate('AdminDashboard');
+      } catch {}
+    } else if (role === 'mentor') {
+      try {
+        navigation.navigate('TutorDashboard');
+      } catch {}
+    } else {
+      try {
+        navigation.navigate('StudentDashboard');
+      } catch {}
+    }
   };
 
   const handleNavigate = (screenName: string, params?: object) => {
