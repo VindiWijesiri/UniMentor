@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BookingsStackParamList } from '../../navigation/AppNavigator';
-import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
+import { tutorSlotRepository, parseTimeToMinutes } from '../../../data/repositories/tutorSlotRepository';
 import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/repositories/tutorSettingsRepository';
 import { sessionRepository } from '../../../data/repositories/sessionRepository';
 import { bookedTutorsRepository } from '../../../data/repositories/bookedTutorsRepository';
@@ -30,6 +30,75 @@ import type { TutorSlot } from '../../../domain/entities/TutorSlot';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
 const { width } = Dimensions.get('window');
+
+export interface TimeDiffInfo {
+  diffMinutes: number;
+  displayText: string;
+  isExactMatch: boolean;
+  type: 'exact' | 'earlier' | 'later';
+  formattedDiff: string;
+}
+
+export function getTimeDifferenceInfo(
+  slotStartTime: string,
+  preferredTime: string
+): TimeDiffInfo {
+  const slotMins = parseTimeToMinutes(slotStartTime);
+  const prefMins = parseTimeToMinutes(preferredTime);
+
+  if (slotMins === null || prefMins === null) {
+    return {
+      diffMinutes: 0,
+      displayText: 'Time match',
+      isExactMatch: false,
+      type: 'exact',
+      formattedDiff: '0m',
+    };
+  }
+
+  const diffMinutes = slotMins - prefMins;
+
+  if (diffMinutes === 0) {
+    return {
+      diffMinutes: 0,
+      displayText: 'Exact Match',
+      isExactMatch: true,
+      type: 'exact',
+      formattedDiff: '0m',
+    };
+  }
+
+  const absDiff = Math.abs(diffMinutes);
+  const hours = Math.floor(absDiff / 60);
+  const mins = absDiff % 60;
+
+  let durationStr = '';
+  if (hours > 0 && mins > 0) {
+    durationStr = `${hours}h ${mins}m`;
+  } else if (hours > 0) {
+    durationStr = `${hours} hr${hours > 1 ? 's' : ''}`;
+  } else {
+    durationStr = `${mins} mins`;
+  }
+
+  if (diffMinutes > 0) {
+    return {
+      diffMinutes,
+      displayText: `+${durationStr} later`,
+      isExactMatch: false,
+      type: 'later',
+      formattedDiff: `+${durationStr}`,
+    };
+  } else {
+    return {
+      diffMinutes,
+      displayText: `-${durationStr} earlier`,
+      isExactMatch: false,
+      type: 'earlier',
+      formattedDiff: `-${durationStr}`,
+    };
+  }
+}
 
 type Step =
   | 'book'
@@ -189,8 +258,9 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
     loadSlots();
   }, [selectedDate, studyMode]);
 
-  const loadSlots = async () => {
+  const loadSlots = async (preferredTimeOverride?: string) => {
     setIsLoadingSlots(true);
+    const prefTime = preferredTimeOverride || selectedInitialTime;
     try {
       const slots = await tutorSlotRepository.getSlotsByMentorAndDate(
         mentor._id,
@@ -198,10 +268,19 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         selectedDate,
         studyMode === 'group' ? 'group' : '1-on-1'
       );
-      setAvailableSlots(slots);
+
+      // Sort slots by proximity to student's entered preferred time
+      const prefMins = parseTimeToMinutes(prefTime) ?? 600;
+      const sortedSlots = [...slots].sort((a, b) => {
+        const aMins = parseTimeToMinutes(a.startTime) ?? 600;
+        const bMins = parseTimeToMinutes(b.startTime) ?? 600;
+        return Math.abs(aMins - prefMins) - Math.abs(bMins - prefMins);
+      });
+
+      setAvailableSlots(sortedSlots);
 
       // Default select the slot matching selectedInitialTime or first slot
-      const initial = slots.find((s) => s.startTime === selectedInitialTime) || slots[0];
+      const initial = sortedSlots.find((s) => s.startTime === prefTime) || sortedSlots[0];
       if (initial) {
         setSelectedSlot(initial);
       }
@@ -230,21 +309,65 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
       Alert.alert('Select Topics', 'Please choose at least one subject topic.');
       return;
     }
+    // Refresh slots sorted for selectedInitialTime
+    loadSlots(selectedInitialTime);
     // Advance to Step 2
     setCurrentStep('choose_time');
   };
 
   // Step 2: Slot Selection
-  // Note: Slots are displayed cleanly without conflict badges upfront.
-  // ONLY when user selects a conflicting/unavailable slot, it displays the conflict warning!
   const handleSelectSlot = (slot: TutorSlot) => {
     setSelectedSlot(slot);
+    if (!slot.hasConflict) {
+      setTimeUpdatedBanner(null);
+    }
     if (slot.fee) {
       if (studyMode === 'group') {
         setHourlyRateGroup(slot.fee);
       } else {
         setHourlyRate1on1(slot.fee);
       }
+    }
+  };
+
+  // Step 2 Alternative Slot Selection (Resolves schedule clash directly on Choose Time)
+  const handleSelectAlternativeOnChooseTime = (alt: { time: string; range: string }) => {
+    setSelectedAlternative(alt.time);
+    setAlternativeTimeRange(alt.range);
+    setTimeUpdatedBanner(`Time updated to ${alt.time}`);
+
+    // If an existing non-conflicting slot matches this time, select it
+    const matchingSlot = availableSlots.find((s) => s.startTime === alt.time && !s.hasConflict);
+    if (matchingSlot) {
+      setSelectedSlot(matchingSlot);
+      if (matchingSlot.fee) {
+        if (studyMode === 'group') setHourlyRateGroup(matchingSlot.fee);
+        else setHourlyRate1on1(matchingSlot.fee);
+      }
+    } else {
+      // Create a clean non-conflicting alternative slot
+      const altSlot: TutorSlot = {
+        id: `alt-slot-${Date.now()}`,
+        mentorId: mentor._id,
+        mentorName: mentor.name,
+        title: `${mentor.name}'s Alternative Mentoring Slot`,
+        module: mentor.subjects?.[0] || 'Academic Mentoring',
+        date: selectedDate,
+        startTime: alt.time,
+        endTime: alt.range.split('-')[1]?.trim() || alt.time,
+        duration: '60 Mins',
+        timeRange: alt.range,
+        fee: studyMode === 'group' ? hourlyRateGroup : hourlyRate1on1,
+        type: studyMode === 'group' ? 'group' : '1-on-1',
+        maxCapacity: studyMode === 'group' ? groupSize : 1,
+        bookedCount: 0,
+        description: `Alternative non-conflicting peer session on ${selectedDate}.`,
+        mode: 'Online',
+        location: 'Microsoft Teams Meeting',
+        hasConflict: false,
+        isAvailable: true,
+      };
+      setSelectedSlot(altSlot);
     }
   };
 
@@ -257,7 +380,6 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
     if (selectedSlot.hasConflict) {
       setCurrentStep('conflict');
     } else {
-      setTimeUpdatedBanner(null);
       setCurrentStep('finalize');
     }
   };

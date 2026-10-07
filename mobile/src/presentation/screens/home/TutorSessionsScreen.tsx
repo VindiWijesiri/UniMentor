@@ -190,9 +190,11 @@ export default function TutorSessionsScreen({ navigation }: any) {
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const currentUser = useAuthStore((state) => state.user);
+  const tutorMentorId = currentUser?._id || (currentUser as any)?.id || 'demo-tutor-1';
+  const tutorMentorName = currentUser?.name || 'Tharushi Perera';
 
   const [activeTab, setActiveTab] = useState<SessionTab>('upcoming');
-  const [sessions, setSessions] = useState<TutorSessionItem[]>(INITIAL_SESSIONS);
+  const [sessions, setSessions] = useState<TutorSessionItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSessionForRoster, setSelectedSessionForRoster] = useState<TutorSessionItem | null>(null);
   const [liveRoomModalSession, setLiveRoomModalSession] = useState<TutorSessionItem | null>(null);
@@ -207,18 +209,14 @@ export default function TutorSessionsScreen({ navigation }: any) {
 
   const loadTutorSessions = useCallback(async () => {
     try {
-      const slots = await tutorSlotRepository.getAllSlots(currentUser?.id, currentUser?.name);
+      // Query ONLY sessions created by this tutor
+      const slots = await tutorSlotRepository.getAllSlots(tutorMentorId, tutorMentorName);
       const convertedSlots = slots.map(transformSlotToSessionItem);
-
-      setSessions((prev) => {
-        const existingSlotIds = new Set(convertedSlots.map((s) => s.id));
-        const remainingInitial = prev.filter((p) => !existingSlotIds.has(p.id));
-        return [...convertedSlots, ...remainingInitial];
-      });
+      setSessions(convertedSlots);
     } catch (err) {
       console.log('[TutorSessionsScreen] Error loading slots:', err);
     }
-  }, [currentUser]);
+  }, [tutorMentorId, tutorMentorName]);
 
   useEffect(() => {
     loadTutorSessions();
@@ -312,43 +310,49 @@ export default function TutorSessionsScreen({ navigation }: any) {
     }
   };
 
-  const handleCreateInstantSession = () => {
+  const handleCreateInstantSession = async () => {
     if (!newTitle.trim()) {
       Alert.alert('Session Title Required', 'Please enter a title for this instant session.');
       return;
     }
-    const newSession: TutorSessionItem = {
-      id: `sess-${Date.now()}`,
+    const createdSlot = await tutorSlotRepository.addSlot({
+      mentorId: tutorMentorId,
+      mentorName: tutorMentorName,
       title: newTitle.trim(),
-      moduleCode: 'IT-EXP',
-      moduleName: newModule,
-      type: 'pod',
-      groupName: 'Live Kuppiya Room',
+      module: newModule,
       date: 'Today',
+      startTime: 'Now',
+      endTime: '60 Mins',
+      duration: '60 Mins',
       timeRange: 'Starting Now • 60 Mins',
-      isToday: true,
-      isLiveNow: true,
+      fee: 1500,
+      type: 'group',
+      maxCapacity: 8,
       mode: newMode,
       location: newMode === 'Online' ? 'UniMentor Live Room • Instant Hall' : 'Computing Lab 304',
-      feePerStudent: 1500,
-      totalEarnings: 1500,
-      status: 'in-progress',
-      agenda: 'Immediate open peer mentoring and problem-solving session.',
-      attendees: [
+      description: 'Immediate open peer mentoring and problem-solving session.',
+      targetBatch: 'All Batches',
+      registeredAttendees: [
         {
           id: `att-demo-${Date.now()}`,
-          name: 'Nethmi Silva',
-          email: 'nethmi.silva@student.unimentor.lk',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-          attendance: 'confirmed',
+          studentName: 'Nethmi Silva',
+          studentEmail: 'nethmi.silva@student.unimentor.lk',
+          registeredAt: 'Just now',
+          status: 'confirmed',
+          bookingType: 'individual',
           notes: 'Joined immediate Kuppiya room.',
+          feePaid: 1500,
         },
       ],
-    };
-    setSessions((prev) => [newSession, ...prev]);
+    });
+
+    const transformed = transformSlotToSessionItem(createdSlot);
+    transformed.isLiveNow = true;
+    transformed.status = 'in-progress';
+
     setCreateInstantModalVisible(false);
     setNewTitle('');
-    setConfirmJoinModalSession(newSession);
+    setConfirmJoinModalSession(transformed);
   };
 
   return (
@@ -486,10 +490,18 @@ export default function TutorSessionsScreen({ navigation }: any) {
         {filteredSessions.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="calendar-clear-outline" size={44} color="#94A3B8" />
-            <Text style={styles.emptyTitle}>No Sessions In This View</Text>
+            <Text style={styles.emptyTitle}>No Sessions Found for {tutorMentorName}</Text>
             <Text style={styles.emptySub}>
-              You have no active sessions for this filter. Bookings from students appear here automatically.
+              Only mentoring sessions created under your tutor profile appear here. Allocate a new time slot in Scheduling or launch an instant room now.
             </Text>
+            <TouchableOpacity
+              style={styles.emptyCreateBtn}
+              onPress={() => setCreateInstantModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="videocam" size={16} color="#FFFFFF" />
+              <Text style={styles.emptyCreateBtnText}>Launch Instant Session</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           filteredSessions.map((session) => (
@@ -1151,6 +1163,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
+  },
+  emptyCreateBtn: {
+    backgroundColor: '#061E47',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 14,
+  },
+  emptyCreateBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '800',
   },
   sessionCard: {
     backgroundColor: '#FFFFFF',
