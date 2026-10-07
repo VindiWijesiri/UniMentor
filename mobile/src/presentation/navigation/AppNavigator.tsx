@@ -241,10 +241,14 @@ export default function AppNavigator() {
   const needsGuidance = useAuthStore((state) => state.needsGuidance);
   const student = role === 'student';
   const mentor = role === 'mentor';
+  // Capture once so completing guidance does not remount the stack onto Home.
+  const initialRouteRef = React.useRef<'GuidanceWizard' | 'MainTabs'>(
+    student && needsGuidance ? 'GuidanceWizard' : 'MainTabs',
+  );
 
   return (
     <Stack.Navigator
-      initialRouteName={student && needsGuidance ? 'GuidanceWizard' : 'MainTabs'}
+      initialRouteName={initialRouteRef.current}
       screenOptions={{
         headerTintColor: '#102B5D',
         headerTitleStyle: { fontWeight: '800', color: '#102B5D' },

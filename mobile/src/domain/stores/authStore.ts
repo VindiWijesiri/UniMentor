@@ -14,6 +14,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   needsGuidance: boolean;
+  showPostLoginOnboarding: boolean;
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   logout: () => void;
@@ -27,11 +28,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   isAuthenticated: false,
   needsGuidance: false,
+  showPostLoginOnboarding: false,
   setUser: (user) => set({ user, isAuthenticated: true }),
   setToken: (token) => set({ token }),
   logout: () => {
     void removeFlag('auth.token');
-    set({ user: null, token: null, isAuthenticated: false, needsGuidance: false });
+    set({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      needsGuidance: false,
+      showPostLoginOnboarding: false,
+    });
   },
   switchDemoRole: async (role) => {
     try {

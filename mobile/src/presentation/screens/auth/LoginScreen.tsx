@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { loginUseCase } from '../../../domain/usecases/auth/loginUseCase';
-import { beginSession } from '../../../domain/stores/sessionGate';
+import { beginFirstTimeSession, beginSession } from '../../../domain/stores/sessionGate';
 import Logo from '../../components/Logo';
 import { useDeviceFrame } from '../../components/DeviceFrame';
 import { colors } from '../../../shared/theme';
@@ -17,8 +17,10 @@ type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 };
 
+const STUDENT_DEMO = { email: 'student@unimentor.dev', password: 'password123' };
+
 const DEMOS = [
-  { key: 'student', label: 'Student', email: 'student@unimentor.dev', password: 'password123' },
+  { key: 'student', label: 'Student', email: STUDENT_DEMO.email, password: STUDENT_DEMO.password },
   { key: 'tutor', label: 'Tutor', email: 'tharushi.perera@unimentor.test', password: 'Password123' },
   { key: 'admin', label: 'Admin', email: 'admin@unimentor.dev', password: 'password123' },
   { key: 'lic', label: 'LIC', email: 'lic@unimentor.dev', password: 'password123' },
@@ -42,6 +44,18 @@ export default function LoginScreen({ navigation }: Props) {
     try {
       const result = await loginUseCase({ email: nextEmail, password: nextPassword });
       await beginSession(result.user, result.token);
+    } catch (err: any) {
+      Alert.alert('Login Failed', err.message ?? 'Something went wrong.');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const firstTimeLogin = async () => {
+    setLoading('first');
+    try {
+      const result = await loginUseCase(STUDENT_DEMO);
+      await beginFirstTimeSession(result.user, result.token);
     } catch (err: any) {
       Alert.alert('Login Failed', err.message ?? 'Something went wrong.');
     } finally {
@@ -122,7 +136,24 @@ export default function LoginScreen({ navigation }: Props) {
             </>
           ) : (
             <View style={styles.demoSection}>
-              <Text style={styles.demoLabel}>Tap a role to enter</Text>
+              <Text style={styles.demoLabel}>First-time student path</Text>
+              <TouchableOpacity
+                style={[styles.firstTimeBtn, loading === 'first' && styles.demoBtnBusy]}
+                onPress={firstTimeLogin}
+                disabled={loading !== null}
+                activeOpacity={0.85}
+              >
+                {loading === 'first'
+                  ? <ActivityIndicator color="#102B5D" />
+                  : (
+                    <View style={styles.firstTimeCopy}>
+                      <Text style={styles.firstTimeTitle}>First time login</Text>
+                      <Text style={styles.firstTimeSub}>Onboarding → academic guidance → Find Tutors</Text>
+                    </View>
+                  )}
+              </TouchableOpacity>
+
+              <Text style={[styles.demoLabel, { marginTop: 18 }]}>Tap a role to enter</Text>
               <View style={styles.demoButtonsRow}>
                 {DEMOS.map((demo) => (
                   <TouchableOpacity
@@ -234,6 +265,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 10,
   },
+  firstTimeBtn: {
+    backgroundColor: '#FF8D28',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  firstTimeCopy: { alignItems: 'center', gap: 4 },
+  firstTimeTitle: { color: '#102B5D', fontSize: 16, fontWeight: '800' },
+  firstTimeSub: { color: '#5B4630', fontSize: 12, fontWeight: '600', textAlign: 'center' },
   demoButtonsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

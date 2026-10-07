@@ -18,6 +18,20 @@ export async function beginSession(user: User, token: string) {
     token,
     isAuthenticated: true,
     needsGuidance: user.role === 'student' && seen !== '1',
+    showPostLoginOnboarding: false,
+  });
+}
+
+/** Student demo path: replay onboarding, then GuidanceWizard → Find Tutors. */
+export async function beginFirstTimeSession(user: User, token: string) {
+  await writeFlag(TOKEN_KEY, token);
+  if (user._id) await removeFlag(guidanceKey(user._id));
+  useAuthStore.setState({
+    user,
+    token,
+    isAuthenticated: true,
+    needsGuidance: user.role === 'student',
+    showPostLoginOnboarding: true,
   });
 }
 

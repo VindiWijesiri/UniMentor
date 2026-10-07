@@ -1,4 +1,5 @@
 import apiClient from '../api/apiClient';
+import { useAuthStore } from '../../domain/stores/authStore';
 import type {
   ChatPodMessage,
   LearningActivity,
@@ -27,7 +28,14 @@ export const learningRepository = {
   getChatPod: async () => (await apiClient.get<ChatPodMessage[]>('/learning/chat-pod')).data,
   sendChatPod: async (text: string) => (await apiClient.post<ChatPodMessage>('/learning/chat-pod/messages', { text })).data,
   toggleGoal: async (id: string) => apiClient.patch(`/learning/goals/${id}`),
-  logPresence: async (seconds: number, date: string) => apiClient.post('/learning/presence', { seconds, date }),
+  logPresence: async (seconds: number, date: string) => {
+    if (!useAuthStore.getState().token) return;
+    try {
+      await apiClient.post('/learning/presence', { seconds, date });
+    } catch {
+      // Presence is best-effort; never surface to LogBox.
+    }
+  },
   logFocus: async (goalId: string, seconds: number, date: string, area?: string) => (
     await apiClient.post<{ minutes: number; goalTitle: string; progress: number; hoursDone: number }>(
       '/learning/focus',

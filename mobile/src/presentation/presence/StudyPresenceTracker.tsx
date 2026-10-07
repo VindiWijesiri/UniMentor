@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { learningRepository } from '../../data/repositories/learningRepository';
 import { useAuthStore } from '../../domain/stores/authStore';
@@ -13,13 +13,22 @@ function localDate() {
 
 export default function StudyPresenceTracker() {
   const role = useAuthStore((state) => state.user?.role);
+  const token = useAuthStore((state) => state.token);
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
 
   useEffect(() => {
-    if (role !== 'student') return undefined;
+    if (role !== 'student' || !token) return undefined;
+
     let started = Date.now();
+    let live = true;
     let timer: ReturnType<typeof setInterval> | undefined;
+    const sessionToken = token;
 
     const flush = () => {
+      const current = useAuthStore.getState().token;
+      // Drop the tick if the user signed out or the session token changed.
+      if (!live || !current || current !== sessionToken || !tokenRef.current) return;
       if (isFocusClockPaused()) {
         started = Date.now();
         return;
@@ -27,7 +36,7 @@ export default function StudyPresenceTracker() {
       const seconds = Math.round((Date.now() - started) / 1000);
       started = Date.now();
       if (seconds < 5) return;
-      learningRepository.logPresence(seconds, localDate()).catch(() => {});
+      void learningRepository.logPresence(seconds, localDate());
     };
 
     const start = () => {
@@ -36,24 +45,26 @@ export default function StudyPresenceTracker() {
       timer = setInterval(flush, 30000);
     };
 
-    const stop = () => {
+    const stop = (shouldFlush: boolean) => {
       if (timer) clearInterval(timer);
       timer = undefined;
-      flush();
+      if (shouldFlush) flush();
     };
 
     const subscription = AppState.addEventListener('change', (next) => {
       if (next === 'active') start();
-      else stop();
+      else stop(true);
     });
 
     if (AppState.currentState === 'active') start();
 
     return () => {
+      live = false;
       subscription.remove();
-      stop();
+      if (timer) clearInterval(timer);
+      timer = undefined;
     };
-  }, [role]);
+  }, [role, token]);
 
   return null;
 }

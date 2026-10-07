@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { searchMentorsUseCase } from '../../../domain/usecases/mentor/searchMentorsUseCase';
 import type { Mentor } from '../../../domain/entities/Mentor';
@@ -24,6 +24,7 @@ import { shortlistRepository } from '../../../data/repositories/shortlistReposit
 import type { ShortlistedMentor } from '../../../domain/entities/ShortlistedMentor';
 import { Pencil, Search, Star, Trash2 } from 'lucide-react-native';
 import PageHeader from '../../components/PageHeader';
+import { getMentorRate } from '../../../shared/utils/mentorRate';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Search'>;
 type MentorCard = Mentor & {
@@ -34,29 +35,17 @@ type MentorCard = Mentor & {
   hourlyRate?: number;
 };
 
-const subjects = [
+const DEFAULT_SUBJECTS = [
   'All', 'Data Structures', 'DBMS', 'OOP', 'Calculus',
-  'Machine Learning', 'Programming', 'Web Development',
+  'Machine Learning', 'Programming', 'Web Development', 'Software Architecture',
 ];
 
 function matchesMentor(mentor: MentorCard, value: string): boolean {
   const normalized = value.trim().toLowerCase();
   if (!normalized || normalized === 'all') return true;
-  return [mentor.name, mentor.bio, ...mentor.subjects]
-    .some((item) => item.toLowerCase().includes(normalized));
-}
-
-export function getMentorRate(mentor: { _id?: string; name: string; hourlyRate?: number }): number {
-  if (typeof mentor.hourlyRate === 'number' && mentor.hourlyRate > 0) {
-    return mentor.hourlyRate;
-  }
-  const idStr = mentor._id || mentor.name || 'mentor';
-  let hash = 0;
-  for (let i = 0; i < idStr.length; i++) {
-    hash = (hash * 31 + idStr.charCodeAt(i)) >>> 0;
-  }
-  const rates = [1200, 1500, 1800, 2000, 2200, 2500, 2800, 3200, 3500, 3800, 4200, 4500];
-  return rates[hash % rates.length];
+  return [mentor.name, mentor.bio ?? '', ...(mentor.subjects ?? [])]
+    .filter(Boolean)
+    .some((item) => String(item).toLowerCase().includes(normalized));
 }
 
 export default function SearchScreen({ route, navigation }: Props) {
@@ -73,7 +62,7 @@ export default function SearchScreen({ route, navigation }: Props) {
   const [selectedSubject, setSelectedSubject] = useState(initialQuery || 'All');
   const [apiMentors, setApiMentors] = useState<Mentor[]>([]);
   const [loading, setLoading] = useState(false);
-  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
+  const [comparisonMentors, setComparisonMentors] = useState<MentorCard[]>([]);
 
   // Shortlist CRUD state
   const [searchTab, setSearchTab] = useState<'browse' | 'shortlist'>('browse');
@@ -94,16 +83,14 @@ export default function SearchScreen({ route, navigation }: Props) {
   useEffect(() => {
     let active = true;
     setQuery(initialQuery);
-    setSelectedSubject(initialQuery);
+    setSelectedSubject(initialQuery || 'All');
     setLoading(true);
-    console.log(`[SearchScreen] 🔎 Initial search triggered with query: "${initialQuery}"`);
-    searchMentorsUseCase(initialQuery)
+    // Load the full mentor catalog so module chips can filter locally.
+    searchMentorsUseCase('')
       .then((mentors) => {
-        console.log(`[SearchScreen] 📥 Received ${mentors?.length ?? 0} mentors from API`);
-        if (active) setApiMentors(mentors);
+        if (active) setApiMentors(Array.isArray(mentors) ? mentors : []);
       })
-      .catch((err) => {
-        console.error(`[SearchScreen] ❌ Error fetching mentors:`, err.message || err);
+      .catch(() => {
         if (active) setApiMentors([]);
       })
       .finally(() => {
@@ -115,14 +102,23 @@ export default function SearchScreen({ route, navigation }: Props) {
     };
   }, [initialQuery]);
 
-  useEffect(() => {
-    setComparisonIds((current) => current.filter((id) => apiMentors.some((mentor) => mentor._id === id)));
-  }, [apiMentors]);
+  const subjectChips = useMemo(() => {
+    const fromMentors = apiMentors
+      .flatMap((mentor) => mentor.subjects ?? [])
+      .map((subject) => subject.trim())
+      .filter((subject) => subject.length > 0 && subject.length <= 40);
+    const seed = [initialQuery, selectedSubject].filter((value) => value && value !== 'All') as string[];
+    const unique = Array.from(new Set([...DEFAULT_SUBJECTS.slice(1), ...seed, ...fromMentors]));
+    return ['All', ...unique.slice(0, 20)];
+  }, [apiMentors, initialQuery, selectedSubject]);
 
   const visibleMentors = useMemo(() => {
-    const searchValue = query.trim() || selectedSubject;
-    const remoteMatches = apiMentors.filter((mentor) => matchesMentor(mentor, searchValue));
-    const filtered = remoteMatches
+    const chip = selectedSubject && selectedSubject !== 'All' ? selectedSubject : '';
+    const text = query.trim();
+    // Chip wins when set; otherwise use the search box text.
+    const activeFilter = chip || text;
+    return apiMentors
+      .filter((mentor) => matchesMentor(mentor, activeFilter))
       .filter((mentor) => !filters?.minRating || (mentor.rating ?? 0) >= filters.minRating)
       .filter((mentor) => {
         if (!filters?.priceRange) return true;
@@ -131,42 +127,40 @@ export default function SearchScreen({ route, navigation }: Props) {
           ? (rate >= 500 && rate <= 3000)
           : (rate > 3000 && rate <= 5000);
       });
-    console.log(`[SearchScreen] 📊 Total from API: ${apiMentors.length} | Visible after filter: ${filtered.length}`);
-    return filtered;
   }, [apiMentors, filters?.minRating, filters?.priceRange, query, selectedSubject]);
 
-  const handleSearch = async (searchValue = query) => {
+  const handleSearch = (searchValue = query) => {
     const value = searchValue.trim();
-    setSelectedSubject(value || 'All');
-    console.log(`[SearchScreen] 🔎 Manual search triggered with value: "${value}"`);
-    setLoading(true);
-    try {
-      const results = await searchMentorsUseCase(value === 'All' ? '' : value);
-      console.log(`[SearchScreen] 📥 handleSearch received ${results?.length ?? 0} mentors`);
-      setApiMentors(results);
-    } catch (err: any) {
-      console.error(`[SearchScreen] ❌ handleSearch failed:`, err.message || err);
-      setApiMentors([]);
-    } finally {
-      setLoading(false);
-    }
+    const matchedChip = subjectChips.find((subject) => subject.toLowerCase() === value.toLowerCase());
+    setSelectedSubject(matchedChip || (value ? value : 'All'));
+    setQuery(value);
   };
 
   const selectSubject = (subject: string) => {
     const value = subject === 'All' ? '' : subject;
-    setQuery(value);
     setSelectedSubject(subject);
-    void handleSearch(subject);
+    setQuery(value);
   };
 
-  const toggleComparison = (mentorId: string) => {
-    setComparisonIds((current) => {
-      if (current.includes(mentorId)) return current.filter((id) => id !== mentorId);
+  const openStackScreen = (name: keyof AppStackParamList, params?: object) => {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name,
+        params,
+      }),
+    );
+  };
+
+  const toggleComparison = (mentor: MentorCard) => {
+    setComparisonMentors((current) => {
+      if (current.some((item) => item._id === mentor._id)) {
+        return current.filter((item) => item._id !== mentor._id);
+      }
       if (current.length >= 3) {
         Alert.alert('Maximum 3 tutors', 'Remove one tutor before adding another.');
         return current;
       }
-      return [...current, mentorId];
+      return [...current, mentor];
     });
   };
 
@@ -297,13 +291,24 @@ export default function SearchScreen({ route, navigation }: Props) {
   };
 
   const openComparison = () => {
-    const mentors = visibleMentors.filter(({ _id }) => comparisonIds.includes(_id));
-    if (mentors.length < 2) {
+    if (comparisonMentors.length < 2) {
       Alert.alert('Select tutors', 'Choose at least 2 tutors to compare.');
       return;
     }
-    navigation.getParent<NativeStackNavigationProp<AppStackParamList>>()
-      ?.navigate('CompareTutors', { mentors });
+    const mentors = comparisonMentors.map((mentor) => ({
+      _id: mentor._id,
+      name: mentor.name,
+      email: mentor.email,
+      subjects: mentor.subjects ?? [],
+      bio: mentor.bio ?? '',
+      rating: mentor.rating ?? 0,
+      reviewCount: mentor.reviewCount,
+      hourlyRate: mentor.hourlyRate,
+      experience: mentor.experience,
+      sessionCount: mentor.sessionCount,
+      availability: mentor.availability,
+    }));
+    openStackScreen('CompareTutors', { mentors });
   };
 
   const renderMentor = ({ item }: { item: MentorCard }) => {
@@ -330,7 +335,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.subjectRow}>
-          {item.subjects.slice(0, 2).map((subject) => (
+          {(item.subjects ?? []).slice(0, 2).map((subject) => (
             <View key={subject} style={styles.subjectTag}>
               <Text style={styles.subjectTagText}>{subject}</Text>
             </View>
@@ -354,20 +359,18 @@ export default function SearchScreen({ route, navigation }: Props) {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.addCompareButton, comparisonIds.includes(item._id) && styles.addCompareButtonSelected]}
-              onPress={() => toggleComparison(item._id)}
+              style={[styles.addCompareButton, comparisonMentors.some((mentor) => mentor._id === item._id) && styles.addCompareButtonSelected]}
+              onPress={() => toggleComparison(item)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.addCompareText, comparisonIds.includes(item._id) && styles.addCompareTextSelected]}>
-                {comparisonIds.includes(item._id) ? '✓ Added' : '+ Compare'}
+              <Text style={[styles.addCompareText, comparisonMentors.some((mentor) => mentor._id === item._id) && styles.addCompareTextSelected]}>
+                {comparisonMentors.some((mentor) => mentor._id === item._id) ? '✓ Added' : '+ Compare'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.viewButton}
               activeOpacity={0.82}
-              onPress={() => navigation
-                .getParent<NativeStackNavigationProp<AppStackParamList>>()
-                ?.navigate('TutorProfile', { mentor: item })}
+              onPress={() => openStackScreen('TutorProfile', { mentor: item })}
             >
               <Text style={styles.viewButtonText}>Profile</Text>
             </TouchableOpacity>
@@ -452,9 +455,7 @@ export default function SearchScreen({ route, navigation }: Props) {
                 rating: item.rating,
                 hourlyRate: item.hourlyRate,
               };
-              navigation
-                .getParent<NativeStackNavigationProp<AppStackParamList>>()
-                ?.navigate('TutorProfile', { mentor: fullMentor as Mentor });
+              openStackScreen('TutorProfile', { mentor: fullMentor as Mentor });
             }}
           >
             <Text style={styles.viewButtonText}>Profile</Text>
@@ -476,10 +477,10 @@ export default function SearchScreen({ route, navigation }: Props) {
             placeholderTextColor="#8492AD"
             value={query}
             onChangeText={setQuery}
-            onSubmitEditing={() => void handleSearch()}
+            onSubmitEditing={() => handleSearch()}
             returnKeyType="search"
           />
-          <TouchableOpacity style={styles.searchButton} onPress={() => void handleSearch()}>
+          <TouchableOpacity style={styles.searchButton} onPress={() => handleSearch()}>
             <Text style={styles.searchButtonText}>Search</Text>
           </TouchableOpacity>
         </View>
@@ -505,47 +506,60 @@ export default function SearchScreen({ route, navigation }: Props) {
         </View>
       </View>
 
+      {searchTab === 'browse' && (
+        <View style={styles.filterSection}>
+          <View style={styles.filterHeadingRow}>
+            <Text style={styles.browseLabel}>Filter by module</Text>
+            <TouchableOpacity
+              style={[styles.openFiltersButton, activeFilterCount > 0 && styles.openFiltersButtonActive]}
+              onPress={() => openStackScreen('Filters', { filters, searchParams: route.params })}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.openFiltersIcon, activeFilterCount > 0 && styles.openFiltersTextActive]}>≡</Text>
+              <Text style={[styles.openFiltersText, activeFilterCount > 0 && styles.openFiltersTextActive]}>Filters</Text>
+              {activeFilterCount > 0 && <View style={styles.filterCount}><Text style={styles.filterCountText}>{activeFilterCount}</Text></View>}
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+            keyboardShouldPersistTaps="handled"
+          >
+            {subjectChips.map((subject) => {
+              const active = selectedSubject === subject || (!query.trim() && subject === 'All' && selectedSubject === 'All');
+              return (
+                <TouchableOpacity
+                  key={subject}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => selectSubject(subject)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.filterText, active && styles.filterTextActive]}>{subject}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       <FlatList
         data={searchTab === 'browse' ? visibleMentors : (shortlist as any)}
         keyExtractor={(item: any) => item._id || item.mentorId}
+        extraData={`${searchTab}|${selectedSubject}|${query}|${comparisonMentors.map((m) => m._id).join(',')}`}
         renderItem={searchTab === 'browse' ? (renderMentor as any) : (renderShortlistCard as any)}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.listContent, comparisonIds.length > 0 && styles.listContentWithCompare]}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.listContent, comparisonMentors.length > 0 && styles.listContentWithCompare]}
         ListHeaderComponent={searchTab === 'browse' ? (
           <>
-            <View style={styles.filterHeadingRow}>
-              <Text style={styles.browseLabel}>Filter by module</Text>
-              <TouchableOpacity
-                style={[styles.openFiltersButton, activeFilterCount > 0 && styles.openFiltersButtonActive]}
-                onPress={() => navigation
-                  .getParent<NativeStackNavigationProp<AppStackParamList>>()
-                  ?.navigate('Filters', { filters, searchParams: route.params })}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.openFiltersIcon, activeFilterCount > 0 && styles.openFiltersTextActive]}>≡</Text>
-                <Text style={[styles.openFiltersText, activeFilterCount > 0 && styles.openFiltersTextActive]}>Filters</Text>
-                {activeFilterCount > 0 && <View style={styles.filterCount}><Text style={styles.filterCountText}>{activeFilterCount}</Text></View>}
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-              {subjects.map((subject) => {
-                const active = selectedSubject === subject || (!query && subject === 'All');
-                return (
-                  <TouchableOpacity
-                    key={subject}
-                    style={[styles.filterChip, active && styles.filterChipActive]}
-                    onPress={() => selectSubject(subject)}
-                  >
-                    <Text style={[styles.filterText, active && styles.filterTextActive]}>{subject}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
             <View style={styles.resultsHeader}>
               <View>
                 <Text style={styles.resultsTitle}>Available tutors</Text>
-                <Text style={styles.resultsCount}>{visibleMentors.length} results</Text>
+                <Text style={styles.resultsCount}>
+                  {visibleMentors.length} results
+                  {selectedSubject && selectedSubject !== 'All' ? ` for ${selectedSubject}` : query.trim() ? ` for ${query.trim()}` : ''}
+                </Text>
                 {(faculty || department || programme) && (
                   <Text style={styles.resultsContext} numberOfLines={1}>
                     {initialQuery || [faculty, department].filter(Boolean).join('  •  ')}
@@ -554,14 +568,14 @@ export default function SearchScreen({ route, navigation }: Props) {
               </View>
               {loading && <ActivityIndicator color="#061E47" />}
             </View>
-            {comparisonIds.length > 0 && (
+            {comparisonMentors.length > 0 && (
               <View style={styles.comparePanel}>
                 <View style={styles.compareCountWrap}>
-                  <Text style={styles.compareCount}>{comparisonIds.length}/3</Text>
+                  <Text style={styles.compareCount}>{comparisonMentors.length}/3</Text>
                   <Text style={styles.compareHint}>tutors selected</Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.compareButton, comparisonIds.length < 2 && styles.compareButtonDisabled]}
+                  style={[styles.compareButton, comparisonMentors.length < 2 && styles.compareButtonDisabled]}
                   onPress={openComparison}
                   activeOpacity={0.84}
                 >
@@ -664,14 +678,14 @@ export default function SearchScreen({ route, navigation }: Props) {
         </Pressable>
       </Modal>
 
-      {comparisonIds.length > 0 && (
+      {comparisonMentors.length > 0 && (
         <View style={styles.floatingCompareBar}>
           <View>
-            <Text style={styles.floatingCompareCount}>{comparisonIds.length}/3 selected</Text>
-            <Text style={styles.floatingCompareHint}>{comparisonIds.length < 2 ? 'Select one more tutor' : 'Ready to compare'}</Text>
+            <Text style={styles.floatingCompareCount}>{comparisonMentors.length}/3 selected</Text>
+            <Text style={styles.floatingCompareHint}>{comparisonMentors.length < 2 ? 'Select one more tutor' : 'Ready to compare'}</Text>
           </View>
           <TouchableOpacity
-            style={[styles.floatingCompareButton, comparisonIds.length < 2 && styles.compareButtonDisabled]}
+            style={[styles.floatingCompareButton, comparisonMentors.length < 2 && styles.compareButtonDisabled]}
             onPress={openComparison}
             activeOpacity={0.84}
           >
@@ -729,8 +743,9 @@ const styles = StyleSheet.create({
   input: { flex: 1, color: '#253654', fontSize: 14, paddingVertical: 0 },
   searchButton: { height: 42, borderRadius: 12, backgroundColor: amber, justifyContent: 'center', paddingHorizontal: 16, marginRight: 6 },
   searchButtonText: { color: '#FFF', fontSize: 13, fontWeight: '900' },
-  listContent: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 30 },
+  listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 30 },
   listContentWithCompare: { paddingBottom: 104 },
+  filterSection: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 2, backgroundColor: '#F4F7FB' },
   filterHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   browseLabel: { color: navy, fontSize: 13, fontWeight: '800' },
   openFiltersButton: { minHeight: 34, borderRadius: 17, borderWidth: 1, borderColor: '#D9E3F0', backgroundColor: '#FFF', paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center' },
@@ -745,7 +760,7 @@ const styles = StyleSheet.create({
   filterChipActive: { borderColor: amber, backgroundColor: amber },
   filterText: { color: '#60708D', fontSize: 12, fontWeight: '700' },
   filterTextActive: { color: '#FFF' },
-  resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 22, marginBottom: 12 },
+  resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 },
   resultsTitle: { color: navy, fontSize: 20, fontWeight: '900' },
   resultsCount: { color: '#7E8DA8', fontSize: 12, marginTop: 2 },
   resultsContext: { color: '#55708F', fontSize: 10, marginTop: 3, maxWidth: 290 },

@@ -14,7 +14,7 @@ import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
-import { getMentorRate } from './SearchScreen';
+import { getMentorRate } from '../../../shared/utils/mentorRate';
 import PageHeader from '../../components/PageHeader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CompareTutors'>;

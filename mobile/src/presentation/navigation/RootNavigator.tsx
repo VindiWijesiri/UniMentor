@@ -11,6 +11,8 @@ import StudyPresenceTracker from '../presence/StudyPresenceTracker';
 
 export default function RootNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const token = useAuthStore((state) => state.token);
+  const showPostLoginOnboarding = useAuthStore((state) => state.showPostLoginOnboarding);
   const [ready, setReady] = useState(false);
   const [onboarded, setOnboarded] = useState(true);
 
@@ -35,20 +37,25 @@ export default function RootNavigator() {
     );
   }
 
+  const finishOnboarding = () => {
+    void markOnboardingSeen();
+    setOnboarded(true);
+    useAuthStore.setState({ showPostLoginOnboarding: false });
+  };
+
   return (
     <NavigationContainer>
-      {isAuthenticated ? (
+      {isAuthenticated && showPostLoginOnboarding ? (
+        <OnboardingScreen onDone={finishOnboarding} />
+      ) : isAuthenticated ? (
         <>
-          <StudyPresenceTracker />
+          {token ? <StudyPresenceTracker /> : null}
           <AppNavigator />
         </>
       ) : onboarded ? (
         <AuthNavigator />
       ) : (
-        <OnboardingScreen onDone={() => {
-          void markOnboardingSeen();
-          setOnboarded(true);
-        }} />
+        <OnboardingScreen onDone={finishOnboarding} />
       )}
     </NavigationContainer>
   );

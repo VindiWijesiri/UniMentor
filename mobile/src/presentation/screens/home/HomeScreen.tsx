@@ -256,8 +256,14 @@ export default function HomeScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (!needsGuidance) return undefined;
-    const unsubscribe = navigation.addListener('beforeRemove', (event: { preventDefault: () => void; data: { action: { type: string } } }) => {
-      if (event.data.action.type === 'RESET') return;
+    const unsubscribe = navigation.addListener('beforeRemove', (event: {
+      preventDefault: () => void;
+      data: { action: { type: string; payload?: { name?: string } } };
+    }) => {
+      const action = event.data.action;
+      // Allow reset / open Find Tutors. Block only accidental back/out of the wizard.
+      if (action.type === 'RESET') return;
+      if (action.type === 'NAVIGATE' && action.payload?.name === 'Search') return;
       event.preventDefault();
     });
     return unsubscribe;
@@ -274,13 +280,7 @@ export default function HomeScreen({ navigation }: Props) {
       return;
     }
 
-    if (needsGuidance) {
-      await completeGuidance();
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
-      return;
-    }
-
-    navigation.navigate('Search', {
+    const searchParams = {
       initialQuery: values.module,
       faculty: values.faculty,
       department: values.department,
@@ -288,7 +288,19 @@ export default function HomeScreen({ navigation }: Props) {
       academicYear: values.academicYear,
       semester: values.semester,
       topic: values.topic,
+    };
+
+    // Always open Find Tutors (never drop on Home alone).
+    navigation.reset({
+      index: 1,
+      routes: [
+        { name: 'MainTabs' },
+        { name: 'Search', params: searchParams },
+      ],
     });
+    if (needsGuidance) {
+      await completeGuidance();
+    }
   };
 
   return (
@@ -389,7 +401,7 @@ export default function HomeScreen({ navigation }: Props) {
           >
             <Text style={[styles.continueText, !isFormComplete && styles.continueTextDisabled]}>
               {isFormComplete
-                ? (needsGuidance ? 'Go to home  →' : 'Continue  →')
+                ? 'Find Tutors  →'
                 : `Complete All Fields (${academicFields.length - missingFields.length}/${academicFields.length})  →`}
             </Text>
           </TouchableOpacity>

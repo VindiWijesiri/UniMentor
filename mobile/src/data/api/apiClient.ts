@@ -61,7 +61,19 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   config.baseURL = resolveBaseUrl();
   const token = useAuthStore.getState().token;
+  const path = String(config.url || '');
+
+  // Presence is background-only; never call the API without a session.
+  if (!token && path.includes('/learning/presence')) {
+    return Promise.reject({
+      __silentAuthSkip: true,
+      message: 'Skipped presence — no session token.',
+      config,
+    });
+  }
+
   if (token) {
+    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
   }
   console.log(`[MOBILE CLIENT REQ] ➡️ ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
@@ -82,15 +94,26 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    const baseURL = error.config?.baseURL ?? resolveBaseUrl();
-    console.error(`[MOBILE CLIENT ERR] ❌ Call failed: ${error.config?.method?.toUpperCase()} ${baseURL}${error.config?.url}`, {
-      status: error.response?.status,
-      errorData: error.response?.data,
-      message: error.message,
-      code: error.code,
-    });
+    if (error?.__silentAuthSkip) {
+      return Promise.reject(error);
+    }
 
-    if (error.response?.status === 401) {
+    const baseURL = error.config?.baseURL ?? resolveBaseUrl();
+    const path = String(error.config?.url || '');
+    const isPresence = path.includes('/learning/presence');
+    const authHeader = error.config?.headers?.Authorization ?? error.config?.headers?.authorization;
+
+    // Presence is background telemetry — never raise a red LogBox for it.
+    if (!isPresence) {
+      console.error(`[MOBILE CLIENT ERR] ❌ Call failed: ${error.config?.method?.toUpperCase()} ${baseURL}${error.config?.url}`, {
+        status: error.response?.status,
+        errorData: error.response?.data,
+        message: error.message,
+        code: error.code,
+      });
+    }
+
+    if (error.response?.status === 401 && authHeader && !isPresence) {
       console.warn('[MOBILE CLIENT] ⚠️ 401 Unauthorized received — clearing session');
       useAuthStore.getState().logout();
     }
