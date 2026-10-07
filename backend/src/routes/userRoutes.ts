@@ -16,6 +16,13 @@ import {
   listDirectory,
   setAccountStatus,
   setVerificationStatus,
+  saveDocument,
+  getDocuments,
+  reviewDocument,
+  getSecuritySettings,
+  updateSecuritySettings,
+  getNotificationSettings,
+  updateNotificationSettings,
 } from '../controllers/userController';
 import { authenticate } from '../middleware/auth';
 
@@ -39,6 +46,13 @@ router.post('/shortlist', authenticate, addToShortlist);
 router.put('/shortlist/:mentorId', authenticate, updateShortlist);
 router.delete('/shortlist/:mentorId', authenticate, removeFromShortlist);
 router.get('/directory', authenticate, listDirectory);
+router.post('/documents', authenticate, saveDocument);
+router.get('/security', authenticate, getSecuritySettings);
+router.put('/security', authenticate, updateSecuritySettings);
+router.get('/notification-settings', authenticate, getNotificationSettings);
+router.put('/notification-settings', authenticate, updateNotificationSettings);
+router.get('/:id/documents', authenticate, getDocuments);
+router.patch('/:id/documents/:kind', authenticate, reviewDocument);
 router.patch('/:id/account-status', authenticate, setAccountStatus);
 router.patch('/:id/verification', authenticate, setVerificationStatus);
 

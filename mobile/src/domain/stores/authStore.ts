@@ -118,6 +118,19 @@ export const useAuthStore = create<AuthState>((set) => ({
       const store = await import('expo-secure-store');
       const token = await store.getItemAsync('auth.token');
       if (!token || token.startsWith('demo_') || token.startsWith('mock_')) return;
+      const biometric = await store.getItemAsync('auth.biometric');
+      if (biometric === '1') {
+        try {
+          const localAuth = await import('expo-local-authentication');
+          const result = await localAuth.authenticateAsync({
+            promptMessage: 'Unlock UniMentor',
+            cancelLabel: 'Use password',
+          });
+          if (!result.success) return;
+        } catch {
+          return;
+        }
+      }
       set({ token });
       const { authRepository } = await import('../../data/repositories/authRepository');
       const me = await authRepository.me();

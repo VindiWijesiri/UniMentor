@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,25 +8,60 @@ import {
   Platform,
   Switch,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
+import { useAuthStore } from '../../../domain/stores/authStore';
+import { NotificationPrefs, userRepository } from '../../../data/repositories/userRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export default function NotificationSettingsScreen({ navigation }: Props) {
-  const [sessionReminders, setSessionReminders] = useState(true);
-  const [chatMessages, setChatMessages] = useState(true);
-  const [bookingUpdates, setBookingUpdates] = useState(true);
-  const [verificationAlerts, setVerificationAlerts] = useState(true);
-  const [semesterRenewals, setSemesterRenewals] = useState(true);
-  const [facultyNews, setFacultyNews] = useState(false);
+  const token = useAuthStore((state) => state.token);
+  const realSession = !!token && !token.startsWith('demo_') && !token.startsWith('mock_');
+  const [prefs, setPrefs] = useState<NotificationPrefs>({
+    sessionReminders: true,
+    chatMessages: true,
+    bookingUpdates: true,
+    verificationAlerts: true,
+    semesterRenewals: true,
+    facultyNews: false,
+  });
+  const [loading, setLoading] = useState(realSession);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    Alert.alert('Preferences Saved', 'Your notification alert settings have been synchronized.');
-    navigation.goBack();
+  useEffect(() => {
+    if (!realSession) return;
+    userRepository.getNotificationSettings()
+      .then(setPrefs)
+      .catch(() => Alert.alert('Could not load', 'Your saved notification settings could not be loaded.'))
+      .finally(() => setLoading(false));
+  }, [realSession]);
+
+  const setPref = (key: keyof NotificationPrefs, value: boolean) => {
+    setPrefs((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    if (!realSession) {
+      Alert.alert('Real sign-in required', 'Notification settings are stored on the account you sign in with.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = await userRepository.updateNotificationSettings(prefs);
+      setPrefs(saved);
+      Alert.alert('Preferences saved', 'These notification choices are stored on your account.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch {
+      Alert.alert('Not saved', 'The notification settings could not be stored.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -37,12 +72,13 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
           <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>Save</Text>
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+          {saving ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.saveBtnText}>Save</Text>}
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {loading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} /> : null}
         {/* Session Alerts */}
         <Text style={styles.sectionHeader}>STUDY SESSIONS & MESSAGING</Text>
         <View style={styles.card}>
@@ -52,8 +88,8 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
               <Text style={styles.sub}>Alert 30 minutes before your tutoring session starts</Text>
             </View>
             <Switch
-              value={sessionReminders}
-              onValueChange={setSessionReminders}
+              value={prefs.sessionReminders}
+              onValueChange={(value) => setPref('sessionReminders', value)}
               trackColor={{ false: '#D1D5DB', true: colors.primary }}
             />
           </View>
@@ -66,8 +102,8 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
               <Text style={styles.sub}>Instant push notifications when tutor/student sends a message</Text>
             </View>
             <Switch
-              value={chatMessages}
-              onValueChange={setChatMessages}
+              value={prefs.chatMessages}
+              onValueChange={(value) => setPref('chatMessages', value)}
               trackColor={{ false: '#D1D5DB', true: colors.primary }}
             />
           </View>
@@ -80,8 +116,8 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
               <Text style={styles.sub}>Alerts when a session is booked, rescheduled, or cancelled</Text>
             </View>
             <Switch
-              value={bookingUpdates}
-              onValueChange={setBookingUpdates}
+              value={prefs.bookingUpdates}
+              onValueChange={(value) => setPref('bookingUpdates', value)}
               trackColor={{ false: '#D1D5DB', true: colors.primary }}
             />
           </View>
@@ -96,8 +132,8 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
               <Text style={styles.sub}>Immediate alerts when modules or IDs are approved or rejected</Text>
             </View>
             <Switch
-              value={verificationAlerts}
-              onValueChange={setVerificationAlerts}
+              value={prefs.verificationAlerts}
+              onValueChange={(value) => setPref('verificationAlerts', value)}
               trackColor={{ false: '#D1D5DB', true: colors.primary }}
             />
           </View>
@@ -110,8 +146,8 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
               <Text style={styles.sub}>Remind you before annual university verification expires</Text>
             </View>
             <Switch
-              value={semesterRenewals}
-              onValueChange={setSemesterRenewals}
+              value={prefs.semesterRenewals}
+              onValueChange={(value) => setPref('semesterRenewals', value)}
               trackColor={{ false: '#D1D5DB', true: colors.primary }}
             />
           </View>
@@ -126,8 +162,8 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
               <Text style={styles.sub}>Weekly digest of newly verified top tutors in your department</Text>
             </View>
             <Switch
-              value={facultyNews}
-              onValueChange={setFacultyNews}
+              value={prefs.facultyNews}
+              onValueChange={(value) => setPref('facultyNews', value)}
               trackColor={{ false: '#D1D5DB', true: colors.primary }}
             />
           </View>

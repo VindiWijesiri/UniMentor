@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,19 +14,93 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { authRepository } from '../../../data/repositories/authRepository';
+import { userRepository } from '../../../data/repositories/userRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 export default function SecurityScreen({ navigation }: Props) {
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
-  const [biometricEnabled, setBiometricEnabled] = useState(true);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const token = useAuthStore((state) => state.token);
+  const setToken = useAuthStore((state) => state.setToken);
+  const rememberToken = useAuthStore((state) => state.rememberToken);
+  const realSession = !!token && !token.startsWith('demo_') && !token.startsWith('mock_');
+
+  useEffect(() => {
+    if (!realSession) return;
+    userRepository.getSecurity()
+      .then((settings) => {
+        setTwoFactorEnabled(settings.twoFactorEnabled);
+        setBiometricEnabled(settings.biometricEnabled);
+      })
+      .catch(() => undefined);
+  }, [realSession]);
+
+  const saveSecurity = async (next: { twoFactorEnabled?: boolean; biometricEnabled?: boolean }) => {
+    if (!realSession) {
+      Alert.alert('Real sign-in required', 'These settings apply to the account you signed in with.');
+      return false;
+    }
+    try {
+      const saved = await userRepository.updateSecurity(next);
+      setTwoFactorEnabled(saved.twoFactorEnabled);
+      setBiometricEnabled(saved.biometricEnabled);
+      return true;
+    } catch {
+      Alert.alert('Not saved', 'The security setting could not be stored.');
+      return false;
+    }
+  };
+
+  const handleTwoFactor = async (value: boolean) => {
+    const previous = twoFactorEnabled;
+    setTwoFactorEnabled(value);
+    const saved = await saveSecurity({ twoFactorEnabled: value });
+    if (!saved) setTwoFactorEnabled(previous);
+    else Alert.alert(value ? 'Two-factor on' : 'Two-factor off', value
+      ? 'The next sign-in will email a 6-digit code.'
+      : 'Password sign-in no longer asks for a code.');
+  };
+
+  const handleBiometric = async (value: boolean) => {
+    if (!realSession) {
+      Alert.alert('Real sign-in required', 'Turn this on after signing in with the account email.');
+      return;
+    }
+    if (value) {
+      const localAuth = await import('expo-local-authentication');
+      const hardware = await localAuth.hasHardwareAsync();
+      const enrolled = await localAuth.isEnrolledAsync();
+      if (!hardware || !enrolled) {
+        Alert.alert('Biometrics unavailable', 'This device has no enrolled fingerprint or face unlock.');
+        return;
+      }
+      const result = await localAuth.authenticateAsync({ promptMessage: 'Confirm biometrics for UniMentor' });
+      if (!result.success) return;
+      const secure = await import('expo-secure-store');
+      await secure.setItemAsync('auth.biometric', '1');
+      if (token) await rememberToken(token);
+    } else {
+      const secure = await import('expo-secure-store');
+      await secure.deleteItemAsync('auth.biometric');
+    }
+    const previous = biometricEnabled;
+    setBiometricEnabled(value);
+    const saved = await saveSecurity({ biometricEnabled: value });
+    if (!saved) {
+      setBiometricEnabled(previous);
+      if (value) {
+        const secure = await import('expo-secure-store');
+        await secure.deleteItemAsync('auth.biometric');
+      }
+    }
+  };
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -52,8 +126,19 @@ export default function SecurityScreen({ navigation }: Props) {
     }
   };
 
-  const handleRevokeSessions = () => {
-    Alert.alert('Not available', 'Ending other device sessions is not tracked yet.');
+  const handleRevokeSessions = async () => {
+    if (!realSession) {
+      Alert.alert('Real sign-in required', 'Demo role switch does not have other device sessions.');
+      return;
+    }
+    try {
+      const result = await authRepository.revokeSessions();
+      setToken(result.token);
+      await rememberToken(result.token);
+      Alert.alert('Other sessions ended', 'This device stays signed in. Every other sign-in must enter the password again.');
+    } catch {
+      Alert.alert('Not updated', 'Other sessions could not be signed out.');
+    }
   };
 
   return (
@@ -128,12 +213,12 @@ export default function SecurityScreen({ navigation }: Props) {
             <View style={styles.toggleTextWrap}>
               <Text style={styles.toggleTitle}>Two-Factor Authentication (2FA)</Text>
               <Text style={styles.toggleSub}>
-                Require an authenticator app code on every login
+              Require an emailed 6-digit code on every password sign-in
               </Text>
             </View>
             <Switch
               value={twoFactorEnabled}
-              onValueChange={setTwoFactorEnabled}
+              onValueChange={handleTwoFactor}
               trackColor={{ false: '#D1D5DB', true: colors.primary }}
             />
           </View>
@@ -149,7 +234,7 @@ export default function SecurityScreen({ navigation }: Props) {
             </View>
             <Switch
               value={biometricEnabled}
-              onValueChange={setBiometricEnabled}
+              onValueChange={handleBiometric}
               trackColor={{ false: '#D1D5DB', true: colors.primary }}
             />
           </View>
@@ -162,22 +247,14 @@ export default function SecurityScreen({ navigation }: Props) {
             <Text style={styles.deviceIcon}>📱</Text>
             <View style={styles.sessionDetails}>
               <View style={styles.deviceTitleRow}>
-                <Text style={styles.deviceName}>Android Mobile App (This Device)</Text>
+                <Text style={styles.deviceName}>This device</Text>
                 <View style={styles.currentBadge}>
                   <Text style={styles.currentBadgeText}>CURRENT</Text>
                 </View>
               </View>
-              <Text style={styles.deviceMeta}>Active Now • Colombo, Sri Lanka</Text>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.sessionItem}>
-            <Text style={styles.deviceIcon}>💻</Text>
-            <View style={styles.sessionDetails}>
-              <Text style={styles.deviceName}>Chrome Web Browser (MacBook Pro)</Text>
-              <Text style={styles.deviceMeta}>Last active 2 days ago • Kandy, Sri Lanka</Text>
+              <Text style={styles.deviceMeta}>
+                Other phones and browsers are not listed here. Ending other sessions makes those sign-ins ask for the password again.
+              </Text>
             </View>
           </View>
 

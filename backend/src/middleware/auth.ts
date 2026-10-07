@@ -55,27 +55,16 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   // 2. Standard JWT verification
   try {
     const secret = process.env.JWT_SECRET ?? 'changeme';
-    const decoded = jwt.verify(token, secret) as { id: string; role: string };
-    req.userId = decoded.id;
-    req.userRole = decoded.role;
+    const decoded = jwt.verify(token, secret) as { id: string; role: string; tokenVersion?: number };
+    const user = await User.findById(decoded.id).select('role tokenVersion');
+    if (!user || (decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+      res.status(401).json({ message: 'This sign-in was ended. Sign in again.' });
+      return;
+    }
+    req.userId = String(user._id);
+    req.userRole = user.role;
     next();
   } catch {
-    // 3. In development, allow recovering session if user exists in database
-    if (process.env.NODE_ENV !== 'production') {
-      try {
-        const unverified = jwt.decode(token) as { id?: string; role?: string } | null;
-        if (unverified?.id) {
-          const user = await User.findById(unverified.id);
-          if (user) {
-            req.userId = String(user._id);
-            req.userRole = user.role;
-            next();
-            return;
-          }
-        }
-      } catch {}
-    }
-
     res.status(401).json({ message: 'Unauthorized — invalid or expired token.' });
   }
 }

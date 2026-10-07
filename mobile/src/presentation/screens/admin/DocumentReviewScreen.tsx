@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,41 +7,79 @@ import {
   ScrollView,
   Platform,
   Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors } from '../../../shared/theme';
+import { documentRepository, DocumentKind, StoredDocument } from '../../../data/repositories/documentRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
   route?: RouteProp<any, any>;
 };
 
+const KIND_TITLES: Record<DocumentKind, string> = {
+  front: 'University ID Card (Front)',
+  back: 'University ID Card (Back)',
+  transcript: 'Academic Transcript',
+};
+
 export default function DocumentReviewScreen({ navigation, route }: Props) {
-  const docType = route?.params?.documentType || 'University ID Card (Front)';
-  const fileName = route?.params?.fileName || 'id_card_front.jpg';
+  const userId = String(route?.params?.userId || '');
+  const kind = (route?.params?.kind || 'front') as DocumentKind;
+  const docType = route?.params?.documentType || KIND_TITLES[kind] || 'Document';
   const [zoomLevel, setZoomLevel] = useState(100);
   const [rotation, setRotation] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [account, setAccount] = useState<{ name: string; email: string; studentId?: string; university?: string; faculty?: string; degreeProgramme?: string } | null>(null);
+  const [document, setDocument] = useState<StoredDocument | null>(null);
 
-  const handleApprove = () => {
-    Alert.alert(
-      'Document Verified',
-      `Document "${fileName}" marked as authentic by compliance officer.`,
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
-    );
-  };
+  useEffect(() => {
+    if (!/^[a-f\d]{24}$/i.test(userId)) {
+      setLoading(false);
+      return;
+    }
+    documentRepository.get(userId, true)
+      .then((bundle) => {
+        setAccount(bundle.user);
+        setDocument(bundle.documents.find((item) => item.kind === kind) ?? null);
+      })
+      .catch(() => {
+        setAccount(null);
+        setDocument(null);
+      })
+      .finally(() => setLoading(false));
+  }, [userId, kind]);
 
-  const handleFlagReupload = () => {
-    Alert.alert(
-      'Re-upload Requested',
-      `A notification was sent requesting the applicant to submit a clearer copy of "${fileName}".`,
-      [{ text: 'Done', onPress: () => navigation.goBack() }]
-    );
+  const fileName = document?.fileName || route?.params?.fileName || 'No photo uploaded';
+
+  const decide = async (status: 'approved' | 'reupload') => {
+    if (!/^[a-f\d]{24}$/i.test(userId) || !document) {
+      Alert.alert('No upload', 'This applicant has not stored a photo for this document.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await documentRepository.review(userId, kind, status);
+      Alert.alert(
+        status === 'approved' ? 'Document approved' : 'Re-upload requested',
+        status === 'approved'
+          ? `${fileName} is marked approved.`
+          : `${account?.name || 'The applicant'} needs to send a clearer photo of ${docType}.`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
+    } catch (err: any) {
+      Alert.alert('Not saved', err?.response?.data?.message ?? 'The review could not be stored.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <View style={styles.page}>
-      {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backArrow}>‹</Text>
@@ -54,121 +92,75 @@ export default function DocumentReviewScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Document Inspection Canvas */}
         <View style={styles.canvasCard}>
-          {/* Zoom & Rotate toolbar */}
           <View style={styles.toolBar}>
-            <TouchableOpacity
-              style={styles.toolBtn}
-              onPress={() => setZoomLevel((z) => Math.max(z - 15, 70))}
-            >
+            <TouchableOpacity style={styles.toolBtn} onPress={() => setZoomLevel((z) => Math.max(z - 15, 70))}>
               <Text style={styles.toolBtnText}>- Zoom</Text>
             </TouchableOpacity>
             <Text style={styles.zoomText}>{zoomLevel}%</Text>
-            <TouchableOpacity
-              style={styles.toolBtn}
-              onPress={() => setZoomLevel((z) => Math.min(z + 15, 160))}
-            >
+            <TouchableOpacity style={styles.toolBtn} onPress={() => setZoomLevel((z) => Math.min(z + 15, 160))}>
               <Text style={styles.toolBtnText}>+ Zoom</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.toolBtn}
-              onPress={() => setRotation((r) => (r + 90) % 360)}
-            >
+            <TouchableOpacity style={styles.toolBtn} onPress={() => setRotation((r) => (r + 90) % 360)}>
               <Text style={styles.toolBtnText}>↻ Rotate ({rotation}°)</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Document Simulation Box */}
-          <View
-            style={[
-              styles.documentViewport,
-              { transform: [{ scale: zoomLevel / 100 }, { rotate: `${rotation}deg` }] },
-            ]}
-          >
-            {/* Realistic University ID Card Layout */}
-            <View style={styles.cardHeader}>
-              <Text style={styles.uniCrest}>🏛️</Text>
-              <View>
-                <Text style={styles.uniName}>UNIVERSITY OF MORATUWA</Text>
-                <Text style={styles.facultySub}>Faculty of Information Technology & Computing</Text>
-              </View>
+          {loading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 40 }} />
+          ) : document?.image ? (
+            <Image
+              source={{ uri: document.image }}
+              resizeMode="contain"
+              style={[styles.photo, { transform: [{ scale: zoomLevel / 100 }, { rotate: `${rotation}deg` }] }]}
+            />
+          ) : (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyTitle}>No photo stored</Text>
+              <Text style={styles.emptyText}>
+                Open a tutor from the applications list after they upload an ID or transcript photo.
+              </Text>
             </View>
-
-            <View style={styles.cardBody}>
-              <View style={styles.photoBox}>
-                <Text style={styles.photoSilhouette}>👩‍🏫</Text>
-              </View>
-              <View style={styles.cardData}>
-                <Text style={styles.studentName}>DR. SARAH DE SILVA</Text>
-                <Text style={styles.cardField}>REG: TUT/2021/042</Text>
-                <Text style={styles.cardField}>ROLE: Peer Mentor / MSc Scholar</Text>
-                <Text style={styles.cardField}>EXPIRY: DEC 2025</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardFooter}>
-              <Text style={styles.barcode}>||| | |||| | ||||| || | |||| ||</Text>
-              <View style={styles.officialStamp}>
-                <Text style={styles.stampText}>FACULTY SEAL</Text>
-              </View>
-            </View>
-          </View>
+          )}
         </View>
 
-        {/* OCR Auto-Extraction Summary */}
         <View style={styles.ocrSection}>
-          <View style={styles.ocrHeader}>
-            <Text style={styles.ocrIcon}>🤖</Text>
-            <View>
-              <Text style={styles.ocrTitle}>OCR Extraction & Authenticity</Text>
-              <Text style={styles.ocrSub}>AI verification against university registrar database</Text>
-            </View>
-            <View style={styles.confidenceBadge}>
-              <Text style={styles.confidenceText}>99.1% Confidence</Text>
-            </View>
-          </View>
-
+          <Text style={styles.ocrTitle}>{docType}</Text>
+          <Text style={styles.ocrSub}>Account details from the registration record. The photo above is the file that was uploaded.</Text>
           <View style={styles.ocrTable}>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Verified Name</Text>
-              <Text style={styles.ocrVal}>Dr. Sarah De Silva</Text>
+              <Text style={styles.ocrKey}>Name</Text>
+              <Text style={styles.ocrVal}>{account?.name || '—'}</Text>
             </View>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Registration Number</Text>
-              <Text style={styles.ocrVal}>TUT/2021/042</Text>
+              <Text style={styles.ocrKey}>Email</Text>
+              <Text style={styles.ocrVal}>{account?.email || '—'}</Text>
             </View>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Enrollment Institution</Text>
-              <Text style={styles.ocrVal}>University of Moratuwa</Text>
+              <Text style={styles.ocrKey}>Registration number</Text>
+              <Text style={styles.ocrVal}>{account?.studentId || '—'}</Text>
             </View>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Enrollment Status</Text>
-              <Text style={[styles.ocrVal, { color: colors.success }]}>Active / Enrolled (Year 4)</Text>
+              <Text style={styles.ocrKey}>University</Text>
+              <Text style={styles.ocrVal}>{account?.university || '—'}</Text>
             </View>
             <View style={styles.ocrRow}>
-              <Text style={styles.ocrKey}>Tampering Detection</Text>
-              <Text style={[styles.ocrVal, { color: colors.success }]}>0 Modifications Detected (Clean)</Text>
+              <Text style={styles.ocrKey}>Faculty / programme</Text>
+              <Text style={styles.ocrVal}>{[account?.faculty, account?.degreeProgramme].filter(Boolean).join(' • ') || '—'}</Text>
+            </View>
+            <View style={styles.ocrRow}>
+              <Text style={styles.ocrKey}>Review status</Text>
+              <Text style={styles.ocrVal}>{document?.status || 'not uploaded'}</Text>
             </View>
           </View>
         </View>
 
-        {/* Audit Actions */}
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={styles.flagBtn}
-            onPress={handleFlagReupload}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={styles.flagBtn} onPress={() => decide('reupload')} disabled={saving} activeOpacity={0.85}>
             <Text style={styles.flagBtnText}>Flag for Re-upload</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.approveBtn}
-            onPress={handleApprove}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.approveBtnText}>Approve Document  ✓</Text>
+          <TouchableOpacity style={styles.approveBtn} onPress={() => decide('approved')} disabled={saving} activeOpacity={0.85}>
+            {saving ? <ActivityIndicator color={colors.white} /> : <Text style={styles.approveBtnText}>Approve Document  ✓</Text>}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -408,9 +400,34 @@ const styles = StyleSheet.create({
     color: colors.textLight,
   },
   ocrVal: {
+    flex: 1,
+    textAlign: 'right',
     fontSize: 11,
     fontWeight: '700',
     color: colors.navy,
+  },
+  photo: {
+    width: '100%',
+    height: 280,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+  },
+  emptyBox: {
+    paddingVertical: 28,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.navy,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: colors.textLight,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   actionRow: {
     flexDirection: 'row',

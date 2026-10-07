@@ -194,14 +194,14 @@ export default function DemoSwitcherModal({ visible, onClose }: DemoSwitcherModa
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.screenLink}
-                onPress={() => handleNavigate('TutorApplicationDetails', { applicationId: 'APP-8421' })}
+                onPress={() => handleNavigate('TutorApplications')}
               >
                 <Text style={styles.screenLinkText}>• Application Details & Module Approval</Text>
                 <Text style={styles.screenArrow}>→</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.screenLink}
-                onPress={() => handleNavigate('DocumentReview', { documentType: 'Student ID Card' })}
+                onPress={() => handleNavigate('TutorApplications')}
               >
                 <Text style={styles.screenLinkText}>• Document Review Screen</Text>
                 <Text style={styles.screenArrow}>→</Text>

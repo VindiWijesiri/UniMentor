@@ -1,9 +1,14 @@
 import apiClient from '../api/apiClient';
 import { User } from '../../domain/entities/User';
 
-interface AuthResponse {
-  user: User;
-  token: string;
+export interface AuthResponse {
+  user?: User;
+  token?: string;
+  requiresTwoFactor?: boolean;
+  email?: string;
+  emailSent?: boolean;
+  devCode?: string;
+  message?: string;
 }
 
 interface RegisterInput {
@@ -27,8 +32,20 @@ export const authRepository = {
     const response = await apiClient.post<AuthResponse>('/auth/login', { email, password });
     return response.data;
   },
-  async register(input: RegisterInput): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/register', input);
+  async campusLogin(email: string): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/campus-login', { email });
+    return response.data;
+  },
+  async verifyLoginCode(email: string, code: string): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/verify-login-code', { email, code });
+    return response.data;
+  },
+  async revokeSessions(): Promise<{ token: string; message: string }> {
+    const response = await apiClient.post<{ token: string; message: string }>('/auth/revoke-sessions');
+    return response.data;
+  },
+  async register(input: RegisterInput): Promise<{ user: User; token: string }> {
+    const response = await apiClient.post<{ user: User; token: string }>('/auth/register', input);
     return response.data;
   },
   async forgotPassword(email: string): Promise<{ message: string; emailSent?: boolean; devCode?: string }> {

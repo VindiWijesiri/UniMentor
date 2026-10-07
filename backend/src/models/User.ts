@@ -80,6 +80,19 @@ export interface IUser extends Document {
   passwordResetCode?: string;
   passwordResetExpires?: Date;
   passwordResetVerified?: boolean;
+  loginCode?: string;
+  loginCodeExpires?: Date;
+  tokenVersion?: number;
+  twoFactorEnabled?: boolean;
+  biometricEnabled?: boolean;
+  notificationPrefs?: {
+    sessionReminders: boolean;
+    chatMessages: boolean;
+    bookingUpdates: boolean;
+    verificationAlerts: boolean;
+    semesterRenewals: boolean;
+    facultyNews: boolean;
+  };
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -178,6 +191,19 @@ const userSchema = new Schema<IUser>(
     passwordResetCode: { type: String },
     passwordResetExpires: { type: Date },
     passwordResetVerified: { type: Boolean, default: false },
+    loginCode: { type: String },
+    loginCodeExpires: { type: Date },
+    tokenVersion: { type: Number, default: 0 },
+    twoFactorEnabled: { type: Boolean, default: false },
+    biometricEnabled: { type: Boolean, default: false },
+    notificationPrefs: {
+      sessionReminders: { type: Boolean, default: true },
+      chatMessages: { type: Boolean, default: true },
+      bookingUpdates: { type: Boolean, default: true },
+      verificationAlerts: { type: Boolean, default: true },
+      semesterRenewals: { type: Boolean, default: true },
+      facultyNews: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );
@@ -197,7 +223,22 @@ userSchema.methods.comparePassword = function (candidate: string): Promise<boole
 // Never expose password in JSON responses
 userSchema.set('toJSON', {
   transform: (_doc, ret) => {
-    delete (ret as { password?: string }).password;
+    const hidden = ret as {
+      password?: string;
+      loginCode?: string;
+      loginCodeExpires?: Date;
+      passwordResetCode?: string;
+      passwordResetExpires?: Date;
+      idPhoto?: string;
+      referenceFaceImage?: string;
+    };
+    delete hidden.password;
+    delete hidden.loginCode;
+    delete hidden.loginCodeExpires;
+    delete hidden.passwordResetCode;
+    delete hidden.passwordResetExpires;
+    delete hidden.idPhoto;
+    delete hidden.referenceFaceImage;
     return ret;
   },
 });

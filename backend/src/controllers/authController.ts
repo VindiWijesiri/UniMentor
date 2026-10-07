@@ -4,11 +4,13 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 
-function signToken(id: string, role: string): string {
+function signToken(user: { _id: unknown; role: string; tokenVersion?: number }): string {
   const secret = process.env.JWT_SECRET ?? 'changeme';
-  return jwt.sign({ id, role }, secret, {
-    expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
-  } as jwt.SignOptions);
+  return jwt.sign(
+    { id: String(user._id), role: user.role, tokenVersion: user.tokenVersion ?? 0 },
+    secret,
+    { expiresIn: process.env.JWT_EXPIRES_IN ?? '7d' } as jwt.SignOptions,
+  );
 }
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -50,7 +52,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
       verificationStatus: 'unverified',
       isVerified: false,
     });
-    const token = signToken(String(user._id), user.role);
+    const token = signToken(user);
 
     res.status(201).json({ user, token });
   } catch (err) {
@@ -69,8 +71,86 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    const token = signToken(String(user._id), user.role);
+    if (user.twoFactorEnabled) {
+      const issued = await issueLoginCode(user);
+      res.json({
+        requiresTwoFactor: true,
+        email: user.email,
+        emailSent: issued.emailSent,
+        ...(issued.emailSent || process.env.NODE_ENV === 'production' ? {} : { devCode: issued.code }),
+      });
+      return;
+    }
+
+    const token = signToken(user);
     res.json({ user, token });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function issueLoginCode(user: { email: string; loginCode?: string; loginCodeExpires?: Date; save: () => Promise<unknown> }) {
+  const code = crypto.randomInt(100000, 999999).toString();
+  user.loginCode = code;
+  user.loginCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+  await user.save();
+  const emailSent = await sendResetCodeEmail(user.email, code);
+  return { code, emailSent };
+}
+
+export async function campusLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const email = String(req.body.email || '').toLowerCase().trim();
+    if (!email) {
+      res.status(400).json({ message: 'Campus email is required.' });
+      return;
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      res.json({
+        message: 'If that campus email is registered, a sign-in code has been sent.',
+        emailSent: false,
+      });
+      return;
+    }
+    const issued = await issueLoginCode(user);
+    res.json({
+      requiresTwoFactor: true,
+      email: user.email,
+      emailSent: issued.emailSent,
+      ...(issued.emailSent || process.env.NODE_ENV === 'production' ? {} : { devCode: issued.code }),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function verifyLoginCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const email = String(req.body.email || '').toLowerCase().trim();
+    const code = String(req.body.code || '').trim();
+    const user = await User.findOne({ email });
+    if (!user || !user.loginCode || !user.loginCodeExpires || user.loginCode !== code || new Date() > user.loginCodeExpires) {
+      res.status(400).json({ message: 'That sign-in code is invalid or expired.' });
+      return;
+    }
+    await User.updateOne({ _id: user._id }, { $unset: { loginCode: 1, loginCodeExpires: 1 } });
+    res.json({ user, token: signToken(user) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function revokeSessions(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+    res.json({ token: signToken(user), message: 'Other sessions were signed out.' });
   } catch (err) {
     next(err);
   }
@@ -265,7 +345,7 @@ export async function changePassword(req: AuthRequest, res: Response, next: Next
 
 export async function getMe(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const user = await User.findById(req.userId);
+    const user = await User.findById(req.userId).select('-idPhoto -referenceFaceImage -loginCode -loginCodeExpires -passwordResetCode -passwordResetExpires');
     if (!user) {
       res.status(404).json({ message: 'User not found.' });
       return;

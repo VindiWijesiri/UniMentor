@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { loginUseCase } from '../../../domain/usecases/auth/loginUseCase';
+import { authRepository } from '../../../data/repositories/authRepository';
 import Logo from '../../components/Logo';
 import DemoSwitcherModal from '../../components/DemoSwitcherModal';
 import { colors } from '../../../shared/theme';
@@ -30,24 +31,54 @@ export default function LoginScreen({ navigation }: Props) {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [demoModalVisible, setDemoModalVisible] = useState(false);
+  const [codeStep, setCodeStep] = useState(false);
+  const [loginCode, setLoginCode] = useState('');
 
   const { setUser, setToken, switchDemoRole, rememberToken } = useAuthStore();
 
+  const finishSignIn = (token: string, user: NonNullable<Awaited<ReturnType<typeof loginUseCase>>['user']>) => {
+    setToken(token);
+    if (rememberMe) {
+      rememberToken(token).catch(() => undefined);
+    } else {
+      import('expo-secure-store').then((store) => store.deleteItemAsync('auth.token')).catch(() => undefined);
+    }
+    setUser(user);
+  };
+
+  const showCode = (devCode?: string) => {
+    setCodeStep(true);
+    if (devCode) Alert.alert('Sign-in code', `Email is not configured on this server. Your code is ${devCode}.`);
+  };
+
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!email.trim()) {
+      Alert.alert('Validation', 'Please enter your university email.');
+      return;
+    }
+    if (codeStep && loginCode.trim().length < 6) {
+      Alert.alert('Validation', 'Enter the 6-digit sign-in code.');
+      return;
+    }
+    if (!codeStep && !password) {
       Alert.alert('Validation', 'Please enter your university email and password.');
       return;
     }
     setLoading(true);
     try {
-      const result = await loginUseCase({ email, password });
-      setToken(result.token);
-      if (rememberMe) {
-        rememberToken(result.token).catch(() => undefined);
-      } else {
-        import('expo-secure-store').then((store) => store.deleteItemAsync('auth.token')).catch(() => undefined);
+      if (codeStep) {
+        const verified = await authRepository.verifyLoginCode(email.trim(), loginCode.trim());
+        if (!verified.token || !verified.user) throw new Error('The sign-in code was not accepted.');
+        finishSignIn(verified.token, verified.user);
+        return;
       }
-      setUser(result.user);
+      const result = await loginUseCase({ email, password });
+      if (result.requiresTwoFactor) {
+        showCode(result.devCode);
+        return;
+      }
+      if (!result.token || !result.user) throw new Error('Sign-in did not return a session.');
+      finishSignIn(result.token, result.user);
     } catch (err: any) {
       const msg = err?.friendlyMessage ?? err?.response?.data?.message ?? err?.message ?? 'Invalid university credentials.';
       Alert.alert(
@@ -58,6 +89,26 @@ export default function LoginScreen({ navigation }: Props) {
           { text: 'Use Demo Mode', onPress: () => switchDemoRole('student') },
         ]
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCampusLogin = async () => {
+    if (!email.trim()) {
+      Alert.alert('Campus email', 'Enter the university email on your account, then continue.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await authRepository.campusLogin(email.trim());
+      if (!result.requiresTwoFactor) {
+        Alert.alert('Check your email', result.message || 'If that campus email is registered, a sign-in code has been sent.');
+        return;
+      }
+      showCode(result.devCode);
+    } catch (err: any) {
+      Alert.alert('Campus sign-in failed', err?.response?.data?.message ?? err?.message ?? 'The campus email sign-in could not start.');
     } finally {
       setLoading(false);
     }
@@ -151,6 +202,20 @@ export default function LoginScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
+          {codeStep ? (
+            <>
+              <Text style={styles.label}>Sign-in code</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="6-digit code"
+                placeholderTextColor={colors.textLight}
+                keyboardType="number-pad"
+                value={loginCode}
+                onChangeText={setLoginCode}
+              />
+            </>
+          ) : null}
+
           {/* Sign In Button */}
           <TouchableOpacity
             style={styles.button}
@@ -161,20 +226,18 @@ export default function LoginScreen({ navigation }: Props) {
             {loading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.buttonText}>Sign In  →</Text>
+              <Text style={styles.buttonText}>{codeStep ? 'Confirm code  →' : 'Sign In  →'}</Text>
             )}
           </TouchableOpacity>
 
-          {/* SSO / Google Button */}
+          {/* SSO / campus email code */}
           <TouchableOpacity
             style={styles.ssoButton}
-            onPress={() => {
-              Alert.alert('Campus SSO', 'Connecting to University Single Sign-On portal...');
-              setTimeout(() => switchDemoRole('student'), 800);
-            }}
+            onPress={handleCampusLogin}
+            disabled={loading}
           >
             <Text style={styles.ssoIcon}>🏛️</Text>
-            <Text style={styles.ssoText}>Continue with Campus Single Sign-On</Text>
+            <Text style={styles.ssoText}>Email a code to this campus address</Text>
           </TouchableOpacity>
 
           {/* Registration link */}

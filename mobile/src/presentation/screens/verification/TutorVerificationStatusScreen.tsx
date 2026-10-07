@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -44,7 +44,7 @@ const statusMeta: Record<VerificationStatus, StateMeta> = {
     badgeColor: '#B45309',
     icon: '⏳',
     description: 'Your application has been received and assigned to the Faculty Verification Queue.',
-    actionLabel: 'View Submitted Documents  →',
+    actionLabel: 'Update submitted documents  →',
   },
   under_review: {
     title: 'Under Faculty Review',
@@ -52,8 +52,8 @@ const statusMeta: Record<VerificationStatus, StateMeta> = {
     badgeBg: '#E0F2FE',
     badgeColor: colors.primary,
     icon: '🔍',
-    description: 'The Faculty Academic Board is actively cross-verifying your transcript grades.',
-    actionLabel: 'Contact Verification Officer  →',
+    description: 'Faculty staff are reviewing the photos and details on your application.',
+    actionLabel: 'Update submitted documents  →',
   },
   approved: {
     title: 'Verified Peer Tutor',
@@ -93,29 +93,49 @@ const statusMeta: Record<VerificationStatus, StateMeta> = {
   },
 };
 
+function mapStatus(value?: string): VerificationStatus {
+  if (value === 'approved') return 'approved';
+  if (value === 'rejected') return 'rejected';
+  if (value === 'under_review' || value === 'verified') return 'under_review';
+  if (value === 'pending') return 'pending';
+  if (value === 'suspended') return 'suspended';
+  if (value === 'expired') return 'expired';
+  return 'not_submitted';
+}
+
 export default function TutorVerificationStatusScreen({ navigation }: Props) {
-  const { user, updateVerificationStatus } = useAuthStore();
-  const [activeStatus, setActiveStatus] = useState<VerificationStatus>(
-    user?.verificationStatus || 'under_review'
-  );
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  const updateUserProfile = useAuthStore((state) => state.updateUserProfile);
+  const [activeStatus, setActiveStatus] = useState<VerificationStatus>(mapStatus(user?.verificationStatus));
+
+  useEffect(() => {
+    const real = token && !token.startsWith('demo_') && !token.startsWith('mock_');
+    if (!real) return;
+    import('../../../data/repositories/authRepository').then(({ authRepository }) => {
+      authRepository.me()
+        .then((result) => {
+          updateUserProfile(result.user);
+          setActiveStatus(mapStatus(result.user.verificationStatus));
+        })
+        .catch(() => undefined);
+    });
+  }, [token, updateUserProfile]);
 
   const meta = statusMeta[activeStatus];
-
-  const handleStateChange = (status: VerificationStatus) => {
-    setActiveStatus(status);
-    updateVerificationStatus(status);
-  };
+  const subjects = user?.subjects?.length ? user.subjects : [];
+  const submitted = user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—';
 
   const handlePrimaryAction = () => {
     if (activeStatus === 'approved') {
       navigation.navigate('TutorDashboard');
-    } else if (activeStatus === 'not_submitted') {
-      navigation.navigate('VerifyIdentity');
-    } else if (activeStatus === 'rejected' || activeStatus === 'expired') {
-      navigation.navigate('VerifyIdentity');
-    } else {
-      Alert.alert('Status Action', `Processing action for ${meta.title}. Verification queue ID: #8421.`);
+      return;
     }
+    if (activeStatus === 'not_submitted' || activeStatus === 'pending' || activeStatus === 'under_review' || activeStatus === 'rejected' || activeStatus === 'expired') {
+      navigation.navigate('VerifyIdentity', { role: 'mentor', email: user?.email });
+      return;
+    }
+    Alert.alert(meta.title, meta.description);
   };
 
   return (
@@ -130,26 +150,6 @@ export default function TutorVerificationStatusScreen({ navigation }: Props) {
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Interactive State Tester for Reviewers */}
-        <View style={styles.stateTesterCard}>
-          <Text style={styles.testerPrompt}>TEST 6 VERIFICATION STATES (INTERACTIVE):</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stateChipRow}>
-            {(['pending', 'under_review', 'approved', 'rejected', 'suspended', 'expired'] as VerificationStatus[]).map(
-              (st) => (
-                <TouchableOpacity
-                  key={st}
-                  style={[styles.stateChip, activeStatus === st && styles.stateChipActive]}
-                  onPress={() => handleStateChange(st)}
-                >
-                  <Text style={[styles.stateChipText, activeStatus === st && styles.stateChipTextActive]}>
-                    {st.replace('_', ' ').toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              )
-            )}
-          </ScrollView>
-        </View>
-
         {/* Current State Hero Card */}
         <View style={styles.heroCard}>
           <View style={styles.heroHeader}>
@@ -162,8 +162,8 @@ export default function TutorVerificationStatusScreen({ navigation }: Props) {
           <Text style={styles.stateDesc}>{meta.description}</Text>
 
           <View style={styles.referenceRow}>
-            <Text style={styles.refLabel}>Verification ID: <Text style={styles.refVal}>#TUT-VER-2024-42</Text></Text>
-            <Text style={styles.refLabel}>Submitted: <Text style={styles.refVal}>12 May 2024</Text></Text>
+            <Text style={styles.refLabel}>Account: <Text style={styles.refVal}>{user?.email || '—'}</Text></Text>
+            <Text style={styles.refLabel}>Submitted: <Text style={styles.refVal}>{submitted}</Text></Text>
           </View>
         </View>
 
@@ -178,49 +178,21 @@ export default function TutorVerificationStatusScreen({ navigation }: Props) {
           </Text>
 
           <View style={styles.moduleCardList}>
-            {/* Module 1 */}
-            <View style={styles.moduleItem}>
-              <View style={styles.moduleInfo}>
-                <Text style={styles.moduleName}>Data Structures & Algorithms</Text>
-                <Text style={styles.moduleMeta}>Code: CS201 • Grade: A+ (First Class)</Text>
+            {subjects.length === 0 ? (
+              <Text style={styles.sectionSubtitle}>No teaching modules were saved on this account.</Text>
+            ) : subjects.map((name) => (
+              <View key={name} style={styles.moduleItem}>
+                <View style={styles.moduleInfo}>
+                  <Text style={styles.moduleName}>{name}</Text>
+                  <Text style={styles.moduleMeta}>Faculty reviews the whole application</Text>
+                </View>
+                <View style={[styles.modStatusPill, { backgroundColor: activeStatus === 'approved' ? '#ECFDF5' : activeStatus === 'rejected' ? '#FEE2E2' : '#FEF3C7' }]}>
+                  <Text style={[styles.modStatusText, { color: activeStatus === 'approved' ? colors.success : activeStatus === 'rejected' ? colors.error : '#B45309' }]}>
+                    {activeStatus === 'approved' ? 'APPROVED' : activeStatus === 'rejected' ? 'REJECTED' : 'WAITING'}
+                  </Text>
+                </View>
               </View>
-              <View style={[styles.modStatusPill, { backgroundColor: '#ECFDF5' }]}>
-                <Text style={[styles.modStatusText, { color: colors.success }]}>APPROVED</Text>
-              </View>
-            </View>
-
-            {/* Module 2 */}
-            <View style={styles.moduleItem}>
-              <View style={styles.moduleInfo}>
-                <Text style={styles.moduleName}>Object-Oriented Programming (OOP)</Text>
-                <Text style={styles.moduleMeta}>Code: CS204 • Grade: A (First Class)</Text>
-              </View>
-              <View style={[styles.modStatusPill, { backgroundColor: '#ECFDF5' }]}>
-                <Text style={[styles.modStatusText, { color: colors.success }]}>APPROVED</Text>
-              </View>
-            </View>
-
-            {/* Module 3 */}
-            <View style={styles.moduleItem}>
-              <View style={styles.moduleInfo}>
-                <Text style={styles.moduleName}>Software Architecture & Design</Text>
-                <Text style={styles.moduleMeta}>Code: SE302 • Under transcript audit</Text>
-              </View>
-              <View style={[styles.modStatusPill, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={[styles.modStatusText, { color: '#B45309' }]}>IN REVIEW</Text>
-              </View>
-            </View>
-
-            {/* Module 4 */}
-            <View style={styles.moduleItem}>
-              <View style={styles.moduleInfo}>
-                <Text style={styles.moduleName}>DevOps & Cloud Computing</Text>
-                <Text style={styles.moduleMeta}>Code: CS305 • Grade: B (Requires Min A-)</Text>
-              </View>
-              <View style={[styles.modStatusPill, { backgroundColor: '#FEE2E2' }]}>
-                <Text style={[styles.modStatusText, { color: colors.error }]}>NOT ELIGIBLE</Text>
-              </View>
-            </View>
+            ))}
           </View>
         </View>
 
@@ -234,7 +206,9 @@ export default function TutorVerificationStatusScreen({ navigation }: Props) {
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineStepTitle}>University Email Verified</Text>
-                <Text style={styles.timelineStepTime}>sarah.desilva@campus.ac.lk • Completed</Text>
+                <Text style={styles.timelineStepTime}>
+                  {activeStatus === 'not_submitted' ? (user?.email || 'Email not verified yet') : `${user?.email || 'Account email'} • Completed`}
+                </Text>
               </View>
             </View>
 
@@ -244,7 +218,9 @@ export default function TutorVerificationStatusScreen({ navigation }: Props) {
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineStepTitle}>ID & Live Face Matching</Text>
-                <Text style={styles.timelineStepTime}>98.4% Confidence Score • Completed</Text>
+                <Text style={styles.timelineStepTime}>
+                  {activeStatus === 'not_submitted' ? 'Upload your ID and transcript' : 'Submitted with your application'}
+                </Text>
               </View>
             </View>
 
@@ -262,9 +238,7 @@ export default function TutorVerificationStatusScreen({ navigation }: Props) {
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineStepTitle}>Faculty Transcript Audit</Text>
                 <Text style={styles.timelineStepTime}>
-                  {activeStatus === 'approved'
-                    ? 'Verified by Faculty Admin Kasun'
-                    : 'Pending Department Head Sign-off'}
+                  {activeStatus === 'approved' ? 'Approved by faculty staff' : 'Waiting for faculty review'}
                 </Text>
               </View>
             </View>

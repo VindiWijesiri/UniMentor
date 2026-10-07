@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -35,7 +35,7 @@ const statusMap: Record<AccountStatus, StatusInfo> = {
     badgeColor: colors.success,
     icon: '✅',
     desc: 'Your university student/tutor membership is active. You have full access to study sessions, mentor messaging, and platform tools.',
-    buttonLabel: 'Download Verification Badge PDF',
+    buttonLabel: 'Account is active',
   },
   under_review: {
     title: 'Credentials Under Review',
@@ -86,23 +86,21 @@ const statusMap: Record<AccountStatus, StatusInfo> = {
 
 export default function AccountStatusScreen({ navigation }: Props) {
   const { user } = useAuthStore();
-  const [currentStatus, setCurrentStatus] = useState<AccountStatus>(
-    user?.accountStatus || 'active'
-  );
-
+  const currentStatus: AccountStatus = user?.accountStatus && statusMap[user.accountStatus]
+    ? user.accountStatus
+    : 'active';
   const info = statusMap[currentStatus];
 
   const handleAction = () => {
-    if (currentStatus === 'pending') {
-      navigation.navigate('VerifyIdentity');
-    } else if (currentStatus === 'under_review') {
-      navigation.navigate('TutorVerificationStatus');
-    } else {
-      Alert.alert(
-        'Action Processed',
-        `Request dispatched for "${info.title}". Verification Reference: #ACC-2024-91.`
-      );
+    if (currentStatus === 'pending' || currentStatus === 'rejected' || currentStatus === 'expired') {
+      navigation.navigate('VerifyIdentity', { role: user?.role === 'mentor' ? 'mentor' : 'student', email: user?.email });
+      return;
     }
+    if (currentStatus === 'under_review') {
+      navigation.navigate('TutorVerificationStatus');
+      return;
+    }
+    Alert.alert(info.title, info.desc);
   };
 
   return (
@@ -117,31 +115,6 @@ export default function AccountStatusScreen({ navigation }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Interactive Status Switcher for Reviewers */}
-        <View style={styles.testerCard}>
-          <Text style={styles.testerPrompt}>TEST ACCOUNT STATUSES (INTERACTIVE):</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.testerChips}>
-            {(['active', 'under_review', 'pending', 'suspended', 'rejected', 'expired'] as AccountStatus[]).map(
-              (st) => (
-                <TouchableOpacity
-                  key={st}
-                  style={[styles.testerChip, currentStatus === st && styles.testerChipActive]}
-                  onPress={() => setCurrentStatus(st)}
-                >
-                  <Text
-                    style={[
-                      styles.testerChipText,
-                      currentStatus === st && styles.testerChipTextActive,
-                    ]}
-                  >
-                    {st.replace('_', ' ').toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              )
-            )}
-          </ScrollView>
-        </View>
-
         {/* Hero Card */}
         <View style={styles.heroCard}>
           <View style={styles.heroTop}>
@@ -159,7 +132,7 @@ export default function AccountStatusScreen({ navigation }: Props) {
           <View style={styles.statusDetails}>
             <View style={styles.statusRow}>
               <Text style={styles.statusLabel}>Registered Member:</Text>
-              <Text style={styles.statusVal}>{user?.name || 'Kavindu Perera'}</Text>
+              <Text style={styles.statusVal}>{user?.name || '—'}</Text>
             </View>
             <View style={styles.statusRow}>
               <Text style={styles.statusLabel}>Role:</Text>
@@ -169,7 +142,7 @@ export default function AccountStatusScreen({ navigation }: Props) {
             </View>
             <View style={styles.statusRow}>
               <Text style={styles.statusLabel}>Official Email:</Text>
-              <Text style={styles.statusVal}>{user?.email || 'kavindu.p@campus.ac.lk'}</Text>
+              <Text style={styles.statusVal}>{user?.email || '—'}</Text>
             </View>
           </View>
         </View>
@@ -179,26 +152,24 @@ export default function AccountStatusScreen({ navigation }: Props) {
         <View style={styles.card}>
           <View style={styles.detailRow}>
             <Text style={styles.detailKey}>Enrolled Institution</Text>
-            <Text style={styles.detailVal}>{user?.university || 'University of Colombo'}</Text>
+            <Text style={styles.detailVal}>{user?.university || '—'}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.detailRow}>
             <Text style={styles.detailKey}>Faculty / Department</Text>
             <Text style={styles.detailVal}>
-              {user?.faculty || 'Faculty of Computing'} • CS
+              {[user?.faculty, user?.department].filter(Boolean).join(' • ') || '—'}
             </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.detailRow}>
             <Text style={styles.detailKey}>Student Registration Number</Text>
-            <Text style={styles.detailVal}>{user?.studentId || 'CS/2023/089'}</Text>
+            <Text style={styles.detailVal}>{user?.studentId || '—'}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.detailRow}>
             <Text style={styles.detailKey}>Current Validity Period</Text>
-            <Text style={[styles.detailVal, { color: colors.success, fontWeight: '800' }]}>
-              Academic Year 2024 / 2025
-            </Text>
+            <Text style={[styles.detailVal, { fontWeight: '800' }]}>Not tracked</Text>
           </View>
         </View>
 

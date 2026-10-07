@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { loginUseCase } from '../../../domain/usecases/auth/loginUseCase';
+import { authRepository } from '../../../data/repositories/authRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -26,25 +27,46 @@ export default function AdminLoginScreen({ navigation }: Props) {
   const [securityToken, setSecurityToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [needsCode, setNeedsCode] = useState(false);
 
   const { setUser, setToken, setPendingRoute } = useAuthStore();
+
+  const openConsole = (token: string, user: { role: string; name: string }) => {
+    if (user.role !== 'admin' && user.role !== 'lic') {
+      Alert.alert('Staff only', 'This portal accepts admin and faculty accounts.');
+      return;
+    }
+    setToken(token);
+    setPendingRoute('AdminDashboard');
+    setUser(user as any);
+  };
 
   const handleAdminLogin = async () => {
     if (!email || !password) {
       Alert.alert('Validation Error', 'Staff email and password are required.');
       return;
     }
+    if (needsCode && securityToken.trim().length < 6) {
+      Alert.alert('Code required', 'Enter the 6-digit sign-in code for this staff account.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const result = await loginUseCase({ email: email.trim(), password });
-      if (result.user.role !== 'admin' && result.user.role !== 'lic') {
-        Alert.alert('Staff only', 'This portal accepts admin and faculty accounts.');
+      if (needsCode) {
+        const verified = await authRepository.verifyLoginCode(email.trim(), securityToken.trim());
+        if (!verified.token || !verified.user) throw new Error('The sign-in code was not accepted.');
+        openConsole(verified.token, verified.user);
         return;
       }
-      setToken(result.token);
-      setPendingRoute('AdminDashboard');
-      setUser(result.user);
+      const result = await loginUseCase({ email: email.trim(), password });
+      if (result.requiresTwoFactor) {
+        setNeedsCode(true);
+        if (result.devCode) Alert.alert('Sign-in code', `Email is not configured on this server. Your code is ${result.devCode}.`);
+        return;
+      }
+      if (!result.token || !result.user) throw new Error('Sign-in did not return a session.');
+      openConsole(result.token, result.user);
     } catch (error: any) {
       Alert.alert('Sign in failed', error?.response?.data?.message ?? error?.message ?? 'Those staff credentials were not accepted.');
     } finally {
@@ -126,7 +148,7 @@ export default function AdminLoginScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.label}>Two-Factor Security Key (2FA)</Text>
+        <Text style={styles.label}>{needsCode ? 'Email sign-in code' : 'Two-factor code, if this account uses one'}</Text>
         <TextInput
           style={[styles.input, { letterSpacing: 2 }]}
           placeholder="6-digit Authenticator Code"
@@ -146,7 +168,7 @@ export default function AdminLoginScreen({ navigation }: Props) {
           {loading ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.buttonText}>Authorize & Enter Console  →</Text>
+            <Text style={styles.buttonText}>{needsCode ? 'Confirm code & enter  →' : 'Authorize & Enter Console  →'}</Text>
           )}
         </TouchableOpacity>
 

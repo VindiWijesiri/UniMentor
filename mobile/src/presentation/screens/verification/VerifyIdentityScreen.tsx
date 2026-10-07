@@ -7,28 +7,73 @@ import {
   ScrollView,
   Platform,
   Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors } from '../../../shared/theme';
+import { documentRepository, DocumentKind } from '../../../data/repositories/documentRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
   route?: RouteProp<any, any>;
 };
 
+type UploadedDoc = { fileName: string; previewUri?: string };
+
 export default function VerifyIdentityScreen({ navigation, route }: Props) {
   const role = route?.params?.role || 'mentor';
 
-  const [idFront, setIdFront] = useState<string | null>('id_card_front.jpg');
-  const [idBack, setIdBack] = useState<string | null>('id_card_back.jpg');
-  const [transcript, setTranscript] = useState<string | null>('official_transcript_2023.pdf');
+  const [idFront, setIdFront] = useState<UploadedDoc | null>(null);
+  const [idBack, setIdBack] = useState<UploadedDoc | null>(null);
+  const [transcript, setTranscript] = useState<UploadedDoc | null>(null);
+  const [saving, setSaving] = useState<DocumentKind | null>(null);
 
-  const handleSimulateUpload = (doc: 'front' | 'back' | 'transcript') => {
-    if (doc === 'front') setIdFront('id_card_front.jpg');
-    if (doc === 'back') setIdBack('id_card_back.jpg');
-    if (doc === 'transcript') setTranscript('official_transcript_2023.pdf');
-    Alert.alert('Document Attached', 'Document has been uploaded and encrypted.');
+  const storeUpload = (kind: DocumentKind, uploaded: UploadedDoc | null) => {
+    if (kind === 'front') setIdFront(uploaded);
+    if (kind === 'back') setIdBack(uploaded);
+    if (kind === 'transcript') setTranscript(uploaded);
+  };
+
+  const pickPhoto = (kind: DocumentKind) => {
+    Alert.alert('Add a photo', 'Choose a clear photo of this document.', [
+      { text: 'Camera', onPress: () => capture(kind, 'camera') },
+      { text: 'Photo library', onPress: () => capture(kind, 'library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const capture = async (kind: DocumentKind, source: 'camera' | 'library') => {
+    const picker = await import('expo-image-picker');
+    const permission = source === 'camera'
+      ? await picker.requestCameraPermissionsAsync()
+      : await picker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow camera or photo access to upload this document.');
+      return;
+    }
+    const result = source === 'camera'
+      ? await picker.launchCameraAsync({ base64: true, quality: 0.4, allowsEditing: true })
+      : await picker.launchImageLibraryAsync({ base64: true, quality: 0.4, mediaTypes: ['images'] });
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+    const asset = result.assets[0];
+    const mime = asset.mimeType && asset.mimeType.startsWith('image/') ? asset.mimeType : 'image/jpeg';
+    const image = `data:${mime};base64,${asset.base64}`;
+    if (image.length > 8_000_000) {
+      Alert.alert('Photo too large', 'Choose a smaller photo and try again.');
+      return;
+    }
+    const fileName = asset.fileName || `${kind}.jpg`;
+    setSaving(kind);
+    try {
+      const saved = await documentRepository.save(kind, image, fileName);
+      storeUpload(kind, { fileName: saved.fileName || fileName, previewUri: asset.uri });
+    } catch (err: any) {
+      Alert.alert('Upload failed', err?.response?.data?.message ?? err?.message ?? 'The photo could not be stored.');
+    } finally {
+      setSaving(null);
+    }
   };
 
   const handleProceed = () => {
@@ -36,11 +81,46 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
       Alert.alert('Required', 'Please upload both front and back of your University ID card.');
       return;
     }
+    if (role === 'mentor' && !transcript) {
+      Alert.alert('Required', 'Please upload a photo of your academic transcript.');
+      return;
+    }
     navigation.navigate('FaceVerification', {
       role,
       token: route?.params?.token,
       user: route?.params?.user,
     });
+  };
+
+  const renderSlot = (kind: DocumentKind, uploaded: UploadedDoc | null, emptyLabel: string) => {
+    if (saving === kind) {
+      return (
+        <View style={styles.uploadArea}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.uploadText}>Saving photo…</Text>
+        </View>
+      );
+    }
+    if (uploaded) {
+      return (
+        <View style={styles.uploadedRow}>
+          {uploaded.previewUri ? <Image source={{ uri: uploaded.previewUri }} style={styles.preview} /> : null}
+          <View style={styles.statusPill}>
+            <Text style={styles.checkIcon}>✓</Text>
+            <Text style={styles.uploadedFileName} numberOfLines={1}>{uploaded.fileName}</Text>
+          </View>
+          <TouchableOpacity onPress={() => storeUpload(kind, null)}>
+            <Text style={styles.replaceText}>Replace</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <TouchableOpacity style={styles.uploadArea} onPress={() => pickPhoto(kind)}>
+        <Text style={styles.uploadIcon}>📷</Text>
+        <Text style={styles.uploadText}>{emptyLabel}</Text>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -77,25 +157,7 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
               <Text style={styles.docDesc}>Must show your photo, full name, and registration ID.</Text>
             </View>
           </View>
-          {idFront ? (
-            <View style={styles.uploadedRow}>
-              <View style={styles.statusPill}>
-                <Text style={styles.checkIcon}>✓</Text>
-                <Text style={styles.uploadedFileName}>{idFront}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setIdFront(null)}>
-                <Text style={styles.replaceText}>Replace</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.uploadArea}
-              onPress={() => handleSimulateUpload('front')}
-            >
-              <Text style={styles.uploadIcon}>📷</Text>
-              <Text style={styles.uploadText}>Tap to Capture or Upload Front</Text>
-            </TouchableOpacity>
-          )}
+          {renderSlot('front', idFront, 'Tap to capture or upload the front')}
         </View>
 
         {/* Document 2: ID Back */}
@@ -107,25 +169,7 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
               <Text style={styles.docDesc}>Must show barcode or valid academic year endorsement.</Text>
             </View>
           </View>
-          {idBack ? (
-            <View style={styles.uploadedRow}>
-              <View style={styles.statusPill}>
-                <Text style={styles.checkIcon}>✓</Text>
-                <Text style={styles.uploadedFileName}>{idBack}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setIdBack(null)}>
-                <Text style={styles.replaceText}>Replace</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.uploadArea}
-              onPress={() => handleSimulateUpload('back')}
-            >
-              <Text style={styles.uploadIcon}>📷</Text>
-              <Text style={styles.uploadText}>Tap to Capture or Upload Back</Text>
-            </TouchableOpacity>
-          )}
+          {renderSlot('back', idBack, 'Tap to capture or upload the back')}
         </View>
 
         {/* Document 3: Transcript (for Tutors) */}
@@ -138,25 +182,7 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
                 <Text style={styles.docDesc}>Proof of A/A+ grades in the modules you requested to teach.</Text>
               </View>
             </View>
-            {transcript ? (
-              <View style={styles.uploadedRow}>
-                <View style={[styles.statusPill, { backgroundColor: '#E0F2FE' }]}>
-                  <Text style={[styles.checkIcon, { color: colors.primary }]}>✓</Text>
-                  <Text style={[styles.uploadedFileName, { color: colors.navy }]}>{transcript}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setTranscript(null)}>
-                  <Text style={styles.replaceText}>Replace</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.uploadArea}
-                onPress={() => handleSimulateUpload('transcript')}
-              >
-                <Text style={styles.uploadIcon}>📄</Text>
-                <Text style={styles.uploadText}>Upload PDF or Scan of Results</Text>
-              </TouchableOpacity>
-            )}
+            {renderSlot('transcript', transcript, 'Upload a photo of your results')}
           </View>
         )}
 
@@ -186,7 +212,12 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
         </View>
 
         {/* Next Button */}
-        <TouchableOpacity style={styles.continueButton} onPress={handleProceed} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.continueButton, saving ? { opacity: 0.6 } : null]}
+          onPress={handleProceed}
+          activeOpacity={0.85}
+          disabled={!!saving}
+        >
           <Text style={styles.continueButtonText}>Continue to Face Verification  →</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -306,8 +337,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#C7D9FA',
+    gap: 8,
+  },
+  preview: {
+    width: 42,
+    height: 42,
+    borderRadius: 6,
+    backgroundColor: '#E2E8F0',
   },
   statusPill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

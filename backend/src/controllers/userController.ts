@@ -1,5 +1,7 @@
 import { Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import User, { IEnrolledModule } from '../models/User';
+import UserDocument, { DocumentKind } from '../models/UserDocument';
 import { AuthRequest } from '../middleware/auth';
 import { seedLearningData } from '../services/seedLearningData';
 
@@ -113,7 +115,7 @@ const DEFAULT_ENROLLED_MODULES: IEnrolledModule[] = [
 
 export async function getProfile(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const user = await User.findById(req.userId).select('-password');
+    const user = await User.findById(req.userId).select('-password -idPhoto -referenceFaceImage -loginCode -loginCodeExpires -passwordResetCode -passwordResetExpires');
     if (!user) {
       res.status(404).json({ message: 'User not found.' });
       return;
@@ -150,7 +152,7 @@ export async function updateProfile(req: AuthRequest, res: Response, next: NextF
     const user = await User.findByIdAndUpdate(req.userId, updates, {
       new: true,
       runValidators: true,
-    }).select('-password');
+    }).select('-password -idPhoto -referenceFaceImage -loginCode -loginCodeExpires -passwordResetCode -passwordResetExpires');
 
     if (!user) {
       res.status(404).json({ message: 'User not found.' });
@@ -168,7 +170,7 @@ export async function getStudentDashboard(req: AuthRequest, res: Response, next:
     if (req.userRole === 'student') {
       await seedLearningData(String(req.userId));
     }
-    const user = await User.findById(req.userId).select('-password');
+    const user = await User.findById(req.userId).select('-password -idPhoto -referenceFaceImage -loginCode -loginCodeExpires -passwordResetCode -passwordResetExpires');
     if (!user) {
       res.status(404).json({ message: 'Student account not found.' });
       return;
@@ -679,6 +681,180 @@ export async function setVerificationStatus(req: AuthRequest, res: Response, nex
       return;
     }
     res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+const DOCUMENT_KINDS: DocumentKind[] = ['front', 'back', 'transcript'];
+
+function isDocumentKind(value: unknown): value is DocumentKind {
+  return DOCUMENT_KINDS.includes(value as DocumentKind);
+}
+
+const NOTIFICATION_DEFAULTS = {
+  sessionReminders: true,
+  chatMessages: true,
+  bookingUpdates: true,
+  verificationAlerts: true,
+  semesterRenewals: true,
+  facultyNews: false,
+};
+
+export async function saveDocument(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const kind = req.body.kind;
+    const image = String(req.body.image || '');
+    if (!isDocumentKind(kind) || !image.startsWith('data:image/')) {
+      res.status(400).json({ message: 'Upload a photo of the document.' });
+      return;
+    }
+    if (image.length > 8_000_000) {
+      res.status(400).json({ message: 'That photo is too large. Try a smaller image.' });
+      return;
+    }
+    const user = await User.findById(req.userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    const fileName = String(req.body.fileName || `${kind}.jpg`).replace(/[^\w.\- ]/g, '').slice(0, 80) || `${kind}.jpg`;
+    const saved = await UserDocument.findOneAndUpdate(
+      { userId: user._id, kind },
+      { image, fileName, status: 'pending' },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    if (kind === 'front') user.idPhoto = image;
+    await user.save();
+    res.json({ kind: saved?.kind ?? kind, fileName: saved?.fileName ?? fileName, status: saved?.status ?? 'pending' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getDocuments(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      res.status(400).json({ message: 'Unknown user.' });
+      return;
+    }
+    const staff = req.userRole === 'admin' || req.userRole === 'lic';
+    const self = String(req.userId) === String(req.params.id);
+    if (!staff && !self) {
+      res.status(403).json({ message: 'Staff access is required.' });
+      return;
+    }
+    const user = await User.findById(req.params.id).select('name email studentId university faculty degreeProgramme verificationStatus hourlyRate createdAt');
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    const full = req.query.full === '1';
+    const docs = await UserDocument.find({ userId: user._id }).select(full ? 'kind image fileName status' : 'kind fileName status');
+    res.json({
+      user,
+      documents: docs.map((doc) => ({
+        kind: doc.kind,
+        fileName: doc.fileName,
+        status: doc.status,
+        ...(full ? { image: doc.image } : {}),
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reviewDocument(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!assertStaff(req, res)) return;
+    if (!mongoose.isValidObjectId(req.params.id) || !isDocumentKind(req.params.kind)) {
+      res.status(400).json({ message: 'Unknown document.' });
+      return;
+    }
+    if (req.body.status !== 'approved' && req.body.status !== 'reupload') {
+      res.status(400).json({ message: 'Choose approve or re-upload.' });
+      return;
+    }
+    const doc = await UserDocument.findOneAndUpdate(
+      { userId: req.params.id, kind: req.params.kind },
+      { status: req.body.status },
+      { new: true },
+    );
+    if (!doc) {
+      res.status(404).json({ message: 'No upload for this document yet.' });
+      return;
+    }
+    res.json({ kind: doc.kind, status: doc.status });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getSecuritySettings(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await User.findById(req.userId).select('twoFactorEnabled biometricEnabled');
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    res.json({ twoFactorEnabled: !!user.twoFactorEnabled, biometricEnabled: !!user.biometricEnabled });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateSecuritySettings(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    if (typeof req.body.twoFactorEnabled === 'boolean') user.twoFactorEnabled = req.body.twoFactorEnabled;
+    if (typeof req.body.biometricEnabled === 'boolean') user.biometricEnabled = req.body.biometricEnabled;
+    await user.save();
+    res.json({ twoFactorEnabled: !!user.twoFactorEnabled, biometricEnabled: !!user.biometricEnabled });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getNotificationSettings(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await User.findById(req.userId).select('notificationPrefs');
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    const prefs = { ...NOTIFICATION_DEFAULTS };
+    (Object.keys(NOTIFICATION_DEFAULTS) as (keyof typeof NOTIFICATION_DEFAULTS)[]).forEach((key) => {
+      const stored = user.notificationPrefs?.[key];
+      if (typeof stored === 'boolean') prefs[key] = stored;
+    });
+    res.json(prefs);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateNotificationSettings(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+    const current = { ...NOTIFICATION_DEFAULTS };
+    (Object.keys(NOTIFICATION_DEFAULTS) as (keyof typeof NOTIFICATION_DEFAULTS)[]).forEach((key) => {
+      const stored = user.notificationPrefs?.[key];
+      if (typeof stored === 'boolean') current[key] = stored;
+      if (typeof req.body[key] === 'boolean') current[key] = req.body[key];
+    });
+    user.notificationPrefs = current;
+    user.markModified('notificationPrefs');
+    await user.save();
+    res.json(current);
   } catch (err) {
     next(err);
   }

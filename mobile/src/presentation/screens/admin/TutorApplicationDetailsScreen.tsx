@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors } from '../../../shared/theme';
 import { adminRepository } from '../../../data/repositories/adminRepository';
+import { documentRepository, DocumentKind, StoredDocument } from '../../../data/repositories/documentRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -52,13 +53,44 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
   const submittedDate = route?.params?.submittedDate || '—';
   const realApplication = /^[a-f\d]{24}$/i.test(applicationId);
   const [modules, setModules] = useState<ModuleDecision[]>(
-    Array.isArray(route?.params?.modules) && route.params.modules.length
+    Array.isArray(route?.params?.modules)
       ? route.params.modules.map((name: string, index: number) => ({ module: name, code: `module-${index}`, grade: '—', decision: 'pending' as const }))
-      : initialModules,
+      : realApplication
+        ? []
+        : initialModules,
   );
+  const [documents, setDocuments] = useState<StoredDocument[]>([]);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState(rejectionReasons[0]);
   const [customNote, setCustomNote] = useState('');
+
+  useEffect(() => {
+    if (!realApplication) return;
+    documentRepository.get(applicationId)
+      .then((bundle) => setDocuments(bundle.documents))
+      .catch(() => setDocuments([]));
+  }, [applicationId, realApplication]);
+
+  const documentMeta = (kind: DocumentKind) => {
+    const found = documents.find((item) => item.kind === kind);
+    if (!found) return 'No photo uploaded';
+    const status = found.status === 'approved' ? 'Approved' : found.status === 'reupload' ? 'Re-upload requested' : 'Waiting for review';
+    return `${found.fileName} • ${status}`;
+  };
+
+  const openDocument = (kind: DocumentKind, documentType: string) => {
+    if (!realApplication) {
+      Alert.alert('No application', 'Open a tutor from the applications list.');
+      return;
+    }
+    const found = documents.find((item) => item.kind === kind);
+    navigation.navigate('DocumentReview', {
+      userId: applicationId,
+      kind,
+      documentType,
+      fileName: found?.fileName,
+    });
+  };
 
   const toggleModuleDecision = (index: number, newDecision: 'approved' | 'rejected') => {
     const updated = [...modules];
@@ -160,42 +192,35 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
           </Text>
 
           <View style={styles.docsList}>
-            {/* Doc 1 */}
-            <TouchableOpacity
-              style={styles.docItem}
-              onPress={() =>
-                navigation.navigate('DocumentReview', {
-                  documentType: 'Student ID Card (Front)',
-                  fileName: 'id_card_front.jpg',
-                })
-              }
-            >
+            <TouchableOpacity style={styles.docItem} onPress={() => openDocument('front', 'Student ID Card (Front)')}>
               <View style={styles.docIconWrap}>
                 <Text style={styles.docIcon}>🪪</Text>
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.docName}>University ID Card (Front)</Text>
-                <Text style={styles.docMeta}>id_card_front.jpg • Verified 98.4% Match</Text>
+                <Text style={styles.docMeta}>{documentMeta('front')}</Text>
               </View>
               <Text style={styles.viewDocArrow}>Review 🔍</Text>
             </TouchableOpacity>
 
-            {/* Doc 2 */}
-            <TouchableOpacity
-              style={styles.docItem}
-              onPress={() =>
-                navigation.navigate('DocumentReview', {
-                  documentType: 'Official Academic Transcript',
-                  fileName: 'transcript_se_2023.pdf',
-                })
-              }
-            >
+            <TouchableOpacity style={styles.docItem} onPress={() => openDocument('back', 'Student ID Card (Back)')}>
+              <View style={styles.docIconWrap}>
+                <Text style={styles.docIcon}>💳</Text>
+              </View>
+              <View style={styles.docInfo}>
+                <Text style={styles.docName}>University ID Card (Back)</Text>
+                <Text style={styles.docMeta}>{documentMeta('back')}</Text>
+              </View>
+              <Text style={styles.viewDocArrow}>Review 🔍</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.docItem} onPress={() => openDocument('transcript', 'Official Academic Transcript')}>
               <View style={[styles.docIconWrap, { backgroundColor: '#E0F2FE' }]}>
                 <Text style={styles.docIcon}>📜</Text>
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.docName}>Faculty Academic Transcript</Text>
-                <Text style={styles.docMeta}>transcript_se_2023.pdf • 4.2 MB Official PDF</Text>
+                <Text style={styles.docMeta}>{documentMeta('transcript')}</Text>
               </View>
               <Text style={styles.viewDocArrow}>Review 🔍</Text>
             </TouchableOpacity>
