@@ -208,4 +208,29 @@ router.post('/wallet/pay', (req: Request, res: Response) => {
   });
 });
 
+/**
+ * POST /api/payment/wallet/refund
+ * Refunds cancelled session payment back to UniMentor Campus Wallet.
+ */
+router.post('/wallet/refund', (req: Request, res: Response) => {
+  const { amount, reason } = req.body;
+  const refundAmount = Number(amount) || 0;
+  if (refundAmount > 0) {
+    campusWalletBalance += refundAmount;
+  }
+  const transactionId = `CW-REFUND-${Date.now()}`;
+  console.log(`\n💳 [CAMPUS WALLET] Refunded Rs. ${refundAmount}. Reason: ${reason}. New Balance: Rs. ${campusWalletBalance}`);
+
+  res.json({
+    success: true,
+    gateway: 'Campus Wallet',
+    transactionId,
+    refundAmount,
+    newBalance: campusWalletBalance,
+    formattedNewBalance: `Rs. ${campusWalletBalance.toLocaleString()}`,
+    status: 'REFUNDED',
+    refundedAt: new Date().toISOString(),
+  });
+});
+
 export default router;

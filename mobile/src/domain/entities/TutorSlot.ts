@@ -10,6 +10,8 @@ export interface RegisteredAttendee {
   studentName: string;
   studentEmail: string;
   studentAvatar?: string;
+  faceVerificationPhoto?: string;
+  isFaceVerified?: boolean;
   registeredAt: string;
   status: 'confirmed' | 'pending' | 'attended' | 'cancelled';
   bookingType: 'individual' | 'group';

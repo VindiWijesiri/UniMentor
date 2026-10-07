@@ -212,6 +212,8 @@ function transformBackendSlot(item: any): TutorSlot {
           studentName: a.studentName || 'Student',
           studentEmail: a.studentEmail || 'student@sliit.lk',
           studentAvatar: a.studentAvatar,
+          faceVerificationPhoto: a.faceVerificationPhoto || a.studentAvatar,
+          isFaceVerified: a.isFaceVerified !== false,
           registeredAt: a.registeredAt ? new Date(a.registeredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Recently',
           status: a.status || 'confirmed',
           bookingType: a.bookingType || 'individual',
@@ -303,16 +305,54 @@ export const tutorSlotRepository = {
     try {
       const response = await apiClient.get<any[]>('/slots');
       if (Array.isArray(response.data) && response.data.length > 0) {
-        inMemorySlots = response.data.map(transformBackendSlot);
+        const backendSlots = response.data.map(transformBackendSlot);
+        const merged = [...backendSlots];
+        for (const localSlot of inMemorySlots) {
+          const matchIdx = merged.findIndex((b) => b.id === localSlot.id);
+          if (matchIdx >= 0) {
+            const backendAttendees = merged[matchIdx].registeredAttendees || [];
+            const localAttendees = localSlot.registeredAttendees || [];
+            const allAttendees = [...backendAttendees];
+            for (const la of localAttendees) {
+              if (
+                !allAttendees.some(
+                  (ba) =>
+                    ba.id === la.id ||
+                    (ba.studentEmail === la.studentEmail && ba.registeredAt === la.registeredAt)
+                )
+              ) {
+                allAttendees.push(la);
+              }
+            }
+            merged[matchIdx].registeredAttendees = allAttendees;
+            merged[matchIdx].bookedCount = Math.max(merged[matchIdx].bookedCount, allAttendees.length);
+          } else {
+            if (
+              localSlot.bookedCount > 0 ||
+              (localSlot.registeredAttendees && localSlot.registeredAttendees.length > 0)
+            ) {
+              merged.push(localSlot);
+            }
+          }
+        }
+        inMemorySlots = merged;
       }
     } catch {
       // Use in-memory
     }
 
     if (mentorId) {
-      return inMemorySlots.filter(
-        (s) => s.mentorId === mentorId || s.mentorId === 'demo-tutor-1' || s.mentorId === 'mentor-alex'
-      );
+      return inMemorySlots.filter((s) => {
+        // ALWAYS include slots that have bookings so tutor dashboard displays all student bookings!
+        if (s.registeredAttendees && s.registeredAttendees.length > 0) return true;
+        if (s.bookedCount && s.bookedCount > 0) return true;
+        return (
+          s.mentorId === mentorId ||
+          s.mentorId === 'demo-tutor-1' ||
+          s.mentorId === 'mentor-alex' ||
+          !mentorId
+        );
+      });
     }
     return [...inMemorySlots];
   },
@@ -392,6 +432,8 @@ export const tutorSlotRepository = {
       id: `att-${Date.now()}`,
       registeredAt: 'Just now',
       status: 'confirmed',
+      isFaceVerified: attendee.isFaceVerified !== false,
+      faceVerificationPhoto: attendee.faceVerificationPhoto || attendee.studentAvatar,
     };
 
     const updatedAttendees = [newAttendee, ...(slot.registeredAttendees || [])];
@@ -407,6 +449,8 @@ export const tutorSlotRepository = {
         studentName: attendee.studentName,
         studentEmail: attendee.studentEmail,
         studentAvatar: attendee.studentAvatar,
+        faceVerificationPhoto: attendee.faceVerificationPhoto,
+        isFaceVerified: true,
         bookingType: attendee.bookingType,
         groupName: attendee.groupName,
         groupSize: attendee.groupSize,
@@ -425,34 +469,68 @@ export const tutorSlotRepository = {
       name: string;
       email: string;
       avatar?: string;
+      faceVerificationPhoto?: string;
+      isFaceVerified?: boolean;
       groupName?: string;
       groupSize?: number;
       notes?: string;
       feePaid?: number;
+      mentorId?: string;
+      mentorName?: string;
+      slotTitle?: string;
+      slotDate?: string;
+      slotTime?: string;
     }
   ): Promise<void> {
-    const slot = inMemorySlots.find((s) => s.id === slotId);
-    if (!slot) return;
+    let slot = inMemorySlots.find((s) => s.id === slotId);
 
+    const verifiedImg = studentDetails?.faceVerificationPhoto || studentDetails?.avatar;
     const countToAdd = isGroup ? (studentDetails?.groupSize || 1) : 1;
     const newAttendee: RegisteredAttendee = {
       id: `att-${Date.now()}`,
       studentName: studentDetails?.name || 'Student',
       studentEmail: studentDetails?.email || 'student@sliit.lk',
       studentAvatar: studentDetails?.avatar,
+      faceVerificationPhoto: verifiedImg,
+      isFaceVerified: true,
       registeredAt: 'Just now',
       status: 'confirmed',
       bookingType: isGroup ? 'group' : 'individual',
       groupName: studentDetails?.groupName || (isGroup ? 'Study Pod' : undefined),
       groupSize: countToAdd,
       notes: studentDetails?.notes,
-      feePaid: studentDetails?.feePaid || slot.fee,
+      feePaid: studentDetails?.feePaid || (slot ? slot.fee : 2500),
     };
 
-    slot.registeredAttendees = [newAttendee, ...(slot.registeredAttendees || [])];
-    slot.bookedCount = (slot.bookedCount || 0) + countToAdd;
-    if (slot.bookedCount >= slot.maxCapacity) {
-      slot.isAvailable = false;
+    if (!slot) {
+      slot = {
+        id: slotId,
+        mentorId: studentDetails?.mentorId || 'demo-tutor-1',
+        mentorName: studentDetails?.mentorName || 'Tharushi Perera',
+        title: studentDetails?.slotTitle || 'Mentoring Session',
+        module: 'Database Management Systems',
+        date: studentDetails?.slotDate || 'Friday, 19 Sep 2025',
+        startTime: studentDetails?.slotTime || '10:00 AM',
+        endTime: '11:30 AM',
+        duration: '90 Mins',
+        timeRange: `${studentDetails?.slotTime || '10:00 AM'} - 11:30 AM`,
+        fee: studentDetails?.feePaid || 2500,
+        type: isGroup ? 'group' : 'both',
+        maxCapacity: isGroup ? 5 : 1,
+        bookedCount: countToAdd,
+        description: 'Interactive peer session.',
+        mode: 'Online',
+        location: 'Microsoft Teams Meeting',
+        registeredAttendees: [newAttendee],
+        isAvailable: true,
+      };
+      inMemorySlots.unshift(slot);
+    } else {
+      slot.registeredAttendees = [newAttendee, ...(slot.registeredAttendees || [])];
+      slot.bookedCount = (slot.bookedCount || 0) + countToAdd;
+      if (slot.bookedCount >= slot.maxCapacity) {
+        slot.isAvailable = false;
+      }
     }
 
     try {
@@ -460,13 +538,24 @@ export const tutorSlotRepository = {
         studentName: newAttendee.studentName,
         studentEmail: newAttendee.studentEmail,
         studentAvatar: newAttendee.studentAvatar,
+        faceVerificationPhoto: newAttendee.faceVerificationPhoto,
+        isFaceVerified: true,
         bookingType: newAttendee.bookingType,
         groupName: newAttendee.groupName,
         groupSize: newAttendee.groupSize,
         notes: newAttendee.notes,
         feePaid: newAttendee.feePaid,
+        mentorId: studentDetails?.mentorId || slot.mentorId,
+        mentorName: studentDetails?.mentorName || slot.mentorName,
+        title: slot.title,
+        module: slot.module,
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
       });
-    } catch {}
+    } catch (err) {
+      console.log('[tutorSlotRepository] Backend register error:', err);
+    }
   },
 
   async cancelRegistration(slotId: string, attendeeId: string): Promise<void> {

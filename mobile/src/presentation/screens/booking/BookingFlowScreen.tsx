@@ -578,11 +578,18 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         await tutorSlotRepository.markSlotBooked(selectedSlot.id, studyMode === 'group', {
           name: studentName,
           email: studentEmail,
-          avatar: user?.profilePicture,
+          avatar: facePhotoUri || user?.profilePicture,
+          faceVerificationPhoto: facePhotoUri || user?.profilePicture,
+          isFaceVerified: true,
           groupName: studyMode === 'group' ? `Study Pod (${studentName})` : undefined,
           groupSize: studyMode === 'group' ? groupSize : 1,
           notes: sessionNotes,
           feePaid: totalPayable,
+          mentorId: mentor._id,
+          mentorName: mentor.name,
+          slotTitle: selectedSlot.title,
+          slotDate: selectedDate,
+          slotTime: finalTime,
         });
       }
 

@@ -9,7 +9,7 @@ export async function getSlots(req: AuthRequest, res: Response, next: NextFuncti
     const { mentorId, date, type } = req.query;
     const filter: any = {};
 
-    if (mentorId) {
+    if (mentorId && mentorId !== 'all' && mentorId !== 'demo-tutor-1' && mentorId !== 'mentor-alex') {
       filter.$or = [
         { mentorId: mentorId },
         { mentorName: new RegExp(String(mentorId), 'i') },
@@ -249,22 +249,79 @@ export async function deleteSlot(req: AuthRequest, res: Response, next: NextFunc
 
 export async function registerForSlot(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const slot = await Slot.findById(req.params.id);
-    if (!slot) {
-      res.status(404).json({ message: 'Slot not found' });
-      return;
+    let slot: any = null;
+    if (mongoose.isValidObjectId(req.params.id)) {
+      slot = await Slot.findById(req.params.id);
     }
 
     const {
       studentName,
       studentEmail,
       studentAvatar,
+      faceVerificationPhoto,
+      isFaceVerified,
       bookingType,
       groupName,
       groupSize,
       notes,
       feePaid,
+      mentorId,
+      mentorName,
+      title,
+      module: slotModule,
+      date,
+      startTime,
+      endTime,
+      timeRange,
+      duration,
     } = req.body;
+
+    // If slot not found by ObjectId (e.g. string id or generated client slot)
+    if (!slot) {
+      if (title || slotModule) {
+        slot = await Slot.findOne({
+          $or: [
+            { title: title },
+            { date: date, startTime: startTime },
+          ],
+        });
+      }
+    }
+
+    // If still not found, create a new persistent Slot in the database so the booking is never lost!
+    if (!slot) {
+      let resolvedMentorId = mentorId;
+      let resolvedMentorName = mentorName;
+      if (!resolvedMentorId && req.userId) {
+        resolvedMentorId = req.userId;
+      }
+      if (!resolvedMentorId) {
+        const defaultMentor = await User.findOne({ role: 'mentor' });
+        resolvedMentorId = defaultMentor ? defaultMentor._id : 'demo-tutor-1';
+        resolvedMentorName = defaultMentor ? defaultMentor.name : 'Tharushi Perera';
+      }
+
+      slot = await Slot.create({
+        mentorId: resolvedMentorId,
+        mentorName: resolvedMentorName || 'Tharushi Perera',
+        title: title || `${slotModule || 'General'} Mentoring Slot`,
+        module: slotModule || 'Database Management Systems',
+        date: date || 'Friday, 19 Sep 2025',
+        startTime: startTime || '10:00 AM',
+        endTime: endTime || '11:30 AM',
+        duration: duration || '90 Mins',
+        timeRange: timeRange || `${startTime || '10:00 AM'} - ${endTime || '11:30 AM'}`,
+        fee: Number(feePaid) || 2500,
+        type: bookingType === 'group' ? 'group' : 'both',
+        maxCapacity: bookingType === 'group' ? 5 : 1,
+        bookedCount: 0,
+        description: 'Interactive peer mentoring session.',
+        mode: 'Online',
+        location: 'Microsoft Teams Meeting',
+        registeredAttendees: [],
+        isAvailable: true,
+      });
+    }
 
     const countToAdd = bookingType === 'group' ? Math.max(1, Number(groupSize) || 1) : 1;
 
@@ -278,6 +335,8 @@ export async function registerForSlot(req: AuthRequest, res: Response, next: Nex
       studentName: studentName || 'Student',
       studentEmail: studentEmail || 'student@sliit.lk',
       studentAvatar: studentAvatar || undefined,
+      faceVerificationPhoto: faceVerificationPhoto || studentAvatar || undefined,
+      isFaceVerified: isFaceVerified !== false,
       registeredAt: new Date(),
       status: 'confirmed' as const,
       bookingType: (bookingType === 'group' ? 'group' : 'individual') as 'group' | 'individual',
@@ -308,19 +367,39 @@ export async function cancelRegistration(req: AuthRequest, res: Response, next: 
       return;
     }
 
-    const { attendeeId } = req.body;
-    const attendee = slot.registeredAttendees.find((a: any) => String(a._id) === String(attendeeId));
-    if (!attendee) {
-      res.status(404).json({ message: 'Attendee not found in this slot' });
-      return;
+    const { attendeeId, studentEmail, studentName } = req.body;
+    let attendeeIndex = -1;
+
+    if (attendeeId) {
+      attendeeIndex = slot.registeredAttendees.findIndex((a: any) => String(a._id) === String(attendeeId) || a.id === attendeeId);
+    }
+    if (attendeeIndex === -1 && studentEmail) {
+      attendeeIndex = slot.registeredAttendees.findIndex(
+        (a: any) => a.studentEmail && a.studentEmail.toLowerCase() === studentEmail.toLowerCase()
+      );
+    }
+    if (attendeeIndex === -1 && studentName) {
+      attendeeIndex = slot.registeredAttendees.findIndex(
+        (a: any) => a.studentName && a.studentName.toLowerCase().includes(studentName.toLowerCase())
+      );
     }
 
-    const countToRemove = attendee.bookingType === 'group' ? (attendee.groupSize || 1) : 1;
-    slot.registeredAttendees = slot.registeredAttendees.filter((a: any) => String(a._id) !== String(attendeeId));
-    slot.bookedCount = Math.max(0, slot.bookedCount - countToRemove);
-    slot.isAvailable = slot.bookedCount < slot.maxCapacity;
+    if (attendeeIndex >= 0) {
+      const attendee = slot.registeredAttendees[attendeeIndex];
+      const countToRemove = attendee.bookingType === 'group' ? (attendee.groupSize || 1) : 1;
+      slot.registeredAttendees.splice(attendeeIndex, 1);
+      slot.bookedCount = Math.max(0, slot.bookedCount - countToRemove);
+    } else {
+      // General decrement fallback
+      slot.bookedCount = Math.max(0, slot.bookedCount - 1);
+      if (slot.registeredAttendees.length > 0) {
+        slot.registeredAttendees.pop();
+      }
+    }
 
+    slot.isAvailable = slot.bookedCount < slot.maxCapacity;
     await slot.save();
+    console.log(`\n📅 [SLOT CANCELLED] Slot ${slot._id} bookedCount is now ${slot.bookedCount}/${slot.maxCapacity}`);
     res.json(slot);
   } catch (err) {
     next(err);

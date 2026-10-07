@@ -423,25 +423,6 @@ export default function StudentDashboardScreen({ navigation }: Props) {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerTitle}>Student Dashboard</Text>
-            <TouchableOpacity
-              style={styles.switchRoleHeaderBtn}
-              activeOpacity={0.85}
-              onPress={() => {
-                useAuthStore.getState().setUser({
-                  ...(authUser || {}),
-                  _id: authUser?._id || 'demo-tutor-1',
-                  id: authUser?.id || 'demo-tutor-1',
-                  name: authUser?.name || 'Alex Ferreira',
-                  email: authUser?.email || 'alex.f@unimentor.sliit.lk',
-                  role: 'mentor',
-                } as any);
-                Alert.alert('Tutor Mode Active 👨‍🏫', 'Switched to Tutor Dashboard & bottom navigation.');
-                (navigation as any).navigate('TutorDashboard');
-              }}
-            >
-              <Ionicons name="swap-horizontal" size={12} color="#061E47" />
-              <Text style={styles.switchRoleHeaderBtnText}>Tutor Mode ➔</Text>
-            </TouchableOpacity>
           </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>

@@ -5,6 +5,8 @@ export interface IRegisteredAttendee {
   studentName: string;
   studentEmail: string;
   studentAvatar?: string;
+  faceVerificationPhoto?: string;
+  isFaceVerified?: boolean;
   registeredAt: Date;
   status: 'confirmed' | 'pending' | 'attended' | 'cancelled';
   bookingType: 'individual' | 'group';
@@ -51,6 +53,8 @@ const registeredAttendeeSchema = new Schema<IRegisteredAttendee>(
     studentName: { type: String, required: true },
     studentEmail: { type: String, required: true },
     studentAvatar: { type: String },
+    faceVerificationPhoto: { type: String },
+    isFaceVerified: { type: Boolean, default: false },
     registeredAt: { type: Date, default: Date.now },
     status: {
       type: String,

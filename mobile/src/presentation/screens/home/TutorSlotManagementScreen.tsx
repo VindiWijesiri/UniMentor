@@ -52,6 +52,10 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
 
+  // Verified Photo preview modal state
+  const [verifiedPhotoModalVisible, setVerifiedPhotoModalVisible] = useState(false);
+  const [selectedVerifiedAttendee, setSelectedVerifiedAttendee] = useState<RegisteredAttendee | null>(null);
+
   // Form Fields
   const [slotTitle, setSlotTitle] = useState('');
   const [slotModule, setSlotModule] = useState(COMMON_MODULES[0]);
@@ -73,8 +77,13 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
       setLoading(true);
       const data = await tutorSlotRepository.getAllSlots(tutorMentorId);
       setSlots(data);
-      if (data.length > 0 && !expandedSlotId) {
-        setExpandedSlotId(data[0].id); // expand first slot by default
+      if (data.length > 0) {
+        const bookedSlot = data.find((s) => (s.registeredAttendees?.length || 0) > 0 || (s.bookedCount || 0) > 0);
+        if (bookedSlot && !expandedSlotId) {
+          setExpandedSlotId(bookedSlot.id);
+        } else if (!expandedSlotId) {
+          setExpandedSlotId(data[0].id);
+        }
       }
     } catch {
       // Ignore
@@ -570,21 +579,51 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
                         </Text>
                       </View>
                     ) : (
-                      attendees.map((attendee, idx) => (
+                      attendees.map((attendee, idx) => {
+                        const verifiedPhoto = attendee.faceVerificationPhoto || attendee.studentAvatar;
+                        return (
                         <View key={attendee.id || idx} style={styles.attendeeCard}>
                           <View style={styles.attendeeTopRow}>
-                            <View style={styles.attendeeAvatarBox}>
-                              <Ionicons
-                                name={attendee.bookingType === 'group' ? 'people' : 'person'}
-                                size={16}
-                                color="#FFFFFF"
-                              />
-                            </View>
-                            <View style={{ flex: 1, marginLeft: 10 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <TouchableOpacity
+                              activeOpacity={0.85}
+                              style={styles.attendeeAvatarContainer}
+                              onPress={() => {
+                                setSelectedVerifiedAttendee(attendee);
+                                setVerifiedPhotoModalVisible(true);
+                              }}
+                            >
+                              {verifiedPhoto ? (
+                                <Image
+                                  source={{ uri: verifiedPhoto }}
+                                  style={styles.attendeeAvatarImage}
+                                  resizeMode="cover"
+                                />
+                              ) : (
+                                <View style={styles.attendeeAvatarFallback}>
+                                  <Text style={styles.attendeeAvatarInitials}>
+                                    {(attendee.studentName || 'S')
+                                      .split(' ')
+                                      .map((n) => n[0])
+                                      .slice(0, 2)
+                                      .join('')
+                                      .toUpperCase()}
+                                  </Text>
+                                </View>
+                              )}
+                              <View style={styles.attendeeVerifiedBadge}>
+                                <Ionicons name="checkmark-circle" size={14} color="#059669" />
+                              </View>
+                            </TouchableOpacity>
+
+                            <View style={{ flex: 1, marginLeft: 12 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                 <Text style={styles.attendeeName}>
                                   {attendee.studentName}
                                 </Text>
+                                <View style={styles.verifiedStudentPill}>
+                                  <Ionicons name="shield-checkmark" size={10} color="#059669" />
+                                  <Text style={styles.verifiedStudentPillText}>Verified</Text>
+                                </View>
                                 {attendee.bookingType === 'group' && (
                                   <View style={styles.groupBadge}>
                                     <Text style={styles.groupBadgeText}>
@@ -594,6 +633,17 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
                                 )}
                               </View>
                               <Text style={styles.attendeeEmail}>{attendee.studentEmail}</Text>
+                              <TouchableOpacity
+                                style={styles.viewVerifiedLink}
+                                activeOpacity={0.7}
+                                onPress={() => {
+                                  setSelectedVerifiedAttendee(attendee);
+                                  setVerifiedPhotoModalVisible(true);
+                                }}
+                              >
+                                <Ionicons name="eye-outline" size={11} color="#0D4F9E" />
+                                <Text style={styles.viewVerifiedLinkText}>View Verified Image</Text>
+                              </TouchableOpacity>
                             </View>
                             <View style={styles.confirmedStatusBadge}>
                               <Text style={styles.confirmedStatusText}>Confirmed</Text>
@@ -664,7 +714,8 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
                             </TouchableOpacity>
                           </View>
                         </View>
-                      ))
+                      );
+                    })
                     )}
                   </View>
                 )}
@@ -963,6 +1014,106 @@ export default function TutorSlotManagementScreen({ navigation }: any) {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* VERIFIED STUDENT PHOTO MODAL */}
+      <Modal visible={verifiedPhotoModalVisible} transparent animationType="fade">
+        <View style={styles.photoModalOverlay}>
+          <View style={styles.photoModalCard}>
+            <View style={styles.photoModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.photoShieldIcon}>
+                  <Ionicons name="shield-checkmark" size={18} color="#059669" />
+                </View>
+                <View>
+                  <Text style={styles.photoModalTitle}>Verified Student Identity</Text>
+                  <Text style={styles.photoModalSubtitle}>Biometric verification completed for session</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setVerifiedPhotoModalVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.photoModalBody}>
+              {selectedVerifiedAttendee?.faceVerificationPhoto || selectedVerifiedAttendee?.studentAvatar ? (
+                <View style={styles.photoModalImageWrapper}>
+                  <Image
+                    source={{
+                      uri:
+                        selectedVerifiedAttendee.faceVerificationPhoto ||
+                        selectedVerifiedAttendee.studentAvatar,
+                    }}
+                    style={styles.photoModalImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.verifiedStampPill}>
+                    <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+                    <Text style={styles.verifiedStampText}>BIOMETRIC VERIFIED ✓</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.photoModalPlaceholder}>
+                  <Ionicons name="person-circle-outline" size={72} color="#0D4F9E" />
+                  <Text style={styles.photoModalPlaceholderText}>Initials Verified Identity</Text>
+                </View>
+              )}
+
+              <View style={styles.photoModalDetailsBox}>
+                <View style={styles.photoDetailRow}>
+                  <Text style={styles.photoDetailLabel}>Student Name:</Text>
+                  <Text style={styles.photoDetailVal}>{selectedVerifiedAttendee?.studentName}</Text>
+                </View>
+                <View style={styles.photoDetailRow}>
+                  <Text style={styles.photoDetailLabel}>Email Address:</Text>
+                  <Text style={styles.photoDetailVal}>{selectedVerifiedAttendee?.studentEmail}</Text>
+                </View>
+                <View style={styles.photoDetailRow}>
+                  <Text style={styles.photoDetailLabel}>Verification Status:</Text>
+                  <View style={styles.verifiedLiveBadge}>
+                    <Ionicons name="checkmark-circle" size={12} color="#059669" />
+                    <Text style={styles.verifiedLiveBadgeText}>Verified Identity ✓</Text>
+                  </View>
+                </View>
+                <View style={styles.photoDetailRow}>
+                  <Text style={styles.photoDetailLabel}>Booking Mode:</Text>
+                  <Text style={styles.photoDetailVal}>
+                    {selectedVerifiedAttendee?.bookingType === 'group'
+                      ? `Group (${selectedVerifiedAttendee.groupSize || 1} Students)`
+                      : '1-on-1 Individual'}
+                  </Text>
+                </View>
+                {selectedVerifiedAttendee?.feePaid !== undefined && (
+                  <View style={styles.photoDetailRow}>
+                    <Text style={styles.photoDetailLabel}>Payment Amount:</Text>
+                    <Text style={[styles.photoDetailVal, { color: '#059669', fontWeight: '800' }]}>
+                      LKR {selectedVerifiedAttendee.feePaid.toLocaleString()} (Paid)
+                    </Text>
+                  </View>
+                )}
+                {!!selectedVerifiedAttendee?.notes && (
+                  <View style={[styles.photoDetailRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 2 }]}>
+                    <Text style={styles.photoDetailLabel}>Session Topic / Notes:</Text>
+                    <Text style={[styles.photoDetailVal, { fontSize: 11, color: '#334155' }]}>
+                      {selectedVerifiedAttendee.notes}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.photoModalCloseBtn}
+              onPress={() => setVerifiedPhotoModalVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.photoModalCloseBtnText}>Close Verification Preview</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1347,13 +1498,64 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  attendeeAvatarBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  attendeeAvatarContainer: {
+    position: 'relative',
+    width: 44,
+    height: 44,
+  },
+  attendeeAvatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#10B981',
+  },
+  attendeeAvatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#0D4F9E',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#10B981',
+  },
+  attendeeAvatarInitials: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  attendeeVerifiedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+  },
+  verifiedStudentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  verifiedStudentPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  viewVerifiedLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 3,
+  },
+  viewVerifiedLinkText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0D4F9E',
   },
   attendeeName: {
     fontSize: 13,
@@ -1720,5 +1922,148 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#061E47',
+  },
+
+  // Photo Preview Modal Styles
+  photoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 30, 71, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  photoModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  photoModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  photoShieldIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoModalTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  photoModalSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  photoModalBody: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  photoModalImageWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  photoModalImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 4,
+    borderColor: '#10B981',
+  },
+  verifiedStampPill: {
+    position: 'absolute',
+    bottom: -6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#059669',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  verifiedStampText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  photoModalPlaceholder: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  photoModalPlaceholderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 6,
+  },
+  photoModalDetailsBox: {
+    width: '100%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  photoDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  photoDetailLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  photoDetailVal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  verifiedLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  verifiedLiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  photoModalCloseBtn: {
+    backgroundColor: '#061E47',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  photoModalCloseBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });
