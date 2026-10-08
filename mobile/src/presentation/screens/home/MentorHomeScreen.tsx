@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMySessionsUseCase } from '../../../domain/usecases/session/getMySessionsUseCase';
@@ -20,7 +20,15 @@ function Tool({ label, onPress }: { label: string; onPress: () => void }) {
 
 export default function MentorHomeScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const [sessions, setSessions] = useState<Session[]>([]);
+
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out of UniMentor?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: logout },
+    ]);
+  };
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -40,8 +48,20 @@ export default function MentorHomeScreen({ navigation }: Props) {
       <PageHeader title="Mentor Home" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.hero}>
-          <Text style={styles.welcome}>Welcome back,</Text>
-          <Text style={styles.name}>{user?.name || 'Tutor'}</Text>
+          <View style={styles.heroRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.welcome}>Welcome back,</Text>
+              <Text style={styles.name}>{user?.name || 'Tutor'}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.headerLogoutBtn}
+              onPress={handleLogout}
+              activeOpacity={0.85}
+              accessibilityLabel="Log Out"
+            >
+              <Text style={styles.headerLogoutText}>Log Out 🚪</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.rolePill}>Tutor dashboard</Text>
         </View>
 
@@ -91,6 +111,10 @@ export default function MentorHomeScreen({ navigation }: Props) {
               <Text style={styles.linkText}>Open learning workspace →</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity style={styles.bottomLogoutBtn} onPress={handleLogout} activeOpacity={0.85}>
+            <Text style={styles.bottomLogoutText}>Sign Out of UniMentor 🚪</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -103,6 +127,25 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   scrollContent: { paddingBottom: 24 },
   hero: { backgroundColor: '#F4F7FB', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8 },
+  heroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerLogoutBtn: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginTop: 4,
+  },
+  headerLogoutText: {
+    color: '#DC2626',
+    fontWeight: '800',
+    fontSize: 13,
+  },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
   brandMark: {
     width: 42,
@@ -182,4 +225,19 @@ const styles = StyleSheet.create({
   tools: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   tool: { backgroundColor: '#102B5D', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 },
   toolText: { color: '#FFF', fontWeight: '800', fontSize: 12 },
+  bottomLogoutBtn: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  bottomLogoutText: {
+    color: '#DC2626',
+    fontWeight: '800',
+    fontSize: 14,
+  },
 });

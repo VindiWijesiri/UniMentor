@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../../shared/theme';
@@ -46,8 +47,15 @@ function studentName(session: Session) {
 
 export default function TutorDashboardScreen({ navigation }: Props) {
   const device = useDeviceFrame();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const tutor = user ?? { name: 'Tutor', email: '', university: '', completedSessions: 0, rating: 0, totalReviews: 0, reviewCount: 0 };
+
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out of UniMentor?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: logout },
+    ]);
+  };
   const [earnings, setEarnings] = useState(0);
   const [monthNote, setMonthNote] = useState('');
   const [completed, setCompleted] = useState(0);
@@ -141,12 +149,22 @@ export default function TutorDashboardScreen({ navigation }: Props) {
               <Text style={styles.heroName}>{tutor.name}</Text>
               <Text style={styles.heroFaculty}>{user?.university || user?.faculty || 'Campus not added'}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.settingsIconBtn}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <Text style={styles.settingsIconText}>⚙️</Text>
-            </TouchableOpacity>
+            <View style={styles.heroActionBtns}>
+              <TouchableOpacity
+                style={styles.settingsIconBtn}
+                onPress={() => navigation.navigate('Settings')}
+                accessibilityLabel="Settings"
+              >
+                <Text style={styles.settingsIconText}>⚙️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.settingsIconBtn, styles.logoutHeaderBtn]}
+                onPress={handleLogout}
+                accessibilityLabel="Log Out"
+              >
+                <Text style={styles.logoutHeaderBtnText}>🚪</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Profile Completion Bar */}
@@ -292,6 +310,17 @@ export default function TutorDashboardScreen({ navigation }: Props) {
           >
             <Text style={styles.shortcutIcon}>🛡️</Text>
             <Text style={styles.shortcutLabel}>Security</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Logout Section */}
+        <View style={styles.logoutSection}>
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={handleLogout}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.logoutBtnText}>Log Out 🚪</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -623,5 +652,36 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.navy,
     textAlign: 'center',
+  },
+  heroActionBtns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoutHeaderBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.45)',
+  },
+  logoutHeaderBtnText: {
+    fontSize: 16,
+  },
+  logoutSection: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  logoutBtn: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutBtnText: {
+    color: '#DC2626',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

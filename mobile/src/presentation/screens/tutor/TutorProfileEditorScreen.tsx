@@ -64,6 +64,18 @@ export default function TutorProfileEditorScreen(_props: Props) {
         <TouchableOpacity style={styles.save} onPress={save} disabled={saving}>
           <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save profile'}</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={() => {
+            Alert.alert('Log Out', 'Are you sure you want to log out of UniMentor?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Log Out', style: 'destructive', onPress: () => useAuthStore.getState().logout() },
+            ]);
+          }}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.logoutBtnText}>Sign Out of UniMentor 🚪</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -78,4 +90,6 @@ const styles = StyleSheet.create({
   tall: { minHeight: 90, paddingTop: 12, textAlignVertical: 'top' },
   save: { backgroundColor: tutorOrange, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   saveText: { color: tutorNavy, fontWeight: '800', fontSize: 16 },
+  logoutBtn: { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
+  logoutBtnText: { color: '#DC2626', fontWeight: '800', fontSize: 15 },
 });
