@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -36,7 +31,6 @@
     "experiments": {
       "tsconfigPaths": false
     },
-    "entryPoint": "./index.js",
     "plugins": [
       "expo-secure-store",
       "expo-asset",
