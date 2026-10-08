@@ -38,6 +38,7 @@ import {
   SvgChat,
 } from '../../components/common/SvgIcons';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import TutorAvatar from '../../components/common/TutorAvatar';
 import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
@@ -63,14 +64,62 @@ export default function SessionsScreen() {
   // Join session modal state
   const [joiningSessionTutor, setJoiningSessionTutor] = useState<BookedTutorItem | null>(null);
   const [showJoinSessionModal, setShowJoinSessionModal] = useState(false);
-  const [isMicMuted, setIsMicMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(true);
+  const [isVideoOff, setIsVideoOff] = useState(true);
+  const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [micPermission, requestMicrophonePermission] = useMicrophonePermissions();
 
   const handleOpenJoinSessionModal = (item: BookedTutorItem) => {
     setJoiningSessionTutor(item);
-    setIsMicMuted(false);
-    setIsVideoOff(false);
+    setIsMicMuted(true);
+    setIsVideoOff(true);
     setShowJoinSessionModal(true);
+  };
+
+  const handleCloseJoinSessionModal = () => {
+    setIsVideoOff(true);
+    setShowJoinSessionModal(false);
+  };
+
+  const handleToggleCamera = async () => {
+    if (isVideoOff) {
+      if (!cameraPermission?.granted) {
+        const res = await requestCameraPermission();
+        if (!res.granted) {
+          Alert.alert(
+            'Camera Access Needed',
+            'Please allow camera permissions to display your video stream during the session.'
+          );
+          return;
+        }
+      }
+      setIsVideoOff(false);
+    } else {
+      setIsVideoOff(true);
+    }
+  };
+
+  const handleToggleMic = async () => {
+    if (isMicMuted) {
+      if (!micPermission?.granted) {
+        const res = await requestMicrophonePermission();
+        if (!res.granted) {
+          Alert.alert(
+            'Microphone Access Needed',
+            'Please allow microphone permissions to speak during the session.'
+          );
+          return;
+        }
+      }
+      setIsMicMuted(false);
+    } else {
+      setIsMicMuted(true);
+    }
+  };
+
+  const handleFlipCamera = () => {
+    setCameraFacing((prev) => (prev === 'front' ? 'back' : 'front'));
   };
 
   // Cancellation & Wallet Refund state
@@ -1018,10 +1067,11 @@ export default function SessionsScreen() {
         visible={showJoinSessionModal}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowJoinSessionModal(false)}
+        onRequestClose={handleCloseJoinSessionModal}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowJoinSessionModal(false)}>
-          <Pressable style={styles.joinSessionModalSheet} onPress={(e) => e.stopPropagation()}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdropTouch} onPress={handleCloseJoinSessionModal} />
+          <View style={styles.joinSessionModalSheet}>
             <View style={styles.sheetHandle} />
 
             {/* Header */}
@@ -1034,7 +1084,7 @@ export default function SessionsScreen() {
                 <Text style={styles.joinSessionRoomCode}>POD-782</Text>
               </View>
               <TouchableOpacity
-                onPress={() => setShowJoinSessionModal(false)}
+                onPress={handleCloseJoinSessionModal}
                 style={styles.cancelModalCloseBtn}
               >
                 <SvgClose size={18} color="#64748B" />
@@ -1065,19 +1115,56 @@ export default function SessionsScreen() {
               </View>
             )}
 
-            {/* Video Call Simulation Frame */}
+            {/* Video Call Live Camera Preview / Disabled Feed Frame */}
             <View style={styles.videoSimContainer}>
-              <View style={styles.videoSimInner}>
+              {!isVideoOff && cameraPermission?.granted ? (
+                <View style={styles.cameraPreviewWrapper}>
+                  <CameraView
+                    style={StyleSheet.absoluteFill}
+                    facing={cameraFacing}
+                  />
+                  {/* Real-time Camera Badge */}
+                  <View style={styles.cameraLiveBadge}>
+                    <View style={styles.cameraLiveDot} />
+                    <Text style={styles.cameraLiveBadgeText}>LIVE CAMERA PREVIEW</Text>
+                  </View>
+
+                  {/* Flip Camera Quick Button */}
+                  <TouchableOpacity
+                    style={styles.cameraFlipBtn}
+                    onPress={handleFlipCamera}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="camera-reverse-outline" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.videoSimInner}>
+                  <View style={styles.cameraOffAvatar}>
+                    <Ionicons
+                      name="videocam-off"
+                      size={32}
+                      color="#EF4444"
+                    />
+                  </View>
+                  <Text style={styles.videoSimStatusText}>
+                    Camera is Turned Off
+                  </Text>
+                  <Text style={styles.videoSimSub}>
+                    Tap "Turn On Cam" below to display your live video feed
+                  </Text>
+                </View>
+              )}
+
+              {/* Microphone status row */}
+              <View style={styles.micStatusRow}>
                 <Ionicons
-                  name={isVideoOff ? 'videocam-off' : 'videocam'}
-                  size={36}
-                  color={isVideoOff ? '#EF4444' : '#10B981'}
+                  name={isMicMuted ? 'mic-off' : 'mic'}
+                  size={14}
+                  color={isMicMuted ? '#EF4444' : '#10B981'}
                 />
-                <Text style={styles.videoSimStatusText}>
-                  {isVideoOff ? 'Camera Off (Voice Only Mode)' : 'HD Video Feed Ready (SLIIT Malabe Pod)'}
-                </Text>
-                <Text style={styles.videoSimSub}>
-                  {isMicMuted ? 'Microphone is muted' : 'Microphone is active'}
+                <Text style={[styles.micStatusText, { color: isMicMuted ? '#FCA5A5' : '#86EFAC' }]}>
+                  {isMicMuted ? 'Microphone Muted' : 'Microphone Active & Listening'}
                 </Text>
               </View>
 
@@ -1085,34 +1172,37 @@ export default function SessionsScreen() {
               <View style={styles.callControlsBar}>
                 <TouchableOpacity
                   style={[styles.callControlBtn, isMicMuted && styles.callControlBtnMuted]}
-                  onPress={() => setIsMicMuted(!isMicMuted)}
+                  onPress={handleToggleMic}
+                  activeOpacity={0.85}
                 >
                   <Ionicons
                     name={isMicMuted ? 'mic-off' : 'mic'}
                     size={20}
                     color={isMicMuted ? '#EF4444' : '#FFFFFF'}
                   />
-                  <Text style={styles.callControlBtnLbl}>{isMicMuted ? 'Unmute' : 'Mute'}</Text>
+                  <Text style={styles.callControlBtnLbl}>{isMicMuted ? 'Turn On Mic' : 'Mute Mic'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.callControlBtn, isVideoOff && styles.callControlBtnMuted]}
-                  onPress={() => setIsVideoOff(!isVideoOff)}
+                  onPress={handleToggleCamera}
+                  activeOpacity={0.85}
                 >
                   <Ionicons
                     name={isVideoOff ? 'videocam-off' : 'videocam'}
                     size={20}
                     color={isVideoOff ? '#EF4444' : '#FFFFFF'}
                   />
-                  <Text style={styles.callControlBtnLbl}>{isVideoOff ? 'Start Cam' : 'Stop Cam'}</Text>
+                  <Text style={styles.callControlBtnLbl}>{isVideoOff ? 'Turn On Cam' : 'Turn Off Cam'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.callControlBtn}
-                  onPress={() => Alert.alert('Screen Share', 'Whiteboard / Slides sharing active.')}
+                  onPress={handleFlipCamera}
+                  activeOpacity={0.85}
                 >
-                  <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.callControlBtnLbl}>Share</Text>
+                  <Ionicons name="camera-reverse" size={20} color="#FFFFFF" />
+                  <Text style={styles.callControlBtnLbl}>Flip Cam</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1121,7 +1211,7 @@ export default function SessionsScreen() {
             <View style={styles.joinSessionActionsRow}>
               <TouchableOpacity
                 style={styles.leaveSessionBtn}
-                onPress={() => setShowJoinSessionModal(false)}
+                onPress={handleCloseJoinSessionModal}
               >
                 <Text style={styles.leaveSessionBtnText}>Cancel</Text>
               </TouchableOpacity>
@@ -1130,15 +1220,21 @@ export default function SessionsScreen() {
                 style={styles.connectSessionBtn}
                 onPress={() => {
                   const tutorItem = joiningSessionTutor;
-                  setShowJoinSessionModal(false);
+                  const currentVideoOff = isVideoOff;
+                  const currentMicMuted = isMicMuted;
+                  handleCloseJoinSessionModal();
                   navigation.navigate('LiveSessionRoom', {
                     session: {
                       title: tutorItem?.moduleName ? `${tutorItem.moduleName} Live Session` : 'Database Performance Lab',
                       mentorName: tutorItem?.mentor?.name || 'Alex Ferreira',
+                      mentorAvatar: tutorItem?.mentor?.avatar,
+                      mentorRole: tutorItem?.mentor?.roleTitle || 'Senior Peer Mentor',
                       timeRange: tutorItem?.nextSession || '02:30 PM - 04:00 PM',
                       moduleCode: tutorItem?.moduleCode || 'IT2040',
                       moduleName: tutorItem?.moduleName || 'Data Structures & Algorithms',
                     },
+                    initialCameraOff: currentVideoOff,
+                    initialMuted: currentMicMuted,
                   });
                 }}
               >
@@ -1146,8 +1242,8 @@ export default function SessionsScreen() {
                 <Text style={styles.connectSessionBtnText}>Enter Video Call Room</Text>
               </TouchableOpacity>
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1933,6 +2029,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(6, 30, 71, 0.65)',
     justifyContent: 'flex-end',
   },
+  modalBackdropTouch: {
+    flex: 1,
+    width: '100%',
+  },
   sheetHandle: {
     width: 44,
     height: 4,
@@ -2251,7 +2351,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tutorJoinActionBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: navy,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2339,23 +2439,94 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
+    width: '100%',
+  },
+  cameraPreviewWrapper: {
+    width: '100%',
+    height: 200,
+    borderRadius: 14,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#000000',
+  },
+  cameraLiveBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 5,
+    zIndex: 10,
+  },
+  cameraLiveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#10B981',
+  },
+  cameraLiveBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  cameraFlipBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  cameraOffAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   videoSimInner: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 20,
+    width: '100%',
   },
   videoSimStatusText: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginTop: 8,
+    marginTop: 4,
     textAlign: 'center',
   },
   videoSimSub: {
     fontSize: 11,
     color: '#94A3B8',
-    marginTop: 2,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  micStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  micStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   callControlsBar: {
     flexDirection: 'row',
@@ -2402,14 +2573,14 @@ const styles = StyleSheet.create({
   },
   connectSessionBtn: {
     flex: 2,
-    backgroundColor: '#059669',
+    backgroundColor: navy,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 13,
     borderRadius: 12,
-    shadowColor: '#059669',
+    shadowColor: navy,
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,

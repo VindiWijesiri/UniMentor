@@ -17,12 +17,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 
 const { width } = Dimensions.get('window');
 
 interface ChatMessage {
   id: string;
-  sender: 'Alex' | 'You';
+  sender: string;
   text: string;
   time: string;
   isAttachment?: boolean;
@@ -66,15 +67,24 @@ const DEFAULT_SLIDES = [
 export default function LiveSessionRoomScreen({ route, navigation }: any) {
   const insets = useSafeAreaInsets();
   const session = route?.params?.session || {};
+  const initialCameraOff = route?.params?.initialCameraOff ?? false;
+  const initialMuted = route?.params?.initialMuted ?? false;
 
   const tutorName = session.mentorName || session.mentor?.name || 'Alex Ferreira';
+  const tutorFirstName = tutorName.split(' ')[0] || 'Tutor';
   const sessionTitle = session.title || 'Database Performance Lab';
+  const tutorAvatar = session.mentorAvatar || session.mentor?.avatar || session.avatar;
+
+  // Camera & Mic Permissions
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [micPermission, requestMicrophonePermission] = useMicrophonePermissions();
+  const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
 
   // Active sub-tab: 'room' | 'chat' | 'resources'
   const [activeTab, setActiveTab] = useState<'room' | 'chat' | 'resources'>('room');
 
   // Elapsed Session Timer
-  const [elapsedSeconds, setElapsedSeconds] = useState(23 * 60 + 18); // Start at 23:18 as in screenshot
+  const [elapsedSeconds, setElapsedSeconds] = useState(23 * 60 + 18);
   useEffect(() => {
     const timer = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
@@ -88,10 +98,76 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
     return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // In-call controls
-  const [isMuted, setIsMuted] = useState(false);
-  const [isCameraOff, setIsCameraOff] = useState(false);
+  // In-call controls (initialized from pre-call state)
+  const [isMuted, setIsMuted] = useState(initialMuted);
+  const [isCameraOff, setIsCameraOff] = useState(initialCameraOff);
   const [isHandRaised, setIsHandRaised] = useState(false);
+  const [isSwappedView, setIsSwappedView] = useState(false);
+  const [tutorSpeaking, setTutorSpeaking] = useState(true);
+
+  // Periodic active-speaking pulse for tutor in Zoom-like conference
+  useEffect(() => {
+    const pulseInterval = setInterval(() => {
+      setTutorSpeaking((prev) => !prev);
+    }, 4500);
+    return () => clearInterval(pulseInterval);
+  }, []);
+
+  const handleToggleCamera = async () => {
+    if (isCameraOff) {
+      if (!cameraPermission?.granted) {
+        const res = await requestCameraPermission();
+        if (!res.granted) {
+          Alert.alert(
+            'Camera Access Needed',
+            'Please allow camera permissions in your settings to display your video during the live conference.'
+          );
+          return;
+        }
+      }
+      setIsCameraOff(false);
+    } else {
+      setIsCameraOff(true);
+    }
+  };
+
+  const handleToggleMic = async () => {
+    if (isMuted) {
+      if (!micPermission?.granted) {
+        const res = await requestMicrophonePermission();
+        if (!res.granted) {
+          Alert.alert(
+            'Microphone Access Needed',
+            'Please allow microphone permissions to unmute and speak during the live conference.'
+          );
+          return;
+        }
+      }
+      setIsMuted(false);
+    } else {
+      setIsMuted(true);
+    }
+  };
+
+  const handleFlipCamera = () => {
+    setCameraFacing((prev) => (prev === 'front' ? 'back' : 'front'));
+  };
+
+  const handleToggleSwapView = () => {
+    setIsSwappedView((prev) => !prev);
+  };
+
+  const getTutorVideoImage = () => {
+    if (tutorAvatar && typeof tutorAvatar === 'string' && tutorAvatar.trim()) return tutorAvatar;
+    const lower = tutorName.toLowerCase();
+    if (lower.includes('tharushi') || lower.includes('amina') || (lower.includes('perera') && lower.includes('t'))) {
+      return 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80';
+    }
+    if (lower.includes('dinuka') || lower.includes('kavindu') || lower.includes('shenal')) {
+      return 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80';
+  };
 
   // Slides State
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
@@ -103,7 +179,7 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: 'm-1',
-      sender: 'Alex',
+      sender: tutorFirstName,
       text: 'Before we add the index, what do you notice in the execution plan?',
       time: '10:05 AM',
     },
@@ -115,17 +191,17 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
     },
     {
       id: 'm-3',
-      sender: 'Alex',
+      sender: tutorFirstName,
       text: 'Exactly. Watch what changes when we index student_id.',
       time: '10:07 AM',
     },
     {
       id: 'm-4',
-      sender: 'Alex',
+      sender: tutorFirstName,
       text: '',
       time: '10:08 AM',
       isAttachment: true,
-      attachmentName: 'Indexing-Cheat-Sheet.pdf',
+      attachmentName: `${session.moduleCode || 'IT2040'}-Indexing-Cheat-Sheet.pdf`,
       attachmentMeta: 'PDF • 1.6 MB',
     },
     {
@@ -142,10 +218,11 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
     if (!chatInputText.trim()) return;
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userText = chatInputText.trim();
     const newMsg: ChatMessage = {
       id: `m-${Date.now()}`,
       sender: 'You',
-      text: chatInputText.trim(),
+      text: userText,
       time: timeStr,
     };
     setChatMessages((prev) => [...prev, newMsg]);
@@ -153,6 +230,30 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
     setTimeout(() => {
       chatScrollRef.current?.scrollToEnd({ animated: true });
     }, 150);
+
+    // Tutor live simulated reply in conference
+    setTimeout(() => {
+      const tutorReplies = [
+        `Good point, let me demonstrate that directly on the shared slide.`,
+        `Exactly! Notice how the B-Tree index scan speeds up the query lookup.`,
+        `Great question! I've also added reference documentation into the Resources tab.`,
+        `That's spot on! Check the comparison execution times below.`,
+      ];
+      const reply = tutorReplies[Math.floor(Math.random() * tutorReplies.length)];
+      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `m-${Date.now() + 1}`,
+          sender: tutorFirstName,
+          text: reply,
+          time: replyTime,
+        },
+      ]);
+      setTimeout(() => {
+        chatScrollRef.current?.scrollToEnd({ animated: true });
+      }, 150);
+    }, 1500);
   };
 
   // Resources State
@@ -276,44 +377,150 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
           >
             {/* VIDEO FEED CONTAINER */}
             <View style={styles.videoFeedContainer}>
-              <Image
-                source={{
-                  uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-                }}
-                style={styles.presenterVideoImage}
-                resizeMode="cover"
-              />
+              {!isSwappedView ? (
+                <>
+                  <Image
+                    source={{ uri: getTutorVideoImage() }}
+                    style={styles.presenterVideoImage}
+                    resizeMode="cover"
+                  />
 
-              {/* Video Overlay: Recording & Timer */}
-              <View style={styles.videoTopOverlayRow}>
-                <View style={styles.recordingTag}>
-                  <View style={styles.recordingDot} />
-                  <Text style={styles.recordingText}>Recording</Text>
-                </View>
-                <View style={styles.videoTimerTag}>
-                  <Ionicons name="time-outline" size={12} color="#FFFFFF" style={{ marginRight: 3 }} />
-                  <Text style={styles.videoTimerText}>{formatTimer(elapsedSeconds)}</Text>
-                </View>
-              </View>
+                  {/* Video Overlay: Recording & Timer */}
+                  <View style={styles.videoTopOverlayRow}>
+                    <View style={styles.recordingTag}>
+                      <View style={styles.recordingDot} />
+                      <Text style={styles.recordingText}>Recording</Text>
+                    </View>
+                    <View style={styles.videoTimerTag}>
+                      <Ionicons name="time-outline" size={12} color="#FFFFFF" style={{ marginRight: 3 }} />
+                      <Text style={styles.videoTimerText}>{formatTimer(elapsedSeconds)}</Text>
+                    </View>
+                  </View>
 
-              {/* Video Overlay: Presenter Name Badge */}
-              <View style={styles.presenterTagBox}>
-                <Text style={styles.presenterNameText}>{tutorName}</Text>
-                <Text style={styles.presenterSubText}>Tutor • Presenting</Text>
-              </View>
+                  {/* Video Overlay: Presenter Name Badge */}
+                  <View style={styles.presenterTagBox}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <View style={[styles.speakerActiveDot, tutorSpeaking && styles.speakerActiveDotPulsing]} />
+                      <Text style={styles.presenterNameText}>{tutorName}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                      <Ionicons name={tutorSpeaking ? 'volume-medium' : 'volume-low'} size={11} color="#93C5FD" />
+                      <Text style={styles.presenterSubText}>
+                        {tutorSpeaking ? 'Host • Speaking' : 'Host • Presenting'}
+                      </Text>
+                    </View>
+                  </View>
 
-              {/* Video Overlay: Picture-in-Picture (PiP) Student Thumbnail */}
-              <View style={styles.pipThumbnailBox}>
-                <Image
-                  source={{
-                    uri: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=300&q=80',
-                  }}
-                  style={styles.pipImage}
-                />
-                <View style={styles.pipLabelBadge}>
-                  <Text style={styles.pipLabelText}>You</Text>
-                </View>
-              </View>
+                  {/* Video Overlay: Picture-in-Picture (PiP) Student Thumbnail */}
+                  <TouchableOpacity
+                    style={styles.pipThumbnailBox}
+                    onPress={handleToggleSwapView}
+                    activeOpacity={0.88}
+                  >
+                    {!isCameraOff && cameraPermission?.granted ? (
+                      <View style={StyleSheet.absoluteFill}>
+                        <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} />
+                        <TouchableOpacity
+                          style={styles.pipFlipBtn}
+                          onPress={handleFlipCamera}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="camera-reverse" size={11} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.pipCameraOffContainer}>
+                        <View style={styles.pipAvatarCircle}>
+                          <Ionicons name="person" size={16} color="#94A3B8" />
+                        </View>
+                        <Ionicons name="videocam-off" size={11} color="#EF4444" style={{ marginTop: 1 }} />
+                      </View>
+                    )}
+
+                    <View style={styles.pipLabelBadge}>
+                      <Ionicons
+                        name={isMuted ? 'mic-off' : 'mic'}
+                        size={9}
+                        color={isMuted ? '#EF4444' : '#10B981'}
+                        style={{ marginRight: 2 }}
+                      />
+                      <Text style={styles.pipLabelText}>You</Text>
+                    </View>
+
+                    {isHandRaised && (
+                      <View style={styles.pipHandRaisedBadge}>
+                        <Ionicons name="hand-right" size={10} color="#D97706" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  {!isCameraOff && cameraPermission?.granted ? (
+                    <View style={StyleSheet.absoluteFill}>
+                      <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} />
+                      <TouchableOpacity
+                        style={styles.mainFlipBtn}
+                        onPress={handleFlipCamera}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="camera-reverse" size={18} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.mainCameraOffStage}>
+                      <View style={styles.mainCameraOffAvatarCircle}>
+                        <Ionicons name="videocam-off" size={30} color="#EF4444" />
+                      </View>
+                      <Text style={styles.mainCameraOffTitle}>Your Camera is Off</Text>
+                      <Text style={styles.mainCameraOffSub}>Tap "Turn On" below to enable camera</Text>
+                    </View>
+                  )}
+
+                  {/* Video Overlay: Recording & Timer */}
+                  <View style={styles.videoTopOverlayRow}>
+                    <View style={styles.recordingTag}>
+                      <View style={styles.recordingDot} />
+                      <Text style={styles.recordingText}>Recording</Text>
+                    </View>
+                    <View style={styles.videoTimerTag}>
+                      <Ionicons name="time-outline" size={12} color="#FFFFFF" style={{ marginRight: 3 }} />
+                      <Text style={styles.videoTimerText}>{formatTimer(elapsedSeconds)}</Text>
+                    </View>
+                  </View>
+
+                  {/* Video Overlay: Student Badge */}
+                  <View style={styles.presenterTagBox}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Ionicons
+                        name={isMuted ? 'mic-off' : 'mic'}
+                        size={12}
+                        color={isMuted ? '#EF4444' : '#10B981'}
+                      />
+                      <Text style={styles.presenterNameText}>You (Student)</Text>
+                    </View>
+                    <Text style={styles.presenterSubText}>
+                      {isCameraOff ? 'Camera Off' : 'Live Camera Feed'}
+                    </Text>
+                  </View>
+
+                  {/* Video Overlay: Picture-in-Picture Tutor Thumbnail */}
+                  <TouchableOpacity
+                    style={styles.pipThumbnailBox}
+                    onPress={handleToggleSwapView}
+                    activeOpacity={0.88}
+                  >
+                    <Image
+                      source={{ uri: getTutorVideoImage() }}
+                      style={styles.pipImage}
+                    />
+                    <View style={styles.pipLabelBadge}>
+                      <View style={[styles.speakerActiveDot, tutorSpeaking && styles.speakerActiveDotPulsing, { width: 5, height: 5, borderRadius: 2.5, marginRight: 3 }]} />
+                      <Text style={styles.pipLabelText}>{tutorFirstName}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
             {/* INTERACTIVE CODE / PRESENTATION CARD */}
@@ -384,7 +591,7 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
               {/* Mute Button */}
               <TouchableOpacity
                 style={[styles.controlBtn, isMuted && styles.controlBtnActive]}
-                onPress={() => setIsMuted(!isMuted)}
+                onPress={handleToggleMic}
                 activeOpacity={0.8}
               >
                 <View style={[styles.controlIconCircle, isMuted && styles.controlIconCircleRed]}>
@@ -400,7 +607,7 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
               {/* Camera Button */}
               <TouchableOpacity
                 style={[styles.controlBtn, isCameraOff && styles.controlBtnActive]}
-                onPress={() => setIsCameraOff(!isCameraOff)}
+                onPress={handleToggleCamera}
                 activeOpacity={0.8}
               >
                 <View style={[styles.controlIconCircle, isCameraOff && styles.controlIconCircleRed]}>
@@ -410,16 +617,17 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
                     color={isCameraOff ? '#EF4444' : '#0F172A'}
                   />
                 </View>
-                <Text style={styles.controlBtnLabel}>{isCameraOff ? 'Camera On' : 'Camera'}</Text>
+                <Text style={styles.controlBtnLabel}>{isCameraOff ? 'Camera Off' : 'Camera On'}</Text>
               </TouchableOpacity>
 
               {/* Raise Hand Button */}
               <TouchableOpacity
                 style={[styles.controlBtn, isHandRaised && styles.controlBtnActive]}
                 onPress={() => {
-                  setIsHandRaised(!isHandRaised);
-                  if (!isHandRaised) {
-                    Alert.alert('Hand Raised', 'Alex has been notified that you have a question.');
+                  const nextVal = !isHandRaised;
+                  setIsHandRaised(nextVal);
+                  if (nextVal) {
+                    Alert.alert('Hand Raised', `${tutorFirstName} has been notified that you have a question.`);
                   }
                 }}
                 activeOpacity={0.8}
@@ -531,10 +739,10 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
               {/* Typing Indicator */}
               <View style={styles.typingIndicatorRow}>
                 <View style={styles.chatSenderAvatarCircleMini}>
-                  <Text style={styles.chatSenderAvatarInitialMini}>A</Text>
+                  <Text style={styles.chatSenderAvatarInitialMini}>{tutorFirstName.charAt(0)}</Text>
                 </View>
                 <View style={styles.typingBubble}>
-                  <Text style={styles.typingText}>Alex is typing...</Text>
+                  <Text style={styles.typingText}>{tutorFirstName} is typing...</Text>
                 </View>
               </View>
             </ScrollView>
@@ -550,7 +758,7 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
               </TouchableOpacity>
               <TextInput
                 style={styles.chatTextInput}
-                placeholder={`Message ${tutorName.split(' ')[0]}...`}
+                placeholder={`Message ${tutorFirstName}...`}
                 placeholderTextColor="#94A3B8"
                 value={chatInputText}
                 onChangeText={setChatInputText}
@@ -1031,35 +1239,123 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#93C5FD',
   },
+  speakerActiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  speakerActiveDotPulsing: {
+    backgroundColor: '#22C55E',
+  },
   pipThumbnailBox: {
     position: 'absolute',
     bottom: 10,
     right: 10,
-    width: 72,
-    height: 90,
+    width: 76,
+    height: 94,
     borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: '#FFFFFF',
     backgroundColor: '#1E293B',
+    zIndex: 20,
   },
   pipImage: {
     width: '100%',
     height: '100%',
   },
+  pipFlipBtn: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 9,
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  pipCameraOffContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pipAvatarCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pipHandRaisedBadge: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 6,
+    padding: 2,
+    zIndex: 10,
+  },
   pipLabelBadge: {
     position: 'absolute',
     bottom: 3,
-    right: 4,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    right: 3,
+    backgroundColor: 'rgba(0,0,0,0.7)',
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   pipLabelText: {
     fontSize: 9,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  mainFlipBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 15,
+  },
+  mainCameraOffStage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#0A192F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mainCameraOffAvatarCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+  },
+  mainCameraOffTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#F8FAFC',
+    marginTop: 8,
+  },
+  mainCameraOffSub: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    marginTop: 2,
   },
 
   // Presentation card

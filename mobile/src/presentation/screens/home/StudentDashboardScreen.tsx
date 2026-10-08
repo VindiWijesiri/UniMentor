@@ -44,6 +44,7 @@ import {
 } from '../../components/common/SvgIcons';
 import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import TutorAvatar from '../../components/common/TutorAvatar';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
@@ -293,8 +294,40 @@ export default function StudentDashboardScreen({ navigation }: Props) {
   const [newResourceTitle, setNewResourceTitle] = useState('');
 
   // Live room simulation state
-  const [isMicMuted, setIsMicMuted] = useState(false);
-  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(true);
+  const [isCameraOff, setIsCameraOff] = useState(true);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [micPermission, requestMicrophonePermission] = useMicrophonePermissions();
+
+  const handleToggleRoomCamera = async () => {
+    if (isCameraOff) {
+      if (!cameraPermission?.granted) {
+        const res = await requestCameraPermission();
+        if (!res.granted) {
+          Alert.alert('Camera Access Needed', 'Please allow camera permissions to display your video stream.');
+          return;
+        }
+      }
+      setIsCameraOff(false);
+    } else {
+      setIsCameraOff(true);
+    }
+  };
+
+  const handleToggleRoomMic = async () => {
+    if (isMicMuted) {
+      if (!micPermission?.granted) {
+        const res = await requestMicrophonePermission();
+        if (!res.granted) {
+          Alert.alert('Microphone Access Needed', 'Please allow microphone permissions to speak.');
+          return;
+        }
+      }
+      setIsMicMuted(false);
+    } else {
+      setIsMicMuted(true);
+    }
+  };
   const [roomMessages, setRoomMessages] = useState<string[]>([
     'Tharushi Perera: Welcome everyone! Today we cover Graph Traversals: BFS vs DFS.',
     'Kavindu: Could you explain Cycle Detection using DFS?',
@@ -660,14 +693,11 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             style={styles.launchpadCardUnified}
             activeOpacity={0.85}
             onPress={() => {
-              if (bookedPods.length > 0 && !activePodSession) {
-                setActivePodSession(bookedPods[0]);
-              }
-              setShowLiveRoom(true);
+              (navigation as any).navigate('Bookings', { screen: 'SessionsList' });
             }}
           >
-            <View style={[styles.launchpadIconSquare, { backgroundColor: '#ECFDF5' }]}>
-              <SvgVideocam size={20} color="#059669" />
+            <View style={[styles.launchpadIconSquare, { backgroundColor: '#EFF6FF' }]}>
+              <SvgVideocam size={20} color="#061E47" />
             </View>
             <Text style={styles.launchpadCardLabel}>Join Session</Text>
           </TouchableOpacity>
@@ -884,8 +914,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                       <TouchableOpacity
                         style={isGroup ? styles.joinPodBtn : styles.joinSessionBtn}
                         onPress={() => {
-                          setActivePodSession(item);
-                          setShowLiveRoom(true);
+                          (navigation as any).navigate('Bookings', { screen: 'SessionsList' });
                         }}
                         activeOpacity={0.85}
                       >
@@ -1649,10 +1678,19 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
             {/* Floating student peer thumbnail */}
             <View style={styles.peerThumb}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="person-circle" size={14} color="#FFFFFF" />
-                <Text style={styles.peerThumbText}>You</Text>
-              </View>
+              {!isCameraOff && cameraPermission?.granted ? (
+                <View style={[StyleSheet.absoluteFill, { borderRadius: 14, overflow: 'hidden' }]}>
+                  <CameraView style={StyleSheet.absoluteFill} facing="front" />
+                  <View style={{ position: 'absolute', bottom: 3, left: 4, backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '700' }}>You (Live)</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="person-circle" size={14} color="#FFFFFF" />
+                  <Text style={styles.peerThumbText}>You</Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -1660,18 +1698,20 @@ export default function StudentDashboardScreen({ navigation }: Props) {
           <View style={styles.roomControlsBar}>
             <TouchableOpacity
               style={[styles.controlBtn, isMicMuted && styles.controlBtnMuted]}
-              onPress={() => setIsMicMuted(!isMicMuted)}
+              onPress={handleToggleRoomMic}
+              activeOpacity={0.85}
             >
-              <Ionicons name={isMicMuted ? 'mic-off' : 'mic'} size={20} color="#FFFFFF" />
-              <Text style={styles.controlBtnLabel}>{isMicMuted ? 'Unmute' : 'Mute'}</Text>
+              <Ionicons name={isMicMuted ? 'mic-off' : 'mic'} size={20} color={isMicMuted ? '#EF4444' : '#FFFFFF'} />
+              <Text style={styles.controlBtnLabel}>{isMicMuted ? 'Turn On Mic' : 'Mute Mic'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.controlBtn, isCameraOff && styles.controlBtnMuted]}
-              onPress={() => setIsCameraOff(!isCameraOff)}
+              onPress={handleToggleRoomCamera}
+              activeOpacity={0.85}
             >
-              <Ionicons name={isCameraOff ? 'videocam-off' : 'videocam'} size={20} color="#FFFFFF" />
-              <Text style={styles.controlBtnLabel}>{isCameraOff ? 'Start Cam' : 'Stop Cam'}</Text>
+              <Ionicons name={isCameraOff ? 'videocam-off' : 'videocam'} size={20} color={isCameraOff ? '#EF4444' : '#FFFFFF'} />
+              <Text style={styles.controlBtnLabel}>{isCameraOff ? 'Turn On Cam' : 'Turn Off Cam'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -2976,7 +3016,7 @@ const styles = StyleSheet.create({
   },
   joinPodBtn: {
     flex: 1,
-    backgroundColor: '#0D4F9E',
+    backgroundColor: navyDark,
     borderRadius: 12,
     paddingVertical: 9,
     flexDirection: 'row',
@@ -2990,7 +3030,7 @@ const styles = StyleSheet.create({
   },
   joinSessionBtn: {
     flex: 1,
-    backgroundColor: '#1D4ED8',
+    backgroundColor: navyDark,
     borderRadius: 12,
     paddingVertical: 9,
     flexDirection: 'row',

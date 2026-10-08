@@ -180,7 +180,7 @@ export type AppStackParamList = {
     mentor: any;
     initialMode?: '1-on-1' | 'group';
   };
-  LiveSessionRoom: { session: any } | undefined;
+  LiveSessionRoom: { session: any; initialCameraOff?: boolean; initialMuted?: boolean } | undefined;
   Onboarding: undefined;
 
   // Integrated screens from Hima-Personal
