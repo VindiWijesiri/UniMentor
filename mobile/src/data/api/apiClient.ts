@@ -1,8 +1,29 @@
 import axios from 'axios';
+import Constants from 'expo-constants';
 import { useAuthStore } from '../../domain/stores/authStore';
 
-// Dynamic backend URL from environment or default to local IP / localhost
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.2:5000/api';
+// Automatically detect host machine IP from Expo bundler (LAN / Wi-Fi) or fallback to current IP
+const getDetectedHostIp = (): string => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any).manifest?.debuggerHost;
+
+  if (hostUri && typeof hostUri === 'string') {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return ip;
+    }
+  }
+  return '192.168.1.6';
+};
+
+const DETECTED_IP = getDetectedHostIp();
+const LAN_API_URL = `http://${DETECTED_IP}:5000/api`;
+const LOCALHOST_API_URL = 'http://localhost:5000/api';
+
+// Prefer LAN API URL so physical phone reaches backend over Wi-Fi & USB without ADB routing issues
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || LAN_API_URL;
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -33,12 +54,12 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    // If request failed with network error, attempt fallback between localhost (USB) and Wi-Fi IP
+    // If request failed with network error, attempt fallback between LAN IP and localhost
     if ((error.code === 'ERR_NETWORK' || error.message === 'Network Error') && error.config && !error.config._retriedWithFallback) {
       const currentBase = error.config.baseURL || BASE_URL;
       const fallbackBase = currentBase.includes('localhost') || currentBase.includes('127.0.0.1')
-        ? 'http://192.168.1.2:5000/api'
-        : 'http://localhost:5000/api';
+        ? LAN_API_URL
+        : LOCALHOST_API_URL;
 
       console.log(`[MOBILE CLIENT] 🔄 Network error on ${currentBase}. Retrying with fallback: ${fallbackBase}`);
       error.config.baseURL = fallbackBase;
