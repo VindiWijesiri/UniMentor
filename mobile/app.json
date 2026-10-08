@@ -23,7 +23,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.unimentor.app"
+      "package": "com.unimentor.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,12 +42,25 @@
       "expo-asset",
       "expo-font",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "UniMentor needs access to your camera for live video mentoring sessions.",
+          "microphonePermission": "UniMentor needs access to your microphone to speak during live video sessions."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "UniMentor needs access to your photos to upload profile and verification photos.",
           "cameraPermission": "UniMentor needs access to your camera to scan and verify your face for session bookings."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0d9d8563-c683-49b8-8b51-0063cc32765d"
+      }
+    },
+    "owner": "unimentor"
   }
 }
