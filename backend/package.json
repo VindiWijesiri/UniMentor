@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "render-build": "npm install && npm run build",
     "init-db": "ts-node --transpile-only src/scripts/initAtlas.ts",
     "test-db": "ts-node --transpile-only src/scripts/testConnection.ts",
     "reset-password": "ts-node --transpile-only src/scripts/resetPassword.ts"
