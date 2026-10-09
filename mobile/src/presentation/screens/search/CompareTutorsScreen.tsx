@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * @file CompareTutorsScreen.tsx
+ * @module AcademicSupport / Tutor Discovery & Comparison
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Side-by-side comparative analysis dashboard for evaluated tutors.
+ * Enables students to select up to 3 peer mentors and compare their:
+ * - Verified average ratings and review counts from real students
+ * - Hourly tutoring rate (LKR / hr)
+ * - Academic subject specializations
+ * - Average response times and session formats (Individual vs Group)
+ * - Algorithmically computes a "Best Match" tutor score based on rating and volume
+ * ============================================================================
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,6 +40,13 @@ type ReviewMap = Record<string, Review[]>;
 
 const LABEL_WIDTH = 78;
 
+/**
+ * Computes average rating and review count from fetched student reviews.
+ * Falls back to mentor's baseline ratings if review history is not yet populated.
+ * @param mentor - Target mentor entity
+ * @param reviews - Array of review records
+ * @returns Average rating number and total count
+ */
 function reviewSummary(mentor: Mentor, reviews: Review[]) {
   if (reviews.length > 0) {
     return {
@@ -34,6 +57,9 @@ function reviewSummary(mentor: Mentor, reviews: Review[]) {
   return { rating: mentor.rating ?? 0, count: mentor.reviewCount ?? 0 };
 }
 
+/**
+ * Reusable matrix comparison row rendering an attribute label and columns for each tutor
+ */
 function DetailRow({
   label,
   icon,
@@ -78,16 +104,21 @@ function DetailRow({
   );
 }
 
+/**
+ * Main comparative screen component for evaluating selected tutors
+ */
 export default function CompareTutorsScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { width: screenWidth } = useWindowDimensions();
+  // Limit comparison to maximum of 3 tutors for clean mobile viewport density
   const mentors = route.params.mentors.slice(0, 3);
   const [reviews, setReviews] = useState<ReviewMap>({});
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(mentors[0]?._id);
 
+  // Parallel asynchronous fetching of student reviews for each compared mentor
   useEffect(() => {
     let active = true;
     Promise.all(mentors.map(async (mentor) => {
@@ -104,6 +135,11 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
     return () => { active = false; };
   }, [mentors.map(({ _id }) => _id).join('|')]);
 
+  /**
+   * Evaluates and identifies the highest scoring "Best Match" tutor.
+   * Scoring formula factors in verified rating weighted with review volume dampening:
+   * Score = Rating + min(ReviewCount, 50) / 500
+   */
   const bestTutor = useMemo(() => [...mentors].sort((a, b) => {
     const aSummary = reviewSummary(a, reviews[a._id] ?? []);
     const bSummary = reviewSummary(b, reviews[b._id] ?? []);
