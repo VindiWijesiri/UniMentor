@@ -27,6 +27,21 @@ const DEMO_ACCOUNTS = [
     role: 'lic' as const,
     bio: 'Campus admin and lecturer-in-charge reviewer.',
   },
+  {
+    name: 'Sample Tutor',
+    email: 'mentor@unimentor.dev',
+    role: 'mentor' as const,
+    bio: 'Sample tutor for software engineering, data structures, and algorithms.',
+    subjects: ['Data Structures', 'Algorithms', 'Software Architecture', 'OOP'],
+    rating: 4.8,
+    reviewCount: 16,
+    hourlyRate: 2000,
+    experience: 'Peer tutor, Year 4',
+    qualification: 'Undergraduate Teaching Assistant',
+    isVerified: true,
+    verificationStatus: 'verified' as const,
+    accountStatus: 'active' as const,
+  },
 ];
 
 export async function seedDemoAccounts(): Promise<void> {

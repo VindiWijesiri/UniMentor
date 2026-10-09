@@ -65,8 +65,14 @@ async function migrateLegacyReviewIndexes(): Promise<void> {
       );
     }
 
-    await reviews.dropIndex('tutorId_1_studentId_1');
-    console.log('✅ Legacy review index migrated');
+    console.log('✅ Legacy review documents migrated');
+  }
+
+  for (const index of indexes) {
+    if (index.name?.startsWith('tutorId_')) {
+      await reviews.dropIndex(index.name);
+      console.log(`✅ Dropped stale review index ${index.name}`);
+    }
   }
 
   await reviews.createIndex(
