@@ -406,61 +406,14 @@ export default function StudentDashboardScreen({ navigation }: Props) {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
 
-      {/* Simplified Clean Header */}
+      {/* Top Header Bar */}
       <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
-        <View style={styles.headerTopRow}>
-          <View>
-            <View style={styles.brandRow}>
-              <Text style={styles.brandUni}>Uni</Text>
-              <Text style={styles.brandMentor}>Mentor</Text>
-              <View style={styles.academicPill}>
-                <Text style={styles.academicPillText}>{`${academicYear} • ${semester}`}</Text>
-              </View>
-            </View>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Student Dashboard</Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
           </View>
-
-          <View style={styles.headerRightActions}>
-            {/* Quick Wallet Pill */}
-            <TouchableOpacity
-              style={styles.walletPill}
-              activeOpacity={0.8}
-              onPress={() => {
-                Alert.alert(
-                  'Campus Wallet',
-                  `Available Balance: Rs. ${studentWalletBalance.toLocaleString()}\n\nSession fees and automatic booking refunds are stored in your Campus Wallet.`
-                );
-              }}
-            >
-              <SvgWallet size={14} color="#FBBF24" />
-              <Text style={styles.walletPillText}>Rs. {studentWalletBalance.toLocaleString()}</Text>
-            </TouchableOpacity>
-
-            {/* Profile Avatar */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={styles.avatarWrapper}
-              onPress={() => (navigation as any).navigate('Profile', { viewAs: 'student' })}
-            >
-              <Image
-                source={{
-                  uri:
-                    authUser?.profilePicture ||
-                    dashboard?.user?.profilePicture ||
-                    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
-                }}
-                style={styles.avatarImg}
-              />
-              <View style={styles.onlineDot} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Student Welcome Banner */}
-        <View style={styles.welcomeBanner}>
-          <Text style={styles.welcomeGreeting}>Welcome back, {studentName.split(' ')[0]} 👋</Text>
-          <Text style={styles.welcomeDegree} numberOfLines={1}>
-            {degreeProgramme}
-          </Text>
         </View>
       </View>
 
@@ -1323,23 +1276,27 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
 
-  /* Clean Header */
+  /* Header */
   headerBar: {
     backgroundColor: '#061E47',
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 14,
   },
-  headerTopRow: {
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
   },
   brandUni: {
     color: '#FFFFFF',
@@ -1347,77 +1304,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   brandMentor: {
-    color: '#FBBF24',
+    color: '#F59E0B',
     fontSize: 20,
     fontWeight: '800',
-  },
-  academicPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginLeft: 10,
-  },
-  academicPillText: {
-    color: '#FBBF24',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  headerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  walletPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-  },
-  walletPillText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '700',
-  },
-  avatarWrapper: {
-    position: 'relative',
-  },
-  avatarImg: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#22C55E',
-    borderWidth: 1.5,
-    borderColor: '#061E47',
-  },
-  welcomeBanner: {
-    marginTop: 14,
-  },
-  welcomeGreeting: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  welcomeDegree: {
-    color: '#94A3B8',
-    fontSize: 12.5,
-    marginTop: 2,
   },
 
   /* Hero / Next Session Focus Card */
