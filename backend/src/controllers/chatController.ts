@@ -191,13 +191,14 @@ async function validateParticipant(currentUserId: string, participantId: string)
   }
 
   if (!participant) {
-    const demoMap: Record<string, { email?: string; name?: string }> = {
-      'mentor-alex': { email: 'alex.f@unimentor.lk', name: 'Alex Ferreira' },
-      'demo-tutor-1': { email: 'tharushi.p@unimentor.lk', name: 'Tharushi Perera' },
-      'mentor-shenal': { email: 'shenal.p@unimentor.lk', name: 'Shenal Perera' },
-      'mentor-kaveen-2': { email: 'kaveen.d@unimentor.lk', name: 'Kaveen De Silva' },
-      'mentor-sanduni-3': { email: 'sanduni.f@unimentor.lk', name: 'Sanduni Fernando' },
-      'mentor-asanka-4': { email: 'asanka.p@unimentor.lk', name: 'Dr. Asanka Perera' },
+    const demoMap: Record<string, { email?: string; name?: string; role?: 'student' | 'mentor' }> = {
+      'mentor-alex': { email: 'alex.f@unimentor.lk', name: 'Alex Ferreira', role: 'mentor' },
+      'demo-tutor-1': { email: 'tharushi.p@unimentor.lk', name: 'Tharushi Perera', role: 'mentor' },
+      'mentor-shenal': { email: 'shenal.p@unimentor.lk', name: 'Shenal Perera', role: 'mentor' },
+      'mentor-kaveen-2': { email: 'kaveen.d@unimentor.lk', name: 'Kaveen De Silva', role: 'mentor' },
+      'mentor-sanduni-3': { email: 'sanduni.f@unimentor.lk', name: 'Sanduni Fernando', role: 'mentor' },
+      'mentor-asanka-4': { email: 'asanka.p@unimentor.lk', name: 'Dr. Asanka Perera', role: 'mentor' },
+      'student-oslo-1': { email: 'student@unimentor.dev', name: 'Nethmi Silva', role: 'student' },
     };
 
     const demoInfo = demoMap[participantId];
@@ -216,7 +217,7 @@ async function validateParticipant(currentUserId: string, participantId: string)
           name: demoInfo.name,
           email: demoInfo.email || `${participantId}@unimentor.lk`,
           password: 'password123',
-          role: 'mentor',
+          role: demoInfo.role || (participantId.startsWith('student') ? 'student' : 'mentor'),
         });
       }
     } else {

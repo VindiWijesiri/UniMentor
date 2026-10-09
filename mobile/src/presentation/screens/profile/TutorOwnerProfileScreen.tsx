@@ -15,12 +15,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useUserStore } from '../../../domain/stores/userStore';
 import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/repositories/tutorSettingsRepository';
 import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
+import { chatRepository } from '../../../data/repositories/chatRepository';
+import type { ChatConversation } from '../../../domain/entities/ChatMessage';
 import { TutorSlot } from '../../../domain/entities/TutorSlot';
 import {
   SvgUser,
@@ -76,13 +78,60 @@ export default function TutorOwnerProfileScreen() {
   const [editAvatar, setEditAvatar] = useState('');
   const [editRate1on1, setEditRate1on1] = useState('2500');
   const [editRateGroup, setEditRateGroup] = useState('1200');
+  const [latestInquiry, setLatestInquiry] = useState<ChatConversation | null>(null);
+  const [inquiryCount, setInquiryCount] = useState(0);
 
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
 
-  const tutorMentorId = authUser?._id || (authUser as any)?.id || 'demo-tutor-1';
-  const tutorMentorName = authUser?.name || 'Tharushi Perera';
+  const tutorMentorId = authUser?._id || (authUser as any)?.id || 'mentor-alex';
+  const tutorMentorName = authUser?.name || 'Alex Ferreira';
+
+  const loadStudentInquiries = useCallback(async () => {
+    try {
+      const inbox = await chatRepository.getInbox();
+      if (inbox && inbox.length > 0) {
+        setLatestInquiry(inbox[0]);
+        setInquiryCount(inbox.length);
+      }
+    } catch (e) {
+      console.warn('Error loading inquiries:', e);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStudentInquiries();
+    }, [loadStudentInquiries])
+  );
+
+  const handleOpenStudentChat = (inquiry?: ChatConversation) => {
+    const target = inquiry?.participant || {
+      _id: 'student-oslo-1',
+      name: 'Nethmi Silva',
+      email: 'nethmi.silva@student.unimentor.lk',
+      role: 'student',
+      degreeProgramme: 'BSc (Hons) in Information Technology',
+      academicYear: 'Year 2',
+      bio: 'Second-year Computing undergrad passionate about Databases and Software Engineering.',
+    };
+    navigation.navigate('Chat', {
+      mentor: {
+        _id: target._id,
+        name: target.name,
+        email: target.email,
+        role: target.role,
+        subjects: target.subjects || ['Database Management Systems', 'Software Engineering'],
+        bio: target.bio || '',
+        rating: target.rating || 0,
+        reviewCount: target.reviewCount || 0,
+        profilePicture: target.profilePicture,
+        degreeProgramme: target.degreeProgramme,
+        academicYear: target.academicYear,
+      },
+    });
+  };
 
   const loadTutorData = useCallback(async () => {
     try {
@@ -107,8 +156,8 @@ export default function TutorOwnerProfileScreen() {
     return unsub;
   }, [loadTutorData]);
 
-  const name = user?.name || 'Tharushi Perera';
-  const email = user?.email || 'tharushi.perera@sliit.lk';
+  const name = user?.name || 'Alex Ferreira';
+  const email = user?.email || 'alex.f@unimentor.lk';
   const bio =
     user?.bio ||
     'Senior Peer Mentor specializing in Database Optimization, Normalization, and Algorithms. Passionate about empowering students to excel in midterms and finals.';
@@ -289,10 +338,102 @@ export default function TutorOwnerProfileScreen() {
             </View>
           </View>
 
-          {/* Edit Tutor Details Button */}
-          <TouchableOpacity style={styles.editProfileLowerBtn} onPress={openEditModal} activeOpacity={0.85}>
-            <Ionicons name="create-outline" size={14} color="#061E47" />
-            <Text style={styles.editProfileLowerBtnText}>Edit Tutor Profile</Text>
+          {/* Action Buttons Row */}
+          <View style={styles.heroActionBtnsRow}>
+            <TouchableOpacity style={styles.editProfileLowerBtn} onPress={openEditModal} activeOpacity={0.85}>
+              <Ionicons name="create-outline" size={14} color="#061E47" />
+              <Text style={styles.editProfileLowerBtnText}>Edit Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.heroChatStudentBtn}
+              onPress={() => handleOpenStudentChat(latestInquiry || undefined)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="chatbubbles" size={14} color="#FFFFFF" />
+              <Text style={styles.heroChatStudentBtnText}>Student Chats</Text>
+              {(latestInquiry?.unreadCount ?? 1) > 0 && (
+                <View style={styles.heroChatBadge}>
+                  <Text style={styles.heroChatBadgeText}>{latestInquiry?.unreadCount || 1}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Student Inquiries & Direct Chat Card */}
+        <View style={styles.studentMessagesCard}>
+          <View style={styles.studentMessagesHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={styles.chatIconSquare}>
+                <Ionicons name="chatbubbles" size={16} color="#061E47" />
+              </View>
+              <View>
+                <Text style={styles.studentMessagesTitle}>Student Chats & Inquiries</Text>
+                <Text style={styles.studentMessagesSub}>Direct tutoring messages</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Messages')}
+              activeOpacity={0.7}
+              style={styles.viewAllChatsBtn}
+            >
+              <Text style={styles.viewAllChatsText}>View All ({inquiryCount > 0 ? inquiryCount : 1})</Text>
+              <Ionicons name="chevron-forward" size={13} color="#0D4F9E" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Active Student Conversation Preview Item */}
+          <TouchableOpacity
+            style={styles.inquiryItemCard}
+            onPress={() => handleOpenStudentChat(latestInquiry || undefined)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.inquiryAvatarWrap}>
+              <Image
+                source={{
+                  uri:
+                    latestInquiry?.participant?.profilePicture ||
+                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+                }}
+                style={styles.inquiryAvatar}
+              />
+              <View style={styles.inquiryOnlineDot} />
+            </View>
+
+            <View style={styles.inquiryInfoCol}>
+              <View style={styles.inquiryTopRow}>
+                <Text style={styles.inquiryStudentName} numberOfLines={1}>
+                  {latestInquiry?.participant?.name || 'Nethmi Silva'}
+                </Text>
+                <Text style={styles.inquiryTime}>
+                  {latestInquiry?.lastMessage?.createdAt
+                    ? new Date(latestInquiry.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'Active now'}
+                </Text>
+              </View>
+
+              <Text style={styles.inquiryDegree} numberOfLines={1}>
+                Student • {latestInquiry?.participant?.degreeProgramme || 'BSc (Hons) in Information Technology'}
+              </Text>
+
+              <Text style={styles.inquiryMessageSnippet} numberOfLines={2}>
+                {latestInquiry?.lastMessage?.text ||
+                  'Hello Alex! Are you free for a session on SQL query optimization and database normal forms?'}
+              </Text>
+            </View>
+
+            <View style={styles.inquiryActionCol}>
+              <View style={styles.chatActionPill}>
+                <Ionicons name="chatbubble-ellipses" size={13} color="#FFFFFF" />
+                <Text style={styles.chatActionPillText}>Chat</Text>
+              </View>
+              {(latestInquiry?.unreadCount ?? 1) > 0 && (
+                <View style={styles.unreadCountBadge}>
+                  <Text style={styles.unreadCountText}>{latestInquiry?.unreadCount || 1} New</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -753,14 +894,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
+  heroActionBtnsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
   editProfileLowerBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F1F5F9',
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 10,
-    marginTop: 14,
     gap: 6,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -769,6 +916,185 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#061E47',
+  },
+  heroChatStudentBtn: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#061E47',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+    elevation: 2,
+    shadowColor: '#061E47',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  heroChatStudentBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  heroChatBadge: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+    marginLeft: 2,
+  },
+  heroChatBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+
+  /* Student Inquiries & Direct Chat Card */
+  studentMessagesCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  studentMessagesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  chatIconSquare: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studentMessagesTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  studentMessagesSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  viewAllChatsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#EFF6FF',
+  },
+  viewAllChatsText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0D4F9E',
+  },
+  inquiryItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 12,
+  },
+  inquiryAvatarWrap: {
+    position: 'relative',
+  },
+  inquiryAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+  },
+  inquiryOnlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  inquiryInfoCol: {
+    flex: 1,
+  },
+  inquiryTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  inquiryStudentName: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    flex: 1,
+  },
+  inquiryTime: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    marginLeft: 6,
+  },
+  inquiryDegree: {
+    fontSize: 11,
+    color: '#0284C7',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  inquiryMessageSnippet: {
+    fontSize: 11.5,
+    color: '#475569',
+    lineHeight: 16,
+  },
+  inquiryActionCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  chatActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#061E47',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  chatActionPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  unreadCountBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  unreadCountText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#B45309',
   },
 
   /* Tutor Earnings Card */

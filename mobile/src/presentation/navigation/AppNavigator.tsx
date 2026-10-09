@@ -490,7 +490,19 @@ function MainTabs() {
             }}
           />
 
-          {/* 4. Profile */}
+          {/* 4. Messages */}
+          <Tab.Screen
+            name="Messages"
+            component={ChatInboxScreen}
+            options={{
+              tabBarLabel: 'Messages',
+              tabBarIcon: ({ color }) => (
+                <SvgNotifications size={22} color={color} />
+              ),
+            }}
+          />
+
+          {/* 5. Profile */}
           <Tab.Screen
             name="Profile"
             component={TutorOwnerProfileScreen}

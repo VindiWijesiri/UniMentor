@@ -509,9 +509,18 @@ export default function TutorDashboardScreen({ navigation }: any) {
             <View>
               <Text style={styles.headerTitle}>Tutor Dashboard</Text>
             </View>
-            <View style={styles.brandRow}>
-              <Text style={styles.brandUni}>Uni</Text>
-              <Text style={styles.brandMentor}>Mentor</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TouchableOpacity
+                style={styles.headerChatBtn}
+                onPress={() => navigation.navigate('Messages')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubbles" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={styles.brandRow}>
+                <Text style={styles.brandUni}>Uni</Text>
+                <Text style={styles.brandMentor}>Mentor</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -1890,6 +1899,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     minHeight: 36,
+  },
+  headerChatBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 20,
