@@ -32,7 +32,6 @@
     "experiments": {
       "tsconfigPaths": false
     },
-    "entryPoint": "./index.js",
     "plugins": [
       "expo-secure-store",
       "expo-asset",

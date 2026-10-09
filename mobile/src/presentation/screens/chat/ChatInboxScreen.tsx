@@ -152,7 +152,7 @@ export default function ChatInboxScreen({ navigation }: Props) {
       <FlatList
         ref={listRef}
         data={filteredConversations}
-        keyExtractor={(item) => item.lastMessage.conversationKey}
+        keyExtractor={(item, index) => item.participant._id || item.lastMessage.conversationKey || String(index)}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={

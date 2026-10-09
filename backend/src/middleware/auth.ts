@@ -24,22 +24,27 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
       if (token.includes('mentor') || token.includes('tutor')) {
         targetRole = 'mentor';
-        email = 'sarah.desilva@campus.ac.lk';
+        email = 'alex.f@unimentor.lk';
       } else if (token.includes('admin')) {
         targetRole = 'admin';
         email = 'admin@unimentor.dev';
       }
 
       let demoUser = await User.findOne({
-        $or: [{ email }, { role: targetRole }]
+        $or: [
+          { email },
+          ...(targetRole === 'mentor' ? [{ name: 'Alex Ferreira' }] : [{ role: targetRole }]),
+        ],
       });
 
       if (!demoUser) {
         demoUser = await User.create({
-          name: targetRole === 'mentor' ? 'Dr. Sarah De Silva' : targetRole === 'admin' ? 'Admin Kasun' : 'Kavindu Perera',
+          name: targetRole === 'mentor' ? 'Alex Ferreira' : targetRole === 'admin' ? 'Admin Kasun' : 'Nethmi Silva',
           email,
           password: 'password123',
           role: targetRole,
+          subjects: targetRole === 'mentor' ? ['Database Management Systems', 'Data Structures & Algorithms'] : undefined,
+          hourlyRate: targetRole === 'mentor' ? 2500 : undefined,
         });
       }
 

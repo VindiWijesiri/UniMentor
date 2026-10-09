@@ -179,12 +179,56 @@ export async function getChatInbox(req: AuthRequest, res: Response, next: NextFu
 }
 
 async function validateParticipant(currentUserId: string, participantId: string) {
-  if (!mongoose.isValidObjectId(participantId) || currentUserId === participantId) return null;
-  const [currentUser, participant] = await Promise.all([
-    User.findById(currentUserId).select('role name profilePicture'),
-    User.findById(participantId).select('role name profilePicture subjects bio rating reviewCount degreeProgramme academicYear'),
-  ]);
-  if (!currentUser || !participant) return null;
+  if (currentUserId === participantId) return null;
+  const currentUser = await User.findById(currentUserId).select('role name profilePicture');
+  if (!currentUser) return null;
+
+  let participant = null;
+  if (mongoose.isValidObjectId(participantId)) {
+    participant = await User.findById(participantId).select(
+      'role name profilePicture subjects bio rating reviewCount degreeProgramme academicYear'
+    );
+  }
+
+  if (!participant) {
+    const demoMap: Record<string, { email?: string; name?: string; role?: 'student' | 'mentor' }> = {
+      'mentor-alex': { email: 'alex.f@unimentor.lk', name: 'Alex Ferreira', role: 'mentor' },
+      'demo-tutor-1': { email: 'tharushi.p@unimentor.lk', name: 'Tharushi Perera', role: 'mentor' },
+      'mentor-shenal': { email: 'shenal.p@unimentor.lk', name: 'Shenal Perera', role: 'mentor' },
+      'mentor-kaveen-2': { email: 'kaveen.d@unimentor.lk', name: 'Kaveen De Silva', role: 'mentor' },
+      'mentor-sanduni-3': { email: 'sanduni.f@unimentor.lk', name: 'Sanduni Fernando', role: 'mentor' },
+      'mentor-asanka-4': { email: 'asanka.p@unimentor.lk', name: 'Dr. Asanka Perera', role: 'mentor' },
+      'student-oslo-1': { email: 'student@unimentor.dev', name: 'Nethmi Silva', role: 'student' },
+    };
+
+    const demoInfo = demoMap[participantId];
+    if (demoInfo) {
+      participant = await User.findOne({
+        $or: [
+          ...(demoInfo.email ? [{ email: demoInfo.email }] : []),
+          ...(demoInfo.name ? [{ name: demoInfo.name }] : []),
+        ],
+      }).select(
+        'role name profilePicture subjects bio rating reviewCount degreeProgramme academicYear'
+      );
+
+      if (!participant && demoInfo.name) {
+        participant = await User.create({
+          name: demoInfo.name,
+          email: demoInfo.email || `${participantId}@unimentor.lk`,
+          password: 'password123',
+          role: demoInfo.role || (participantId.startsWith('student') ? 'student' : 'mentor'),
+        });
+      }
+    } else {
+      participant = await User.findOne({
+        $or: [{ email: participantId }, { name: participantId }],
+      }).select(
+        'role name profilePicture subjects bio rating reviewCount degreeProgramme academicYear'
+      );
+    }
+  }
+
   return participant;
 }
 
@@ -197,11 +241,22 @@ export async function getConversation(req: AuthRequest, res: Response, next: Nex
       return;
     }
 
-    const key = conversationKey(currentUserId, req.params.participantId);
-    const messages = await ChatMessage.find({ conversationKey: key }).sort({ createdAt: 1 }).limit(300);
+    const realParticipantId = String(participant._id);
+    const key = conversationKey(currentUserId, realParticipantId);
+    const rawKey = req.params.participantId !== realParticipantId
+      ? conversationKey(currentUserId, req.params.participantId)
+      : null;
+
+    const messages = await ChatMessage.find({
+      conversationKey: rawKey ? { $in: [key, rawKey] } : key,
+    }).sort({ createdAt: 1 }).limit(300);
 
     await ChatMessage.updateMany(
-      { conversationKey: key, receiver: currentUserId, read: false },
+      {
+        conversationKey: rawKey ? { $in: [key, rawKey] } : key,
+        receiver: currentUserId,
+        read: false,
+      },
       { $set: { read: true } },
     );
     res.json(messages);
@@ -229,12 +284,13 @@ export async function sendMessage(req: AuthRequest, res: Response, next: NextFun
       return;
     }
 
+    const realParticipantId = String(participant._id);
     const defaultWaveform = [30, 60, 45, 90, 75, 40, 65, 80, 50, 70, 35, 60, 40];
 
     const message = await ChatMessage.create({
-      conversationKey: conversationKey(currentUserId, participantId),
+      conversationKey: conversationKey(currentUserId, realParticipantId),
       sender: currentUserId,
-      receiver: participantId,
+      receiver: participant._id,
       text: messageText,
       messageType: messageType || 'text',
       voiceDuration: voiceDuration || (messageType === 'voice' ? 12 : undefined),
@@ -305,9 +361,14 @@ export async function deleteConversation(req: AuthRequest, res: Response, next: 
   try {
     const currentUserId = String(req.userId);
     const { participantId } = req.params;
-    const key = conversationKey(currentUserId, participantId);
+    const participant = await validateParticipant(currentUserId, participantId);
+    const realParticipantId = participant ? String(participant._id) : participantId;
+    const key = conversationKey(currentUserId, realParticipantId);
+    const rawKey = participantId !== realParticipantId ? conversationKey(currentUserId, participantId) : null;
 
-    await ChatMessage.deleteMany({ conversationKey: key });
+    await ChatMessage.deleteMany({
+      conversationKey: rawKey ? { $in: [key, rawKey] } : key,
+    });
     res.json({ message: 'Conversation cleared successfully' });
   } catch (error) {
     next(error);
