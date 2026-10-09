@@ -4,7 +4,7 @@
  * @module AcademicSupport / Recommendation Engine
  * @author Nethmi Weherawatta (UniMentor Academic Module)
  * @description
- * Decision support and recommendation breakdown screen (Step 3 of tutor discovery).
+ * Decision support and recommendation breakdownscreen (Step 3 of tutor discovery).
  * Highlights the top-matched peer mentor determined from student ratings, feedback
  * volume, hourly fee compatibility, and subject relevance.
  *
