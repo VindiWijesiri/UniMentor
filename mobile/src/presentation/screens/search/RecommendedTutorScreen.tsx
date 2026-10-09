@@ -1,3 +1,22 @@
+/**
+ * ============================================================================
+ * @file RecommendedTutorScreen.tsx
+ * @module AcademicSupport / Recommendation Engine
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Decision support and recommendation breakdown screen (Step 3 of tutor discovery).
+ * Highlights the top-matched peer mentor determined from student ratings, feedback
+ * volume, hourly fee compatibility, and subject relevance.
+ *
+ * Core Features:
+ * - Recommendation confidence summary (average star rating, positive review %, volume)
+ * - Detailed rationale cards: "Student-approved support" and "Good academic fit"
+ * - Direct student quote card showcasing genuine peer feedback
+ * - Hourly rate card in LKR
+ * - One-tap direct 1-on-1 chat action button
+ * ============================================================================
+ */
+
 import React, { useMemo } from 'react';
 import { Alert, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,12 +27,18 @@ import { getMentorRate } from './SearchScreen';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'RecommendedTutor'>;
 
+/**
+ * RecommendedTutorScreen component displaying decision breakdown and direct chat CTA
+ */
 export default function RecommendedTutorScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { mentor, reviews, comparedCount, isBestMatch } = route.params;
 
+  /**
+   * Computes aggregate metrics: average rating, total review count, and percentage of positive ratings (>= 4 stars)
+   */
   const summary = useMemo(() => {
     const rating = reviews.length
       ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length
@@ -27,6 +52,9 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
 
   const latestReview = reviews[0];
 
+  /**
+   * Validates tutor registration ID and navigates student into direct 1-on-1 chat
+   */
   const startChat = () => {
     if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
       Alert.alert(
