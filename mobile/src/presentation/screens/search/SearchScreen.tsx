@@ -4,6 +4,7 @@ import {
   Alert,
   BackHandler,
   FlatList,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -159,18 +160,30 @@ function matchesModuleOrSubject(subject: string, query: string): boolean {
     dbms: ['database', 'dbms', 'sql', 'nosql', 'rdbms', 'it2020', 'it2030'],
     database: ['database', 'dbms', 'sql', 'it2020', 'it2030'],
     'database systems': ['database', 'dbms', 'sql', 'it2020'],
-    'data structures': ['data structures', 'dsa', 'algorithm', 'graph', 'tree', 'it2040'],
-    dsa: ['data structures', 'algorithm', 'dsa', 'it2040'],
+    'data structures': ['data structures', 'dsa', 'algorithm', 'algorithms', 'algo', 'graph', 'tree', 'it2040'],
+    dsa: ['data structures', 'algorithm', 'algorithms', 'dsa', 'it2040'],
+    algo: ['data structures', 'algorithm', 'algorithms', 'dsa'],
+    algorithms: ['data structures', 'algorithm', 'algorithms', 'dsa'],
+    mobile: ['mobile', 'react native', 'android', 'ios', 'it3020'],
     'mobile app': ['mobile', 'react native', 'android', 'ios', 'it3020'],
     'mobile app dev': ['mobile', 'react native', 'android', 'ios', 'it3020'],
     'mobile application development': ['mobile', 'react native', 'android', 'ios', 'it3020'],
+    se: ['software architecture', 'software engineering', 'design patterns', 'se3020'],
+    'software engineering': ['software architecture', 'software engineering', 'se3020'],
     'software architecture': ['software architecture', 'enterprise design', 'design patterns', 'se3020'],
-    oop: ['object oriented', 'oop', 'java', 'c++'],
-    ml: ['machine learning', 'ai', 'data science'],
-    'machine learning': ['machine learning', 'ai', 'data science'],
-    'web development': ['web', 'frontend', 'backend', 'cloud'],
-    'probability & stats': ['probability', 'statistics', 'stats', 'ma2010', 'discrete'],
-    stats: ['probability', 'statistics', 'stats', 'ma2010'],
+    oop: ['object oriented', 'oop', 'java', 'c++', 'python'],
+    ml: ['machine learning', 'ai', 'data science', 'artificial intelligence'],
+    'machine learning': ['machine learning', 'ai', 'data science', 'artificial intelligence'],
+    ai: ['artificial intelligence', 'ai', 'machine learning', 'ml'],
+    web: ['web', 'frontend', 'backend', 'cloud', 'full stack'],
+    'web development': ['web', 'frontend', 'backend', 'cloud', 'full stack'],
+    math: ['probability', 'statistics', 'stats', 'mathematics', 'maths', 'math', 'ma2010', 'discrete'],
+    maths: ['probability', 'statistics', 'stats', 'mathematics', 'maths', 'math', 'ma2010', 'discrete'],
+    mathematics: ['probability', 'statistics', 'stats', 'mathematics', 'maths', 'math', 'ma2010', 'discrete'],
+    'probability & stats': ['probability', 'statistics', 'stats', 'ma2010', 'discrete', 'mathematics', 'maths', 'math'],
+    stats: ['probability', 'statistics', 'stats', 'ma2010', 'mathematics'],
+    statistics: ['probability', 'statistics', 'stats', 'ma2010', 'mathematics'],
+    networks: ['network', 'networks', 'security', 'cisco'],
   };
 
   for (const [key, variants] of Object.entries(acronymMap)) {
@@ -194,11 +207,43 @@ function matchesMentor(mentor: MentorCard, value: string): boolean {
   const normalized = value.trim().toLowerCase();
   if (!normalized || normalized === 'all') return true;
 
-  if (mentor.name.toLowerCase().includes(normalized)) return true;
-  if (mentor.bio && mentor.bio.toLowerCase().includes(normalized)) return true;
+  const name = (mentor.name || '').toLowerCase();
+  const bio = (mentor.bio || '').toLowerCase();
+  const exp = (mentor.experience || '').toLowerCase();
+  const email = (mentor.email || '').toLowerCase();
+
+  if (name.includes(normalized)) return true;
+  if (bio.includes(normalized)) return true;
+  if (exp.includes(normalized)) return true;
+  if (email.includes(normalized)) return true;
 
   if (Array.isArray(mentor.subjects)) {
-    return mentor.subjects.some((sub) => matchesModuleOrSubject(sub, normalized));
+    if (mentor.subjects.some((sub) => matchesModuleOrSubject(sub, normalized))) {
+      return true;
+    }
+  }
+
+  const tokens = normalized.split(/\s+/).filter((t) => t.length > 1);
+  if (tokens.length > 1) {
+    const allTokensMatch = tokens.every((token) => {
+      if (name.includes(token)) return true;
+      if (bio.includes(token)) return true;
+      if (exp.includes(token)) return true;
+      if (Array.isArray(mentor.subjects)) {
+        return mentor.subjects.some((sub) => matchesModuleOrSubject(sub, token));
+      }
+      return false;
+    });
+    if (allTokensMatch) return true;
+  }
+
+  return false;
+}
+
+function matchesSubjectChip(mentor: MentorCard, subject: string): boolean {
+  if (!subject || subject === 'All') return true;
+  if (Array.isArray(mentor.subjects)) {
+    return mentor.subjects.some((sub) => matchesModuleOrSubject(sub, subject));
   }
   return false;
 }
@@ -444,7 +489,7 @@ export default function SearchScreen({ route, navigation }: Props) {
   useEffect(() => {
     let active = true;
     setQuery(initialQuery);
-    setSelectedSubject(initialQuery);
+    setSelectedSubject(initialQuery.trim() ? initialQuery : 'All');
     setLoading(true);
     console.log(`[SearchScreen] 🔎 Initial search triggered with query: "${initialQuery}"`);
     searchMentorsUseCase(initialQuery)
@@ -465,12 +510,37 @@ export default function SearchScreen({ route, navigation }: Props) {
     };
   }, [initialQuery]);
 
-  useEffect(() => {
-    setComparisonIds((current) => current.filter((id) => apiMentors.some((mentor) => mentor._id === id)));
-  }, [apiMentors]);
-
   const mergedMentors = useMemo(() => {
-    const list = apiMentors.length > 0 ? [...apiMentors] : [...BASE_DEFAULT_MENTORS];
+    const map = new Map<string, MentorCard>();
+    const apiLookup = new Map<string, Mentor>();
+    apiMentors.forEach((m) => {
+      if (m.email) apiLookup.set(m.email.toLowerCase().trim(), m);
+      if (m.name) apiLookup.set(m.name.toLowerCase().trim(), m);
+    });
+
+    BASE_DEFAULT_MENTORS.forEach((m) => {
+      const matchedApi =
+        (m.email ? apiLookup.get(m.email.toLowerCase().trim()) : undefined) ||
+        (m.name ? apiLookup.get(m.name.toLowerCase().trim()) : undefined);
+
+      if (matchedApi) {
+        map.set(matchedApi._id, {
+          ...m,
+          ...(matchedApi as MentorCard),
+          _id: matchedApi._id,
+        });
+      } else {
+        map.set(m._id, m);
+      }
+    });
+
+    apiMentors.forEach((m) => {
+      if (!map.has(m._id)) {
+        map.set(m._id, m as MentorCard);
+      }
+    });
+
+    const list = Array.from(map.values());
 
     return list.map((mentor) => {
       const settings =
@@ -516,16 +586,38 @@ export default function SearchScreen({ route, navigation }: Props) {
     });
   }, [apiMentors, mentorSettingsMap]);
 
+  useEffect(() => {
+    setComparisonIds((current) => current.filter((id) => mergedMentors.some((mentor) => mentor._id === id)));
+  }, [mergedMentors]);
+
   const visibleMentors = useMemo(() => {
-    const searchValue = query.trim() || selectedSubject;
-    const remoteMatches = mergedMentors.filter((mentor) => matchesMentor(mentor, searchValue));
-    return remoteMatches.filter((mentor) => matchesFilters(mentor, activeFilters));
+    const q = query.trim();
+    let matches = mergedMentors;
+
+    if (selectedSubject && selectedSubject !== 'All') {
+      matches = matches.filter((mentor) => matchesSubjectChip(mentor, selectedSubject));
+    }
+
+    if (q) {
+      matches = matches.filter((mentor) => matchesMentor(mentor, q));
+    }
+
+    return matches.filter((mentor) => matchesFilters(mentor, activeFilters));
   }, [mergedMentors, activeFilters, query, selectedSubject]);
 
   const previewMatchCount = useMemo(() => {
-    const searchValue = query.trim() || selectedSubject;
-    const remoteMatches = mergedMentors.filter((mentor) => matchesMentor(mentor, searchValue));
-    return remoteMatches.filter((mentor) => matchesFilters(mentor, draftFilters)).length;
+    const q = query.trim();
+    let matches = mergedMentors;
+
+    if (selectedSubject && selectedSubject !== 'All') {
+      matches = matches.filter((mentor) => matchesSubjectChip(mentor, selectedSubject));
+    }
+
+    if (q) {
+      matches = matches.filter((mentor) => matchesMentor(mentor, q));
+    }
+
+    return matches.filter((mentor) => matchesFilters(mentor, draftFilters)).length;
   }, [mergedMentors, draftFilters, query, selectedSubject]);
 
   const subjectChips = useMemo(() => {
@@ -551,18 +643,32 @@ export default function SearchScreen({ route, navigation }: Props) {
         }
       });
     });
-    return [...standard, ...custom];
-  }, [mentorSettingsMap]);
+    const chips = [...standard, ...custom];
+    const incoming = initialQuery.trim();
+    if (
+      incoming &&
+      incoming !== 'All' &&
+      !chips.some((chip) => chip.toLowerCase() === incoming.toLowerCase())
+    ) {
+      chips.splice(1, 0, incoming);
+    }
+    return chips;
+  }, [mentorSettingsMap, initialQuery]);
 
-  const handleSearch = async (searchValue = query) => {
-    const value = searchValue.trim();
-    setSelectedSubject(value || 'All');
-    setQuery(value === 'All' ? '' : value);
+  const handleSearch = async (searchValue?: string) => {
+    Keyboard.dismiss();
+    const value = (typeof searchValue === 'string' ? searchValue : query).trim();
+    setQuery(value);
     setLoading(true);
     try {
       const results = await searchMentorsUseCase(value === 'All' ? '' : value);
-      if (results && results.length > 0) {
-        setApiMentors(results);
+      if (Array.isArray(results) && results.length > 0) {
+        setApiMentors((prev) => {
+          const map = new Map<string, Mentor>();
+          prev.forEach((m) => map.set(m._id, m));
+          results.forEach((m) => map.set(m._id, m));
+          return Array.from(map.values());
+        });
       }
     } catch (err: any) {
       console.warn(`[SearchScreen] ⚠️ Search notice:`, err?.message || err);
@@ -571,11 +677,14 @@ export default function SearchScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleClearSearch = () => {
+    Keyboard.dismiss();
+    setQuery('');
+    setSelectedSubject('All');
+  };
+
   const selectSubject = (subject: string) => {
-    const value = subject === 'All' ? '' : subject;
-    setQuery(value);
     setSelectedSubject(subject);
-    void handleSearch(subject);
   };
 
   const toggleComparison = (mentorId: string) => {
@@ -723,8 +832,7 @@ export default function SearchScreen({ route, navigation }: Props) {
       Alert.alert('Select tutors', 'Choose at least 2 tutors to compare.');
       return;
     }
-    ((navigation.getParent?.() as any) || (navigation as any))
-      ?.navigate('CompareTutors', { mentors });
+    navigation.navigate('CompareTutors', { mentors });
   };
 
   const renderMentor = ({ item }: { item: MentorCard }) => {
@@ -790,8 +898,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 style={styles.gridProfileBtn}
                 activeOpacity={0.82}
-                onPress={() => ((navigation.getParent?.() as any) || (navigation as any))
-                  ?.navigate('TutorProfile', { mentor: item })}
+                onPress={() => navigation.navigate('TutorProfile', { mentor: item })}
               >
                 <Ionicons name="person-outline" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
                 <Text style={styles.gridProfileBtnText}>Profile</Text>
@@ -955,8 +1062,7 @@ export default function SearchScreen({ route, navigation }: Props) {
                 rating: item.rating,
                 hourlyRate: item.hourlyRate,
               };
-              ((navigation.getParent?.() as any) || (navigation as any))
-                ?.navigate('TutorProfile', { mentor: fullMentor as Mentor });
+              navigation.navigate('TutorProfile', { mentor: fullMentor as Mentor });
             }}
           >
             <Text style={styles.viewButtonText}>Profile</Text>
@@ -990,6 +1096,7 @@ export default function SearchScreen({ route, navigation }: Props) {
 
       <FlatList
         ref={listRef}
+        keyboardShouldPersistTaps="handled"
         data={searchTab === 'browse' ? visibleMentors : (shortlist as any)}
         keyExtractor={(item: any) => item._id || item.mentorId}
         renderItem={searchTab === 'browse' ? (renderMentor as any) : (renderShortlistCard as any)}
@@ -1012,9 +1119,28 @@ export default function SearchScreen({ route, navigation }: Props) {
                   onChangeText={setQuery}
                   onSubmitEditing={() => void handleSearch()}
                   returnKeyType="search"
+                  autoCorrect={false}
                 />
-                <TouchableOpacity style={styles.searchButton} onPress={() => void handleSearch()}>
-                  <Text style={styles.searchButtonText}>Search</Text>
+                {query.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.clearSearchBtn}
+                    onPress={handleClearSearch}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.searchButton, loading && styles.searchButtonLoading]}
+                  onPress={() => void handleSearch()}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.searchButtonText}>Search</Text>
+                  )}
                 </TouchableOpacity>
               </View>
 
@@ -1074,7 +1200,7 @@ export default function SearchScreen({ route, navigation }: Props) {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
               {subjectChips.map((subject) => {
-                const active = selectedSubject === subject || (!query && subject === 'All');
+                const active = selectedSubject === subject;
                 return (
                   <TouchableOpacity
                     key={subject}
@@ -1229,6 +1355,16 @@ export default function SearchScreen({ route, navigation }: Props) {
                   : 'Try another subject or search term.'
                 : 'Browse tutors in "All Tutors" and tap "☆ Save" to create your personal shortlist with custom notes and priorities.'}
             </Text>
+            {searchTab === 'browse' && query.trim().length > 0 && (
+              <TouchableOpacity
+                style={[styles.resetFiltersBtn, { marginTop: 10, borderColor: '#CBD5E1' }]}
+                onPress={handleClearSearch}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="close-circle-outline" size={14} color="#061E47" style={{ marginRight: 6 }} />
+                <Text style={styles.resetFiltersBtnText}>Clear Search "{query.trim()}"</Text>
+              </TouchableOpacity>
+            )}
             {searchTab === 'browse' && activeFilterCount > 0 && (
               <TouchableOpacity
                 style={styles.resetFiltersBtn}
@@ -1818,7 +1954,14 @@ const styles = StyleSheet.create({
   },
   searchIcon: { color: navy, fontSize: 25, fontWeight: '800', marginRight: 7, marginTop: -3 },
   input: { flex: 1, color: '#253654', fontSize: 13.5, paddingVertical: 0 },
+  clearSearchBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   searchButton: { height: 38, borderRadius: 10, backgroundColor: amber, justifyContent: 'center', paddingHorizontal: 16, marginRight: 5 },
+  searchButtonLoading: { opacity: 0.85 },
   searchButtonText: { color: '#FFF', fontSize: 13, fontWeight: '900' },
   listContent: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 20 },
   listContentWithCompare: { paddingBottom: 20 },
