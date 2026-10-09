@@ -9,7 +9,7 @@
  * 2. "My Reviews": Review management hub displaying all reviews written by the student,
  *    supporting inline modal edits, real-time star updates, and review deletions.
  *
- * Core Features:
+ * Core Features
  * - Real-time filtering by tutor name or academic subject
  * - Dual-tab layout with smooth tab indicator transitions
  * - In-place editing modal with keyboard avoidance and instant cache refresh
