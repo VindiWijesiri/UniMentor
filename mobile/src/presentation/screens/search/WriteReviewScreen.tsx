@@ -1,3 +1,22 @@
+/**
+ * ============================================================================
+ * @file WriteReviewScreen.tsx
+ * @module AcademicSupport / Reviews & Ratings
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Interactive review submission and management screen allowing students to rate
+ * tutors, select quick positive praise tags, write detailed academic feedback,
+ * edit previously submitted reviews, and delete reviews.
+ *
+ * Core Features:
+ * - Interactive 5-star rating selector with dynamic sentiment/mood pill indicators
+ * - Quick compliment chips that dynamically append/remove from the review text
+ * - Live character counter (max 500 chars) and strict validation guards
+ * - Seamless create / edit / delete lifecycle with backend API synchronization
+ * - Role-based authorization guards (mentors restricted from student reviews)
+ * ============================================================================
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -27,6 +46,9 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'WriteReview'>;
 
+/**
+ * Visual styling and metadata for each star rating tier (1 to 5 stars)
+ */
 interface RatingOption {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -35,6 +57,9 @@ interface RatingOption {
   textColor: string;
 }
 
+/**
+ * Mapping of star rating values to their human-readable sentiment labels and theme colors
+ */
 const RATING_DETAILS: Record<number, RatingOption> = {
   1: {
     label: '1.0 • Poor Experience',
@@ -73,6 +98,9 @@ const RATING_DETAILS: Record<number, RatingOption> = {
   },
 };
 
+/**
+ * Preset positive feedback chips that students can tap to rapidly compose feedback
+ */
 interface QuickPraise {
   id: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -80,6 +108,9 @@ interface QuickPraise {
   sentence: string;
 }
 
+/**
+ * Curated list of quick feedback compliments for teaching quality and professionalism
+ */
 const QUICK_PRAISES: QuickPraise[] = [
   { id: 'clear', icon: 'bulb-outline', text: 'Clear concepts', sentence: 'Explains complex concepts very clearly and simply.' },
   { id: 'exam', icon: 'flag-outline', text: 'Great exam prep', sentence: 'Gave targeted exam tips and practice problems.' },
@@ -90,6 +121,9 @@ const QUICK_PRAISES: QuickPraise[] = [
   { id: 'friendly', icon: 'sparkles-outline', text: 'Friendly atmosphere', sentence: 'Welcoming, approachable, and encouraging teaching style.' },
 ];
 
+/**
+ * Main review submission and management screen component
+ */
 export default function WriteReviewScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const statusBarHeight =
@@ -97,6 +131,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
   const { mentor, existingReview: initialExistingReview } = route.params;
   const { user } = useAuthStore();
 
+  // Local Form & Interaction State
   const [rating, setRating] = useState(initialExistingReview?.rating || 5);
   const [comment, setComment] = useState(initialExistingReview?.comment || '');
   const [editingReviewId, setEditingReviewId] = useState<string | null>(
@@ -111,6 +146,9 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
   const hasLoadedExistingRef = useRef(false);
   const inputRef = useRef<TextInput>(null);
 
+  /**
+   * Transitions an existing review from read-only overview into active edit mode
+   */
   const activateEditMode = () => {
     if (editingReviewId && !isEditingActive) {
       setIsEditingActive(true);
@@ -177,6 +215,10 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
     };
   }, [mentor._id, user?._id, user?.name, initialExistingReview]);
 
+  /**
+   * Toggles inclusion of a preset praise phrase inside the written comment box
+   * @param praise - Selected quick praise object
+   */
   const togglePraise = (praise: QuickPraise) => {
     const isSelected = selectedPraiseIds.includes(praise.id);
     if (isSelected) {
@@ -198,6 +240,11 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
     }
   };
 
+  /**
+   * Handles saving a new review or updating an existing one.
+   * Performs client validation, calls reviewRepository, refreshes the global store,
+   * navigates back, and presents confirmation feedback.
+   */
   const handleSaveOrUpdate = async () => {
     Keyboard.dismiss();
 
@@ -270,6 +317,10 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
     }
   };
 
+  /**
+   * Prompts user with a destructive confirmation alert and permanently deletes
+   * the active review from both database and local store.
+   */
   const handleDeleteReview = () => {
     if (!editingReviewId) return;
 

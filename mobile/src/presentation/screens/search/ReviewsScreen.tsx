@@ -1,3 +1,22 @@
+/**
+ * ============================================================================
+ * @file ReviewsScreen.tsx
+ * @module AcademicSupport / Reviews & Feedback
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Main student feedback portal offering a segmented tab interface:
+ * 1. "Browse Tutors": Search, view ratings, and launch WriteReviewScreen for any tutor.
+ * 2. "My Reviews": Review management hub displaying all reviews written by the student,
+ *    supporting inline modal edits, real-time star updates, and review deletions.
+ *
+ * Core Features:
+ * - Real-time filtering by tutor name or academic subject
+ * - Dual-tab layout with smooth tab indicator transitions
+ * - In-place editing modal with keyboard avoidance and instant cache refresh
+ * - Focus-aware pull-to-refresh integration
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -31,6 +50,9 @@ import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNav
 type Props = BottomTabScreenProps<AppTabParamList, 'Reviews'>;
 type ActiveTab = 'tutors' | 'my-reviews';
 
+/**
+ * ReviewsScreen component displaying tutor review discovery and authored student reviews
+ */
 export default function ReviewsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const statusBarHeight =
@@ -49,6 +71,9 @@ export default function ReviewsScreen({ navigation }: Props) {
   const [editComment, setEditComment] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
+  /**
+   * Fetches the tutor catalog and student's authored reviews from backend services
+   */
   const loadData = async () => {
     try {
       const results = await mentorRepository.search('');
@@ -81,12 +106,18 @@ export default function ReviewsScreen({ navigation }: Props) {
     }, [])
   );
 
+  /**
+   * Pull-to-refresh handler syncing with backend
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
   };
 
+  /**
+   * Memoized tutor list filtered by query string (name or subject)
+   */
   const visibleTutors = useMemo(() => {
     const value = query.trim().toLowerCase();
     if (!value) return tutors;
@@ -95,17 +126,26 @@ export default function ReviewsScreen({ navigation }: Props) {
     );
   }, [query, tutors]);
 
+  /**
+   * Navigates student to the WriteReview screen for the chosen mentor
+   */
   const writeReview = (mentor: Mentor) =>
     navigation
       .getParent<NativeStackNavigationProp<AppStackParamList>>()
       ?.navigate('WriteReview', { mentor });
 
+  /**
+   * Opens the in-place review edit modal prefilled with current rating and text
+   */
   const openEditModal = (rev: Review) => {
     setEditingReview(rev);
     setEditRating(rev.rating);
     setEditComment(rev.comment);
   };
 
+  /**
+   * Submits edited review rating and comment to the repository, updating UI and local store
+   */
   const handleSaveEdit = async () => {
     Keyboard.dismiss();
     if (!editingReview) return;
@@ -141,6 +181,9 @@ export default function ReviewsScreen({ navigation }: Props) {
     }
   };
 
+  /**
+   * Confirms and deletes a student review from the database
+   */
   const handleDeleteReview = (rev: Review) => {
     Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
       { text: 'Keep', style: 'cancel' },
