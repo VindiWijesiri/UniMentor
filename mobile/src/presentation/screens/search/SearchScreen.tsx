@@ -1,3 +1,24 @@
+/**
+ * ============================================================================
+ * @file SearchScreen.tsx
+ * @module AcademicSupport / Tutor Discovery & Search Hub
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Primary academic tutor discovery and comparison center for UniMentor.
+ * Allows students to browse registered tutors, execute instant search queries,
+ * filter across academic criteria, manage personal shortlists with private notes,
+ * and select multiple tutors for side-by-side comparative evaluation.
+ *
+ * Core Features:
+ * - Real-time keyword search across tutor names, bios, and academic subjects
+ * - Subject category chips with dynamic module detection
+ * - Multi-criteria filter modal (Faculty, Rating, Hourly fee, Lesson format, Experience)
+ * - Personal shortlist / bookmarks with customizable priority levels and study notes
+ * - Tutor comparison dock (compares up to 3 chosen tutors)
+ * - View mode toggle between Grid Cards and Compact List Cards
+ * ============================================================================
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,6 +54,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = any;
+
+/**
+ * Extended presentation card representation of a mentor with display metrics
+ */
 type MentorCard = Mentor & {
   experience?: string;
   sessionCount?: number;
@@ -655,6 +680,11 @@ export default function SearchScreen({ route, navigation }: Props) {
     return chips;
   }, [mentorSettingsMap, initialQuery]);
 
+  /**
+   * Triggers asynchronous keyword search against backend mentor catalog.
+   * Merges newly discovered mentors into local state without dropping cached tutors.
+   * @param searchValue - Optional query string overriding the current text input state
+   */
   const handleSearch = async (searchValue?: string) => {
     Keyboard.dismiss();
     const value = (typeof searchValue === 'string' ? searchValue : query).trim();
@@ -677,16 +707,27 @@ export default function SearchScreen({ route, navigation }: Props) {
     }
   };
 
+  /**
+   * Resets active text query and resets subject selection back to "All"
+   */
   const handleClearSearch = () => {
     Keyboard.dismiss();
     setQuery('');
     setSelectedSubject('All');
   };
 
+  /**
+   * Handles filter chip selection by updating selected subject tag
+   * @param subject - Selected subject name or 'All'
+   */
   const selectSubject = (subject: string) => {
     setSelectedSubject(subject);
   };
 
+  /**
+   * Adds or removes a tutor from the active comparison dock (maximum 3 tutors allowed)
+   * @param mentorId - Unique ID of the tutor being compared
+   */
   const toggleComparison = (mentorId: string) => {
     setComparisonIds((current) => {
       if (current.includes(mentorId)) return current.filter((id) => id !== mentorId);
