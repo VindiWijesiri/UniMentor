@@ -7,7 +7,7 @@
  * Side-by-side comparative analysis dashboard for evaluated tutors.
  * Enables students to select up to 3 peer mentors and compare their:
  * - Verified average ratings and review counts from real students
- * - Hourly tutoring rates
+ * - Hourly tutoring rates in
  * - Academic subject specializations
  * - Average response times and session formats (Individual vs Group)
  * - Algorithmically computes a "Best Match" tutor score based on rating and volume
