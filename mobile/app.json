@@ -19,6 +19,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.unimentor.app",
+      "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
@@ -52,9 +53,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "0d9d8563-c683-49b8-8b51-0063cc32765d"
+        "projectId": "0026cf68-fc7d-4216-b81b-4723d2603f04"
       }
     },
-    "owner": "unimentor"
+    "owner": "2026oslo"
   }
 }
