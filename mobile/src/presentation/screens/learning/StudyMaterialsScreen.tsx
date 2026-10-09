@@ -92,8 +92,16 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
     const fallback: LibraryKindFilter[] = [
       { key: 'all', label: 'All', icon: 'all', count: items.length },
     ];
-    (['video', 'pdf', 'quiz', 'audio', 'code'] as const).forEach((key) => {
-      if (tally[key]) fallback.push({ key, label: key === 'pdf' ? 'PDF Notes' : key === 'quiz' ? 'Quizzes' : key === 'video' ? 'Videos' : key === 'audio' ? 'Audio' : 'Code', icon: key, count: tally[key] });
+    ([
+      ['video', 'Videos'],
+      ['pdf', 'PDF Notes'],
+      ['image', 'Images'],
+      ['quiz', 'Quizzes'],
+      ['audio', 'Audio'],
+      ['code', 'Code'],
+      ['text', 'Text'],
+    ] as const).forEach(([key, label]) => {
+      if (tally[key]) fallback.push({ key, label, icon: key, count: tally[key] });
     });
     return fallback;
   }, [kinds, items]);
@@ -154,6 +162,10 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+
+        <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('StoreMaterial', { conversationId })} activeOpacity={0.85}>
+          <Text style={styles.addBtnText}>Add material</Text>
+        </TouchableOpacity>
 
         <View style={styles.sourceRow}>
           <Text style={styles.sourceLabel}>SOURCE:</Text>
@@ -283,6 +295,8 @@ const styles = StyleSheet.create({
   },
   glyphDot: { width: 3, height: 3, borderRadius: 2 },
   docGlyph: { width: 11, height: 13, borderRadius: 2, borderWidth: 1.5 },
+  addBtn: { backgroundColor: yellow, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginBottom: 12 },
+  addBtnText: { color: navy, fontWeight: '900', fontSize: 15 },
   sourceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 },
   sourceLabel: { color: muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   sourceChip: { color: muted, fontSize: 12, fontWeight: '700' },

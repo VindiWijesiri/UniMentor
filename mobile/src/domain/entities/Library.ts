@@ -1,4 +1,4 @@
-export type LibraryKind = 'video' | 'pdf' | 'quiz' | 'audio' | 'code';
+export type LibraryKind = 'video' | 'pdf' | 'quiz' | 'audio' | 'code' | 'image' | 'text';
 export type LibrarySource = 'group' | 'session' | 'live' | 'library';
 
 export type LibraryMaterial = {
@@ -20,6 +20,8 @@ export type LibraryMaterial = {
   fileCount?: number;
   questionCount?: number;
   downloads: number;
+  owner?: string;
+  isOwner?: boolean;
   conversation?: string;
   saved: boolean;
   tags: string[];

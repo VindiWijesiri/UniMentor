@@ -118,12 +118,16 @@ export default function PodThreadScreen({ route, navigation }: Props) {
           <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
             <SvgChevronLeft size={22} color="#FFFFFF" />
           </TouchableOpacity>
-          <View style={styles.headerCopy}>
+          <TouchableOpacity
+            style={styles.headerCopy}
+            onPress={() => conversationId && navigation.navigate('PodDetails', { conversationId })}
+            activeOpacity={0.8}
+          >
             <Text style={styles.name} numberOfLines={1}>{conversation?.title ?? 'Chat Pod'}</Text>
             <Text style={styles.status} numberOfLines={1}>
-              {conversation?.meta.assessmentTitle ?? conversation?.meta.subtitle ?? 'UniMentor Chat Pod'}
+              {conversation?.meta.assessmentTitle ?? conversation?.meta.subtitle ?? 'View details'}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={styles.brandRow}>
           <Text style={styles.brandUni}>Uni</Text>
@@ -201,11 +205,17 @@ export default function PodThreadScreen({ route, navigation }: Props) {
               return (
                 <View style={[styles.row, mine && styles.rowMine]}>
                   {!mine && <Text style={styles.sender}>{item.senderName}</Text>}
-                  <View style={styles.fileBubble}>
+                  <TouchableOpacity
+                    style={styles.fileBubble}
+                    onPress={() => {
+                      const materialId = String(item.meta?.materialId ?? '');
+                      if (materialId) navigation.navigate('StudyMaterialDetail', { id: materialId });
+                    }}
+                  >
                     <Text style={styles.fileIcon}>{item.kind === 'voice' ? `▶  ${String(item.meta?.duration ?? '0:42')}` : '📄'}</Text>
                     <Text style={styles.text}>{item.text}</Text>
                     <Text style={styles.time}>{formatTime(item.createdAt)}</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               );
             }
@@ -236,6 +246,18 @@ export default function PodThreadScreen({ route, navigation }: Props) {
       />
       <View style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <View style={styles.composer}>
+          <TouchableOpacity
+            style={styles.attach}
+            onPress={() => navigation.navigate('StoreMaterial', { conversationId })}
+          >
+            <Text style={styles.attachText}>+</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.book}
+            onPress={() => conversationId && navigation.navigate('PodDetails', { conversationId })}
+          >
+            <Text style={styles.bookText}>Book</Text>
+          </TouchableOpacity>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -346,7 +368,11 @@ const styles = StyleSheet.create({
   time: { color: '#8A98AC', fontSize: 9, marginTop: 4, textAlign: 'right' },
   myTime: { color: '#AFC2DF' },
   composerWrap: { backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#DEE6F0', paddingHorizontal: 10, paddingTop: 8 },
-  composer: { minHeight: 48, borderRadius: 24, backgroundColor: '#F2F5F9', borderWidth: 1, borderColor: '#DCE4EE', paddingLeft: 15, paddingRight: 5, flexDirection: 'row', alignItems: 'center' },
+  composer: { minHeight: 48, borderRadius: 24, backgroundColor: '#F2F5F9', borderWidth: 1, borderColor: '#DCE4EE', paddingLeft: 6, paddingRight: 5, flexDirection: 'row', alignItems: 'center' },
+  attach: { width: 32, height: 32, borderRadius: 16, backgroundColor: navy, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  attachText: { color: '#FFF', fontSize: 18, fontWeight: '800', marginTop: -2 },
+  book: { borderRadius: 12, backgroundColor: yellow, paddingHorizontal: 8, paddingVertical: 6, marginRight: 6 },
+  bookText: { color: navy, fontSize: 11, fontWeight: '900' },
   input: { flex: 1, maxHeight: 100, color: '#263A5C', fontSize: 14, paddingVertical: 8 },
   send: { width: 40, height: 40, borderRadius: 20, backgroundColor: yellow, alignItems: 'center', justifyContent: 'center' },
   sendOff: { opacity: 0.45 },

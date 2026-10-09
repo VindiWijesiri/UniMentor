@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 
-export type LibraryKind = 'video' | 'pdf' | 'quiz' | 'audio' | 'code';
+export type LibraryKind = 'video' | 'pdf' | 'quiz' | 'audio' | 'code' | 'image' | 'text';
 export type LibrarySource = 'group' | 'session' | 'live' | 'library';
 
 export interface ILibraryQuestion {
@@ -53,7 +53,7 @@ export interface ILibraryMaterial extends Document {
 
 const materialSchema = new Schema<ILibraryMaterial>({
   seedKey: { type: String, unique: true, sparse: true },
-  kind: { type: String, enum: ['video', 'pdf', 'quiz', 'audio', 'code'], required: true },
+  kind: { type: String, enum: ['video', 'pdf', 'quiz', 'audio', 'code', 'image', 'text'], required: true },
   source: { type: String, enum: ['group', 'session', 'live', 'library'], default: 'library' },
   title: { type: String, required: true, trim: true },
   subtitle: { type: String, default: '' },

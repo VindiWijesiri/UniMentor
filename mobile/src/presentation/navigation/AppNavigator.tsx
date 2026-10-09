@@ -37,6 +37,7 @@ import PackDispatcherScreen from '../screens/learning/PackDispatcherScreen';
 import TutorToolsScreen from '../screens/learning/TutorToolsScreen';
 import ChatPodScreen from '../screens/learning/ChatPodScreen';
 import PodThreadScreen from '../screens/learning/PodThreadScreen';
+import PodDetailsScreen from '../screens/learning/PodDetailsScreen';
 import CreateSquadScreen from '../screens/learning/CreateSquadScreen';
 import FindFriendScreen from '../screens/learning/FindFriendScreen';
 import StudyPlansScreen from '../screens/learning/StudyPlansScreen';
@@ -203,6 +204,7 @@ export type AppStackParamList = {
   TutorSubmissions: { paperId?: string } | undefined;
   ChatPod: undefined;
   PodThread: { id?: string; threadId?: string; podId?: string; conversationId?: string } | undefined;
+  PodDetails: { conversationId: string } | undefined;
   CreateSquad: undefined;
   FindFriend: undefined;
   StudyMaterials: { conversationId?: string } | undefined;
@@ -552,6 +554,7 @@ export default function AppNavigator() {
       <Stack.Screen name="TutorSubmissions" component={TutorSubmissionsScreen} />
       <Stack.Screen name="ChatPod" component={ChatPodScreen} />
       <Stack.Screen name="PodThread" component={PodThreadScreen} />
+      <Stack.Screen name="PodDetails" component={PodDetailsScreen} />
       <Stack.Screen name="CreateSquad" component={CreateSquadScreen} />
       <Stack.Screen name="FindFriend" component={FindFriendScreen} />
       <Stack.Screen name="StudyMaterials" component={StudyMaterialsScreen} />

@@ -12,6 +12,7 @@ import {
   respondPodProposal,
   sendPodMessage,
   startDirectConversation,
+  updatePodConversation,
   votePodConversation,
 } from '../controllers/podController';
 
@@ -24,6 +25,7 @@ router.get('/people', authenticate, listPodPeople);
 router.post('/conversations', authenticate, createPodSquad);
 router.post('/conversations/direct', authenticate, startDirectConversation);
 router.get('/conversations/:id', authenticate, getPodConversation);
+router.patch('/conversations/:id', authenticate, updatePodConversation);
 router.get('/conversations/:id/messages', authenticate, getPodMessages);
 router.post('/conversations/:id/messages', authenticate, sendPodMessage);
 router.post('/conversations/:id/read', authenticate, markPodRead);

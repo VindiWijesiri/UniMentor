@@ -14,6 +14,7 @@ export type PodConversation = {
   _id: string;
   type: 'direct' | 'group';
   category: PodCategory;
+  createdBy?: string;
   title: string;
   lastMessageText: string;
   lastSenderName: string;

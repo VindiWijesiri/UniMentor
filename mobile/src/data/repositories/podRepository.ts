@@ -20,7 +20,12 @@ export const podRepository = {
   messages: async (id: string, peek = false) => (
     await apiClient.get<PodMessage[]>(`/pod/conversations/${id}/messages`, { params: peek ? { peek: 1 } : undefined })
   ).data,
-  send: async (id: string, text: string) => (await apiClient.post<PodMessage>(`/pod/conversations/${id}/messages`, { text })).data,
+  send: async (id: string, text: string, extra?: { kind?: 'file'; materialId?: string }) => (
+    await apiClient.post<PodMessage>(`/pod/conversations/${id}/messages`, { text, ...extra })
+  ).data,
+  update: async (id: string, payload: { title: string; moduleCode?: string; subtitle?: string; goal?: string }) => (
+    await apiClient.patch<PodConversation>(`/pod/conversations/${id}`, payload)
+  ).data,
   markRead: async (id: string) => (await apiClient.post<PodConversation>(`/pod/conversations/${id}/read`)).data,
   vote: async (id: string) => (await apiClient.post<PodConversation>(`/pod/conversations/${id}/vote`)).data,
   proposal: async (id: string, status: 'accepted' | 'declined') => (

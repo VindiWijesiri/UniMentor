@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -87,7 +88,8 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
     }
   };
 
-  const kindLabel = item?.kind === 'pdf' ? 'PDF Notes' : item?.kind === 'video' ? 'Video' : item?.kind === 'quiz' ? 'Quiz' : item?.kind === 'audio' ? 'Audio' : 'Code Pack';
+  const kindLabel = item?.kind === 'pdf' ? 'PDF Notes' : item?.kind === 'video' ? 'Video' : item?.kind === 'image' ? 'Image' : item?.kind === 'text' ? 'Text' : item?.kind === 'quiz' ? 'Quiz' : item?.kind === 'audio' ? 'Audio' : 'Code Pack';
+  const imageUri = item?.files?.find((file) => String(file.content || '').startsWith('data:image'))?.content;
 
   return (
     <View style={styles.page}>
@@ -202,13 +204,35 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
             </View>
           )}
 
-          {item.kind !== 'pdf' && item.kind !== 'code' && item.body ? (
+          {imageUri ? <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" /> : null}
+          {item.kind !== 'pdf' && item.kind !== 'code' && item.kind !== 'image' && item.body ? (
             <Text style={styles.bodyText}>{item.body}</Text>
           ) : null}
 
           <TouchableOpacity style={styles.secondary} onPress={() => void save()} disabled={saving}>
             <Text style={styles.secondaryText}>{item.saved ? 'Saved to device' : saving ? 'Saving...' : 'Save / Store in library'}</Text>
           </TouchableOpacity>
+          {item.isOwner ? (
+            <TouchableOpacity
+              style={styles.remove}
+              onPress={() => {
+                Alert.alert('Remove material', 'Delete this from the library?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                      void libraryRepository.remove(item._id)
+                        .then(() => navigation.goBack())
+                        .catch(() => Alert.alert('Could not delete this material.'));
+                    },
+                  },
+                ]);
+              }}
+            >
+              <Text style={styles.removeText}>Delete from library</Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
       )}
       <StackFooterBar navigation={navigation} active="Learning" />
@@ -289,9 +313,12 @@ const styles = StyleSheet.create({
   primaryText: { color: navy, fontWeight: '900' },
   secondary: { borderWidth: 1, borderColor: '#D7DEEA', borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 16, backgroundColor: '#FFF' },
   secondaryText: { color: navy, fontWeight: '800' },
+  remove: { borderWidth: 1, borderColor: '#FECACA', borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 10, backgroundColor: '#FFF' },
+  removeText: { color: '#B42318', fontWeight: '800' },
   note: { backgroundColor: '#FFF', borderRadius: 18, padding: 14, marginTop: 14, borderWidth: 1, borderColor: '#E6EAF2' },
   noteLabel: { color: navy, fontWeight: '900', marginBottom: 8 },
   bodyText: { color: ink, lineHeight: 22, marginTop: 14 },
+  previewImage: { width: '100%', height: 220, borderRadius: 16, marginTop: 14, backgroundColor: '#E8EEF8' },
   row: { flexDirection: 'row', gap: 8, marginTop: 12 },
   speed: { backgroundColor: yellow, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   speedText: { color: navy, fontWeight: '900' },

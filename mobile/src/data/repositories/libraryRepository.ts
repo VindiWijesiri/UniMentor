@@ -12,4 +12,5 @@ export const libraryRepository = {
     await apiClient.post<LibraryMaterial>(`/library/${id}/progress`, payload)
   ).data,
   quiz: async (id: string, answers: number[]) => (await apiClient.post<QuizResult>(`/library/${id}/quiz`, { answers })).data,
+  remove: async (id: string) => (await apiClient.delete<{ deleted: boolean }>(`/library/${id}`)).data,
 };
