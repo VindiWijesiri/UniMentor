@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   buttonText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },

@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   updatePassText: {
     fontSize: 14,
     fontWeight: '800',
-    color: colors.white,
+    color: colors.primary,
   },
   toggleRow: {
     flexDirection: 'row',

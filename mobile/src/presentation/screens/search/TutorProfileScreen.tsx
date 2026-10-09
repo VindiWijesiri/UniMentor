@@ -484,7 +484,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
 
 const navy = '#061E47';
 const navyCard = '#0B2754';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 const gold = '#FBBF24';
 const onlineGreen = '#22C55E';
 

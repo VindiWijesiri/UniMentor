@@ -1927,13 +1927,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   modalCloseBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: 'center',
   },
   modalCloseBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },

@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
     color: '#065F46',
   },
   tutorManageSlotsHeroBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -938,7 +938,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   tutorManageSlotsHeroBtnTitle: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -1184,7 +1184,7 @@ const styles = StyleSheet.create({
   },
   modalSaveBtn: {
     flex: 1,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -1192,6 +1192,6 @@ const styles = StyleSheet.create({
   modalSaveBtnText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#061E47',
   },
 });

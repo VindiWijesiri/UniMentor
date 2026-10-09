@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   permissionBtnText: {
-    color: colors.white,
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   captureButtonText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -707,7 +707,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   verifyButtonText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '700',
   },

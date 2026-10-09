@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   primaryButtonText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   retryButtonText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },

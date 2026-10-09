@@ -1754,7 +1754,7 @@ export default function SearchScreen({ route, navigation }: Props) {
 
 const navy = '#061E47';
 const navyCard = '#0B2754';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 const gold = '#FBBF24';
 const onlineGreen = '#22C55E';
 
@@ -2151,7 +2151,7 @@ const styles = StyleSheet.create({
     minWidth: 70,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2218,7 +2218,7 @@ const styles = StyleSheet.create({
   bookingChipText: { color: '#475569', fontSize: 11, fontWeight: '700' },
   bookingChipTextActive: { color: '#FFFFFF', fontWeight: '800' },
   confirmBookingBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
@@ -2261,12 +2261,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
-    shadowColor: '#F59E0B',
+    shadowColor: '#FBBF24',
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 3,
@@ -2390,7 +2390,7 @@ const styles = StyleSheet.create({
   resetFiltersBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 12,
@@ -2530,11 +2530,11 @@ const styles = StyleSheet.create({
     flex: 2,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F59E0B',
+    shadowColor: '#FBBF24',
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 5,

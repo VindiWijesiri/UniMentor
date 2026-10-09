@@ -1485,13 +1485,13 @@ export default function TutorDashboardScreen({ navigation }: any) {
                 <Text style={[styles.modalCancelText, { color: '#FFFFFF' }]}>Dismiss</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalConfirmBtn, { backgroundColor: '#F59E0B' }]}
+                style={[styles.modalConfirmBtn, { backgroundColor: '#FBBF24' }]}
                 onPress={() => {
                   setLivePodModalVisible(false);
                   Alert.alert('Live Session Started', 'Broadcasting live Kuppiya pod audio & whiteboard!');
                 }}
               >
-                <Text style={[styles.modalConfirmText, { color: '#0F172A' }]}>Start Broadcast</Text>
+                <Text style={[styles.modalConfirmText, { color: '#061E47' }]}>Start Broadcast</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1638,7 +1638,7 @@ export default function TutorDashboardScreen({ navigation }: any) {
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalConfirmBtn, { backgroundColor: '#F59E0B' }]}
+                style={[styles.modalConfirmBtn, { backgroundColor: '#FBBF24' }]}
                 onPress={handleAddSlot}
               >
                 <Text style={[styles.modalConfirmText, { color: '#061E47', fontWeight: '800' }]}>
@@ -1954,7 +1954,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   scheduleBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     paddingVertical: 9,
     paddingHorizontal: 15,
@@ -2109,7 +2109,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   pulseBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     paddingVertical: 9,
     paddingHorizontal: 12,
@@ -2377,7 +2377,7 @@ const styles = StyleSheet.create({
   startPodPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -2386,7 +2386,7 @@ const styles = StyleSheet.create({
   startPodText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#061E47',
   },
 
   // Modals
@@ -2459,7 +2459,7 @@ const styles = StyleSheet.create({
   },
   modalConfirmBtn: {
     flex: 1.5,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -2467,7 +2467,7 @@ const styles = StyleSheet.create({
   modalConfirmText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#061E47',
   },
 
   /* Slot Management Styles */
@@ -2734,12 +2734,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 10,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
   },
   acceptRequestBtnText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#061E47',
   },
 
   /* Date & Time Picker Styles */
@@ -2996,7 +2996,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   addTopicBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 10,
     paddingHorizontal: 12,
     flexDirection: 'row',
@@ -3004,7 +3004,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   addTopicBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -3074,7 +3074,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   addModuleBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 10,
     paddingHorizontal: 12,
     flexDirection: 'row',
@@ -3714,7 +3714,7 @@ const styles = StyleSheet.create({
     color: '#059669',
   },
   photoModalCloseBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
@@ -3723,6 +3723,6 @@ const styles = StyleSheet.create({
   photoModalCloseBtnText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#061E47',
   },
 });

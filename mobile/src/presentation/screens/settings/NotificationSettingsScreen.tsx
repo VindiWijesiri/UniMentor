@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   saveActionText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '800',
   },

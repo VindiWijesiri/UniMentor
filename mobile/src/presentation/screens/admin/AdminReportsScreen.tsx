@@ -515,13 +515,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   exportBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   exportBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 11,
     fontWeight: '800',
   },

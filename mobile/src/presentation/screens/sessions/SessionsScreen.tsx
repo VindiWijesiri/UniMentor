@@ -1251,7 +1251,7 @@ export default function SessionsScreen() {
 
 const navy = '#061E47';
 const navyLight = '#0B2754';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 
 const styles = StyleSheet.create({
   screen: {
@@ -1734,7 +1734,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chatBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 10.5,
     fontWeight: '800',
   },
@@ -1767,7 +1767,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   findTutorBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 11,
     fontWeight: '900',
   },
@@ -1808,7 +1808,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   emptyActionBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -1978,7 +1978,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tutorChatActionBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 11.5,
     fontWeight: '800',
   },

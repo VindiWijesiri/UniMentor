@@ -177,7 +177,7 @@ export default function FiltersScreen({ route, navigation }: Props) {
 
 const navy = '#061E47';
 const navyCard = '#0B2754';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   option: { flex: 1, minHeight: 38, borderRadius: 11, backgroundColor: '#F0F4FA', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   optionActive: { backgroundColor: amber, shadowColor: amber, shadowOpacity: 0.22, shadowRadius: 7, elevation: 3 },
   optionText: { color: '#27406F', fontSize: 11.5, fontWeight: '700', textAlign: 'center' },
-  optionTextActive: { color: '#FFF' },
+  optionTextActive: { color: navy },
   rangeTrack: { height: 6, borderRadius: 3, backgroundColor: '#D6DFED', marginHorizontal: 4, marginTop: 14 },
   rangeFill: { width: '55%', height: 6, borderRadius: 3, backgroundColor: amber },
   rangeThumb: { position: 'absolute', left: '53%', top: -5, width: 16, height: 16, borderRadius: 8, backgroundColor: amber, borderWidth: 2, borderColor: '#FFF' },
@@ -267,6 +267,6 @@ const styles = StyleSheet.create({
   rangeLabel: { color: navy, fontSize: 10.5, fontWeight: '800' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#FFF', paddingHorizontal: 15, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
   applyButton: { height: 53, borderRadius: 14, backgroundColor: amber, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: amber, shadowOpacity: 0.25, shadowRadius: 9, elevation: 4 },
-  applyText: { color: '#FFF', fontSize: 16, fontWeight: '900' },
-  applyArrow: { color: '#FFF', fontSize: 22, fontWeight: '900', marginLeft: 13 },
+  applyText: { color: navy, fontSize: 16, fontWeight: '900' },
+  applyArrow: { color: navy, fontSize: 22, fontWeight: '900', marginLeft: 13 },
 });

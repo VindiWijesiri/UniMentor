@@ -2402,7 +2402,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
 const navyDark = '#061E47';
 const navyCard = '#0B2754';
-const orangeVibrant = '#F59E0B';
+const orangeVibrant = '#FBBF24';
 
 const styles = StyleSheet.create({
   screen: {
@@ -2599,14 +2599,14 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   alertActionBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     paddingVertical: 5,
     paddingHorizontal: 11,
     alignItems: 'center',
   },
   alertActionBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -2837,7 +2837,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   joinRoomText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 15,
     fontWeight: '800',
   },
@@ -3098,7 +3098,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   emptyPodsBookBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -3450,7 +3450,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chatMentorBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -3631,7 +3631,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   confirmModalBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },
@@ -3691,7 +3691,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   podJoinText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -3872,7 +3872,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   roomSendBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -3913,7 +3913,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   smallAddBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -4182,7 +4182,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   examBookMentorBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -4352,7 +4352,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   calcScoreBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },
@@ -4395,7 +4395,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   downloadPdfBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },

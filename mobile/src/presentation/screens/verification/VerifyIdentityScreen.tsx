@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   continueButtonText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },

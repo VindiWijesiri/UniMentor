@@ -581,13 +581,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   reviewButton: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   reviewButtonText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   submitEditBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   submitEditBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },

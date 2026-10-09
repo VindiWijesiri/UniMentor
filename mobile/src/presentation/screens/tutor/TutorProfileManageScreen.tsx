@@ -488,6 +488,6 @@ const styles = StyleSheet.create({
   dashboardBtnText: {
     fontSize: 14,
     fontWeight: '800',
-    color: colors.white,
+    color: colors.primary,
   },
 });

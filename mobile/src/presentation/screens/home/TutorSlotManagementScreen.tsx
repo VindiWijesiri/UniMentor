@@ -2151,7 +2151,7 @@ const styles = StyleSheet.create({
     color: '#059669',
   },
   photoModalCloseBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
@@ -2160,7 +2160,7 @@ const styles = StyleSheet.create({
   photoModalCloseBtnText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#061E47',
   },
   selectedDateBadge: {
     fontSize: 12,

@@ -619,18 +619,18 @@ const styles = StyleSheet.create({
 
   /* Submit Button */
   submitBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: 'center',
-    shadowColor: '#F59E0B',
+    shadowColor: '#FBBF24',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
   submitBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },

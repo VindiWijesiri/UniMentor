@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  buttonText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
   link: { textAlign: 'center', color: colors.textLight, fontSize: 14 },
   linkBold: { color: colors.primary, fontWeight: '700' },
   campusSection: {

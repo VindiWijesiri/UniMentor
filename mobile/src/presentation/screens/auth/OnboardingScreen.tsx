@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15.5,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.primary,
   },
   loginLink: {
     alignItems: 'center',

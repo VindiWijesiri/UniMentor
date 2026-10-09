@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   primaryBtnText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },

@@ -15,7 +15,7 @@ const getDetectedHostIp = (): string => {
       return ip;
     }
   }
-  return '192.168.1.6';
+  return '172.28.13.76';
 };
 
 const DETECTED_IP = getDetectedHostIp();

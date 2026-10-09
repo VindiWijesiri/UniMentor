@@ -631,7 +631,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
 }
 
 const navy = '#061E47';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 
 const styles = StyleSheet.create({
   screen: {
@@ -995,13 +995,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryBtnText: {
-    color: '#FFFFFF',
+    color: navy,
     fontSize: 15.5,
     fontWeight: '900',
     letterSpacing: 0.3,
   },
   btnArrow: {
-    color: '#FFFFFF',
+    color: navy,
     fontSize: 16,
     fontWeight: '900',
   },

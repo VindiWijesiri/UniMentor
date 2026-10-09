@@ -1164,7 +1164,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   emptyCreateBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1174,7 +1174,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   emptyCreateBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 12.5,
     fontWeight: '800',
   },
@@ -1338,7 +1338,7 @@ const styles = StyleSheet.create({
   },
   primaryActionBtn: {
     flex: 1,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -1350,7 +1350,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   primaryActionBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -1504,14 +1504,14 @@ const styles = StyleSheet.create({
     color: '#0D4F9E',
   },
   doneSheetBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 14,
   },
   doneSheetBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },
@@ -1532,7 +1532,7 @@ const styles = StyleSheet.create({
     color: '#1D4ED8',
   },
   upcomingActionBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
   },
   confirmJoinOverlay: {
     flex: 1,
@@ -1666,20 +1666,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   confirmEnterBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 14,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F59E0B',
+    shadowColor: '#FBBF24',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 3,
   },
   confirmEnterBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },

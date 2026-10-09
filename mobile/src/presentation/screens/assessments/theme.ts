@@ -1,5 +1,5 @@
 export const navy = '#061E47';
-export const orange = '#F59E0B';
+export const orange = '#FBBF24';
 export const blue = '#31528E';
 export const page = '#F4F6FB';
 export const card = '#FFFFFF';

@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   continueText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },

@@ -1,7 +1,7 @@
 export const colors = {
   primary: '#061E47',      // Student Dashboard Deep Navy
   navyCard: '#0B2754',     // Student Dashboard Rich Navy Card
-  secondary: '#F59E0B',    // Student Dashboard Vibrant Amber / Gold
+  secondary: '#FBBF24',    // Book Session Yellow
   accent: '#FBBF24',       // Student Dashboard Golden highlight
   background: '#F4F7FB',   // Student Dashboard Porcelain Background
   surface: '#FFFFFF',      // Card Surface
@@ -32,7 +32,7 @@ export const colors = {
   cardBg: '#FFFFFF',      // Card background
   borderLight: '#E0E6F0', // Card and input border
   divider: '#EDF0F5',     // Separator divider
-  accentYellow: '#FFD200',// Highlight yellow / star
+  accentYellow: '#FBBF24',// Highlight yellow / star (matched to Book Session yellow)
   purple: '#6366F1',      // Academic purple accent
   purpleLight: '#EEF2FF', // Purple badge background
 };

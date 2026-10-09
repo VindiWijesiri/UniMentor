@@ -1704,7 +1704,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1855,7 +1855,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   shareActionPill: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -2020,11 +2020,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 10,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
   },
   shareModalSubmitText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#061E47',
   },
 });

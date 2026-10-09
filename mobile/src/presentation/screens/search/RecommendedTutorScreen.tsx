@@ -188,7 +188,7 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
 
 const navy = '#061E47';
 const navyCard = '#0B2754';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   quoteAuthor: { color: '#BFCFE7', fontSize: 9.5, fontWeight: '700', marginTop: 9 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#FFF', paddingHorizontal: 15, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
   confirmButton: { minHeight: 56, borderRadius: 15, backgroundColor: amber, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: amber, shadowOpacity: 0.24, shadowRadius: 8, elevation: 4 },
-  confirmLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  confirmText: { color: '#FFF', fontSize: 14, fontWeight: '900', marginTop: 2 },
-  confirmArrow: { color: '#FFF', fontSize: 24, fontWeight: '900' },
+  confirmLabel: { color: 'rgba(6,30,71,0.75)', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  confirmText: { color: navy, fontSize: 14, fontWeight: '900', marginTop: 2 },
+  confirmArrow: { color: navy, fontSize: 24, fontWeight: '900' },
 });

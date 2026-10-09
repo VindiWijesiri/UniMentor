@@ -147,5 +147,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 20,
   },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  buttonText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
 });

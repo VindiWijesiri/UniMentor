@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   saveButtonText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },
