@@ -47,7 +47,8 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 type Props = NativeStackScreenProps<AppStackParamList, 'WriteReview'>;
 
 /**
- * Visual styling and metadata for each star rating tier (1 to 5 stars)
+ * Visual styling and metadata for each star rating
+ *  (1 to 5 stars)
  */
 interface RatingOption {
   label: string;
