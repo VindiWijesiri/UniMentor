@@ -1,3 +1,21 @@
+/**
+ * ============================================================================
+ * @file FiltersScreen.tsx
+ * @module AcademicSupport / Search & Filtering Engine
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Dedicated modal filter screen for fine-tuning tutor discovery parameters.
+ * Allows students to narrow down tutors by:
+ * - Hourly tutoring fee range in LKR (e.g., LKR 500-3000 vs LKR 3000-5000)
+ * - Minimum student rating thresholds (4.5+, 4.0+, 3.5+)
+ * - Teaching experience tiers (1-2 years, 3-5 years, 5+ years)
+ * - Instructional language (English, Sinhala, Tamil)
+ * - Class format (Individual 1-on-1 vs Group sessions)
+ *
+ * Includes instant filter reset and cross-stack navigation parameter propagation.
+ * ============================================================================
+ */
+
 import React, { useState } from 'react';
 import { Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,6 +27,9 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 type Props = NativeStackScreenProps<AppStackParamList, 'Filters'>;
 type FilterKey = Exclude<keyof TutorFilters, 'priceRange' | 'minRating'>;
 
+/**
+ * Filter category specifications defining visual labels, icons, and selectable options
+ */
 const sections: Array<{
   key: FilterKey;
   title: string;
@@ -21,6 +42,9 @@ const sections: Array<{
   { key: 'lessonType', title: 'Lesson Type', subtitle: 'Choose a class type', icon: 'people-outline', options: ['Individual', 'Group'] },
 ];
 
+/**
+ * Interactive pill selector group for single-choice filter options
+ */
 function OptionGroup({
   options,
   selected,
@@ -52,16 +76,27 @@ function OptionGroup({
   );
 }
 
+/**
+ * FiltersScreen modal component allowing fine-grained tutor result filtering
+ */
 export default function FiltersScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const [filters, setFilters] = useState<TutorFilters>(route.params?.filters ?? {});
 
+  /**
+   * Toggles or updates a specific filter criterion, removing it if tapped again
+   * @param key - The property on TutorFilters being altered
+   * @param value - Selected value or range
+   */
   const updateFilter = <K extends keyof TutorFilters>(key: K, value: TutorFilters[K]) => {
     setFilters((current) => ({ ...current, [key]: current[key] === value ? undefined : value }));
   };
 
+  /**
+   * Propagates configured filters back to the originating Search / FindMentor screen
+   */
   const applyFilters = () => {
     try {
       (navigation as any).navigate('FindMentor', {
