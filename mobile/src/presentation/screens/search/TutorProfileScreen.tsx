@@ -117,10 +117,6 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
     : (mentor.rating ? mentor.rating.toFixed(1) : 'New');
 
   const openChat = () => {
-    if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
-      Alert.alert('Chat unavailable', 'Please select a registered tutor from the updated tutor list.');
-      return;
-    }
     navigation.navigate('Chat', { mentor });
   };
 

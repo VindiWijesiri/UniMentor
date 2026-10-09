@@ -28,14 +28,6 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
   const latestReview = reviews[0];
 
   const startChat = () => {
-    if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
-      Alert.alert(
-        'Select a registered tutor',
-        'This tutor profile is no longer available. Please return to Find Tutors and select a registered tutor.',
-        [{ text: 'Find Tutors', onPress: () => navigation.navigate('MainTabs', { screen: 'Search' }) }],
-      );
-      return;
-    }
     navigation.navigate('Chat', { mentor });
   };
 
