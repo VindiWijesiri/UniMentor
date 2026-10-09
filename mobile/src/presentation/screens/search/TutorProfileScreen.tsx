@@ -33,7 +33,7 @@ import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 type Props = any;
 
 /**
- * Extended mentor entity incorporating profile presentation metadata 
+ * Extended mentor entities incorporating profile presentation metadata 
  */
 type ProfileMentor = Mentor & {
   experience?: string;
