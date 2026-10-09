@@ -1,0 +1,16 @@
+{
+  "name": "unimentor-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UniMentor Project Root Scripts",
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "backend": "npm --prefix backend run dev",
+    "mobile": "npm --prefix mobile start",
+    "start": "npm --prefix mobile start",
+    "free-port": "npm --prefix backend run free-port",
+    "build:backend": "npm --prefix backend run build",
+    "check:mobile": "npm --prefix mobile run type-check",
+    "check": "npm run check:mobile && npm run build:backend"
+  }
+}

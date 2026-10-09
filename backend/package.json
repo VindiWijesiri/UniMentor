@@ -4,7 +4,8 @@
   "description": "UniMentor REST API — Node.js / Express / MongoDB",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "ts-node-dev --respawn --transpile-only --exit-child --tree-kill src/server.ts",
+    "free-port": "powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\"",
     "build": "tsc",
     "start": "node dist/server.js",
     "init-db": "ts-node --transpile-only src/scripts/initAtlas.ts",
