@@ -1,3 +1,21 @@
+/**
+ * ============================================================================
+ * @file ChatScreen.tsx
+ * @module AcademicSupport / Direct Messaging & Inquiries
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Real-time 1-on-1 academic communication portal between students and tutors.
+ *
+ * Core Features:
+ * - Bidirectional messaging with background auto-polling synchronization (3.5s)
+ * - Rich audio voice notes with waveform simulation and playback scrubber
+ * - In-app VoIP voice calling modal with ringing states and live call timers
+ * - In-place message editing, individual deletion, and conversation clearing
+ * - Quick academic icebreakers tailored for students and peer mentors
+ * - Emoji message reactions and document/photo attachment bottom sheet
+ * ============================================================================
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -27,12 +45,20 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Chat'>;
 
+/**
+ * Formats an ISO date string into a user-friendly 12-hour time format (e.g. "02:45 PM")
+ * @param date - ISO timestamp string
+ * @returns Formatted time string
+ */
 const formatTime = (date: string) =>
   new Date(date).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
 
+/**
+ * Main 1-on-1 student-to-tutor chat interface
+ */
 export default function ChatScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const statusBarHeight =
