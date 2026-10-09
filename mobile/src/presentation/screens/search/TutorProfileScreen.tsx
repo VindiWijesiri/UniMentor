@@ -8,7 +8,7 @@
  * subject specialties, real-time student reviews and ratings, pricing breakdown,
  * and direct 1-on-1 student-to-tutor chat navigation.
  *
- * Core Features:
+ * Core Features::
  * - Peer tutor hero banner with avatar, verification status, and ratings summary
  * - Dynamic subject chips display with academic guidance bio
  * - Live student review listing with rating aggregation and delete capabilities
