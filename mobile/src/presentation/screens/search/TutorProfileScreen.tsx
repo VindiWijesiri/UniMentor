@@ -1,3 +1,22 @@
+/**
+ * ============================================================================
+ * @file TutorProfileScreen.tsx
+ * @module AcademicSupport / Tutor Profiles & Inquiries
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Comprehensive tutor profile screen presenting tutor credentials, academic
+ * subject specialties, real-time student reviews and ratings, pricing breakdown,
+ * and direct 1-on-1 student-to-tutor chat navigation.
+ *
+ * Core Features:
+ * - Peer tutor hero banner with avatar, verification status, and ratings summary
+ * - Dynamic subject chips display with academic guidance bio
+ * - Live student review listing with rating aggregation and delete capabilities
+ * - Direct messaging entry point connecting student to tutor
+ * - Dual perspective support (renders for visiting student or authenticated tutor owner)
+ * ============================================================================
+ */
+
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,6 +31,10 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = any;
+
+/**
+ * Extended mentor entity incorporating profile presentation metadata
+ */
 type ProfileMentor = Mentor & {
   experience?: string;
   sessionCount?: number;
@@ -19,6 +42,9 @@ type ProfileMentor = Mentor & {
   guidance?: string;
 };
 
+/**
+ * Reusable section title component styled with themed icon container
+ */
 function SectionHeading({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
   return (
     <View style={styles.sectionHeading}>
@@ -30,6 +56,9 @@ function SectionHeading({ icon, title }: { icon: keyof typeof Ionicons.glyphMap;
   );
 }
 
+/**
+ * TutorProfileScreen component rendering full profile details, ratings, and contact CTAs
+ */
 export default function TutorProfileScreen({ route, navigation }: Props) {
   const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
@@ -67,6 +96,9 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
 
+  /**
+   * Loads all student reviews submitted for this specific mentor from the repository
+   */
   const loadReviews = useCallback(async () => {
     try {
       const data = await reviewRepository.listForTutor(mentor._id);
@@ -78,6 +110,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
     }
   }, [mentor._id]);
 
+  /**
+   * Validates permissions and executes deletion of a student's review
+   * @param reviewId - Unique identifier of the review record
+   */
   const handleDeleteReview = (reviewId: string) => {
     if (currentRole === 'mentor') {
       Alert.alert('Permission Denied', 'Mentors cannot delete student reviews.');
@@ -116,6 +152,9 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
     ? (reviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews).toFixed(1)
     : (mentor.rating ? mentor.rating.toFixed(1) : 'New');
 
+  /**
+   * Validates tutor identifier and opens 1-on-1 direct conversation with the tutor
+   */
   const openChat = () => {
     if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
       Alert.alert('Chat unavailable', 'Please select a registered tutor from the updated tutor list.');
