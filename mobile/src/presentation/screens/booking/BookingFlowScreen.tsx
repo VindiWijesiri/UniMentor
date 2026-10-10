@@ -13,7 +13,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -235,6 +234,16 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
     transactionId: string;
     facePhoto: string | null;
     studyMode: string;
+    authCode?: string;
+    cardDetails?: string;
+  } | null>(null);
+
+  // Phone Number Collection state for WhatsApp notification
+  const [showPhoneModal, setShowPhoneModal] = useState<boolean>(false);
+  const [studentPhone, setStudentPhone] = useState<string>('');
+  const [pendingPaymentData, setPendingPaymentData] = useState<{
+    paymentMethod: string;
+    transactionId: string;
     authCode?: string;
     cardDetails?: string;
   } | null>(null);
@@ -472,7 +481,7 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         cameraType: ImagePicker.CameraType.front,
         allowsEditing: false,
         quality: 0.85,
@@ -500,7 +509,7 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
   const handlePickFaceLibrary = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.85,
@@ -575,8 +584,63 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
     }
   };
 
+  // WhatsApp notification function
+  const sendWhatsAppConfirmation = async (transactionId: string, time: string) => {
+    if (!studentPhone) return;
+
+    try {
+      // Get auth token from store
+      const token = useAuthStore.getState().token;
+      
+      // Call backend API to send WhatsApp message via WA Client
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/whatsapp/send-booking-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          phoneNumber: studentPhone,
+          studentName,
+          tutorName: mentor.name,
+          subject: mentor.subjects?.[0] || 'Academic Tutoring',
+          date: selectedDate,
+          time: time,
+          amount: totalPayable,
+          transactionId,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.sent) {
+        console.log('✅ WhatsApp confirmation sent via backend');
+      } else {
+        console.log('⚠️ WhatsApp not sent:', result.message);
+      }
+    } catch (error) {
+      console.error('❌ WhatsApp API error:', error);
+      // Don't show error to user, just log it
+    }
+  };
+
   // Step 7: Payment confirmation & DirectPay handlers
   const handleConfirmAndPay = async () => {
+    // Show phone number modal before processing payment
+    setShowPhoneModal(true);
+  };
+
+  const handlePhoneSubmit = async () => {
+    // Validate phone number
+    const cleanPhone = studentPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      Alert.alert('Invalid Phone Number', 'Please enter a valid phone number with at least 10 digits.');
+      return;
+    }
+
+    setShowPhoneModal(false);
+
+    // Now proceed with original payment flow
     if (selectedPaymentMethod === 'card') {
       setIsSubmitting(true);
       try {
@@ -790,6 +854,9 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
         cardDetails,
       });
       setShowSuccessModal(true);
+
+      // Send WhatsApp notification
+      sendWhatsAppConfirmation(transactionId, finalTime);
     } catch {
       Alert.alert(
         'Booking Placed',
@@ -2624,6 +2691,55 @@ export default function BookingFlowScreen({ navigation, route }: Props) {
                 activeOpacity={0.85}
               >
                 <Text style={styles.requestModalDoneBtnText}>Done • Return Home</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ================= PHONE NUMBER COLLECTION MODAL ================= */}
+      <Modal visible={showPhoneModal} transparent animationType="fade">
+        <View style={styles.phoneModalBackdrop}>
+          <View style={styles.phoneModalCard}>
+            <Text style={styles.phoneModalTitle}>Enter Your Phone Number</Text>
+            <Text style={styles.phoneModalSubtitle}>
+              We'll send a WhatsApp confirmation message to your phone
+            </Text>
+
+            <View style={styles.phoneInputContainer}>
+              <View style={styles.phonePrefix}>
+                <Text style={styles.phonePrefixText}>+94</Text>
+              </View>
+              <TextInput
+                style={styles.phoneInput}
+                placeholder="77 123 4567"
+                keyboardType="phone-pad"
+                value={studentPhone}
+                onChangeText={setStudentPhone}
+                maxLength={15}
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.phoneModalButtons}>
+              <TouchableOpacity
+                style={styles.phoneSkipButton}
+                onPress={() => {
+                  setShowPhoneModal(false);
+                  setStudentPhone('');
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.phoneSkipButtonText}>Skip</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.phoneConfirmButton}
+                onPress={handlePhoneSubmit}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.phoneConfirmButtonText}>Continue to Payment</Text>
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </View>
@@ -5556,5 +5672,95 @@ const styles = StyleSheet.create({
     color: '#061E47',
     fontSize: 15,
     fontWeight: '900',
+  },
+
+  // Phone Number Modal Styles
+  phoneModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  phoneModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  phoneModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#061E47',
+    marginBottom: 8,
+  },
+  phoneModalSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 24,
+  },
+  phoneInputContainer: {
+    flexDirection: 'row',
+    marginBottom: 24,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  phonePrefix: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    borderRightWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  phonePrefixText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#061E47',
+  },
+  phoneInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#061E47',
+  },
+  phoneModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  phoneSkipButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  phoneSkipButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  phoneConfirmButton: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#1565C0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  phoneConfirmButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

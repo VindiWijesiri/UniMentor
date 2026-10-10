@@ -464,7 +464,15 @@ export default function StudentDashboardScreen({ navigation }: Props) {
                 style={styles.nextJoinBtn}
                 activeOpacity={0.85}
                 onPress={() => {
-                  (navigation as any).navigate('Bookings', { screen: 'SessionsList' });
+                  (navigation as any).navigate('Bookings', {
+                    screen: 'SessionsList',
+                    params: {
+                      autoJoinTutorName: nextSession.mentor.name,
+                      autoJoinTutorId: nextSession.mentor.id,
+                      moduleCode: nextSession.moduleCode,
+                      moduleName: nextSession.moduleName,
+                    },
+                  });
                 }}
               >
                 <SvgVideocam size={14} color="#FFFFFF" />

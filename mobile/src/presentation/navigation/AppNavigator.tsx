@@ -27,6 +27,7 @@ import TutorSessionsScreen from '../screens/home/TutorSessionsScreen';
 import SessionsScreen from '../screens/sessions/SessionsScreen';
 import BookingFlowScreen from '../screens/booking/BookingFlowScreen';
 import LiveSessionRoomScreen from '../screens/sessions/LiveSessionRoomScreen';
+import VideoCallScreen from '../screens/video/VideoCallScreen';
 
 // Hima-Personal screens
 import LearningDashboardScreen from '../screens/learning/LearningDashboardScreen';
@@ -182,6 +183,7 @@ export type AppStackParamList = {
     initialMode?: '1-on-1' | 'group';
   };
   LiveSessionRoom: { session: any; initialCameraOff?: boolean; initialMuted?: boolean } | undefined;
+  VideoCall: { sessionId: string; channelName: string; token?: string; isTutor: boolean };
   Onboarding: undefined;
 
   // Integrated screens from Hima-Personal
@@ -543,6 +545,7 @@ export default function AppNavigator() {
       <Stack.Screen name="StudentDashboard" component={StudentDashboardScreen as any} />
       <Stack.Screen name="TutorSlotManagement" component={TutorSlotManagementScreen} />
       <Stack.Screen name="LiveSessionRoom" component={LiveSessionRoomScreen} />
+      <Stack.Screen name="VideoCall" component={VideoCallScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
 
       {/* Integrated Screens from Hima-Personal */}

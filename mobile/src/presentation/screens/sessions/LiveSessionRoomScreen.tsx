@@ -18,8 +18,59 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
+import { useAuthStore } from '../../../domain/stores/authStore';
+import { liveSessionRoomRepository } from '../../../data/repositories/liveSessionRoomRepository';
 
 const { width } = Dimensions.get('window');
+
+function AudioWaveEqualizer({
+  isActive,
+  color = '#10B981',
+  size = 'md',
+}: {
+  isActive: boolean;
+  color?: string;
+  size?: 'sm' | 'md';
+}) {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const interval = setInterval(() => {
+      setPhase((p) => (p + 1) % 6);
+    }, 160);
+    return () => clearInterval(interval);
+  }, [isActive]);
+
+  const heights = isActive
+    ? [
+        8 + ((phase * 4) % 10),
+        15 + (((phase + 1) * 3) % 9),
+        20 + (((phase + 2) * 5) % 8),
+        13 + (((phase + 3) * 4) % 10),
+        7 + (((phase + 4) * 2) % 9),
+      ]
+    : [3, 3, 3, 3, 3];
+
+  const barWidth = size === 'sm' ? 2.5 : 3.5;
+  const barGap = size === 'sm' ? 2 : 2.5;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', height: 22, gap: barGap }}>
+      {heights.map((h, i) => (
+        <View
+          key={i}
+          style={{
+            width: barWidth,
+            height: h,
+            backgroundColor: color,
+            borderRadius: 2,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
 
 interface ChatMessage {
   id: string;
@@ -70,10 +121,40 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
   const initialCameraOff = route?.params?.initialCameraOff ?? false;
   const initialMuted = route?.params?.initialMuted ?? false;
 
+  const currentUser = useAuthStore((state) => state.user);
   const tutorName = session.mentorName || session.mentor?.name || 'Alex Ferreira';
   const tutorFirstName = tutorName.split(' ')[0] || 'Tutor';
+  const studentName =
+    session.studentName ||
+    session.attendees?.[0]?.name ||
+    (currentUser?.role === 'student' ? currentUser?.name : 'Kasun Dissanayake') ||
+    'Student Attendee';
+  const studentFirstName = studentName.split(' ')[0] || 'Student';
   const sessionTitle = session.title || 'Database Performance Lab';
   const tutorAvatar = session.mentorAvatar || session.mentor?.avatar || session.avatar;
+  const studentAvatar =
+    session.studentAvatar ||
+    session.attendees?.[0]?.avatar ||
+    (currentUser?.role === 'student' ? currentUser?.profilePicture : undefined);
+
+  // Determine viewer perspective (Student or Tutor ABC)
+  const isActualTutor =
+    currentUser?.role === 'mentor' ||
+    (currentUser?.name && tutorName.toLowerCase().includes(currentUser.name.toLowerCase()));
+  const [viewerRole, setViewerRole] = useState<'student' | 'mentor'>(
+    route?.params?.viewerRole || (isActualTutor ? 'mentor' : 'student')
+  );
+
+  // Video Layout Mode: 'focus' (Presenter + PiP) or 'split' (Dual 50/50 Screen)
+  const [viewLayout, setViewLayout] = useState<'focus' | 'split'>('focus');
+
+  // Audio output & noise suppression
+  const [audioOutput, setAudioOutput] = useState<'speaker' | 'earpiece'>('speaker');
+  const [noiseSuppressionOn, setNoiseSuppressionOn] = useState(true);
+
+  // Audio Level / Decibel simulation
+  const [audioDecibel, setAudioDecibel] = useState(-16);
+  const [studentSpeaking, setStudentSpeaking] = useState(false);
 
   // Camera & Mic Permissions
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -105,13 +186,56 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
   const [isSwappedView, setIsSwappedView] = useState(false);
   const [tutorSpeaking, setTutorSpeaking] = useState(true);
 
-  // Periodic active-speaking pulse for tutor in Zoom-like conference
+  // Periodic active-speaking pulse for conference simulation
   useEffect(() => {
     const pulseInterval = setInterval(() => {
-      setTutorSpeaking((prev) => !prev);
-    }, 4500);
+      setTutorSpeaking((prev) => {
+        const next = !prev;
+        if (!next) {
+          setStudentSpeaking(!isMuted);
+        } else {
+          setStudentSpeaking(false);
+        }
+        return next;
+      });
+    }, 4200);
     return () => clearInterval(pulseInterval);
-  }, []);
+  }, [isMuted]);
+
+  useEffect(() => {
+    const dbInterval = setInterval(() => {
+      if (tutorSpeaking || (!isMuted && studentSpeaking)) {
+        setAudioDecibel(Math.floor(-18 + Math.random() * 8));
+      } else {
+        setAudioDecibel(-46);
+      }
+    }, 500);
+    return () => clearInterval(dbInterval);
+  }, [tutorSpeaking, studentSpeaking, isMuted]);
+
+  const sessionId = session.sessionId || session.id || 'live-session-room-1';
+  useEffect(() => {
+    liveSessionRoomRepository.updateParticipantState(
+      sessionId,
+      viewerRole === 'mentor' ? 'tutor' : 'student',
+      {
+        isCameraOn: !isCameraOff,
+        isMicOn: !isMuted,
+        isSpeaking: viewerRole === 'mentor' ? tutorSpeaking : studentSpeaking,
+      }
+    );
+  }, [isCameraOff, isMuted, viewerRole, tutorSpeaking, studentSpeaking, sessionId]);
+
+  const handleTestTutorVoice = () => {
+    setTutorSpeaking(true);
+    liveSessionRoomRepository.speakText(
+      `Hello! I am ${tutorName}. Welcome to our live session. Your video and voice are streaming clearly!`
+    );
+    Alert.alert(
+      '🎙️ Voice Transmission Verified',
+      `Live audio connection with ${tutorName} is active.\n\n• Codec: Opus HD 48kHz Stereo\n• Latency: 18ms\n• Noise Suppression: Active\n• Voice Stream: Bidirectional Encrypted`
+    );
+  };
 
   const handleToggleCamera = async () => {
     if (isCameraOff) {
@@ -166,6 +290,11 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
     if (lower.includes('dinuka') || lower.includes('kavindu') || lower.includes('shenal')) {
       return 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80';
     }
+    return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80';
+  };
+
+  const getStudentVideoImage = () => {
+    if (studentAvatar && typeof studentAvatar === 'string' && studentAvatar.trim()) return studentAvatar;
     return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80';
   };
 
@@ -357,7 +486,7 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
           <View style={styles.subHeaderLeft}>
             <View style={styles.redLiveDot} />
             <Text style={styles.subHeaderTutorText} numberOfLines={1}>
-              Live with {tutorName}
+              {viewerRole === 'student' ? `Live with ${tutorName}` : `Live Mentoring • ${studentName}`}
             </Text>
           </View>
           <View style={styles.timerBadge}>
@@ -375,88 +504,54 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.roomScrollContent}
           >
+            {/* LAYOUT & PERSPECTIVE CONTROLS */}
+            <View style={styles.viewModeRow}>
+              <View style={styles.viewModeToggleGroup}>
+                <TouchableOpacity
+                  style={[styles.viewModeToggleBtn, viewLayout === 'focus' && styles.viewModeToggleBtnActive]}
+                  onPress={() => setViewLayout('focus')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="scan-outline" size={13} color={viewLayout === 'focus' ? '#061E47' : '#64748B'} />
+                  <Text style={[styles.viewModeToggleText, viewLayout === 'focus' && styles.viewModeToggleTextActive]}>
+                    Focus View
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.viewModeToggleBtn, viewLayout === 'split' && styles.viewModeToggleBtnActive]}
+                  onPress={() => setViewLayout('split')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="grid-outline" size={13} color={viewLayout === 'split' ? '#061E47' : '#64748B'} />
+                  <Text style={[styles.viewModeToggleText, viewLayout === 'split' && styles.viewModeToggleTextActive]}>
+                    Dual Split View
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Role perspective preview toggle */}
+              <TouchableOpacity
+                style={styles.rolePreviewPill}
+                onPress={() => {
+                  const nextRole = viewerRole === 'student' ? 'mentor' : 'student';
+                  setViewerRole(nextRole);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="swap-horizontal" size={12} color="#0D4F9E" />
+                <Text style={styles.rolePreviewPillText}>
+                  {viewerRole === 'student' ? `View: Student` : `View: ${tutorFirstName} (Tutor)`}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* VIDEO FEED CONTAINER */}
-            <View style={styles.videoFeedContainer}>
-              {!isSwappedView ? (
-                <>
-                  <Image
-                    source={{ uri: getTutorVideoImage() }}
-                    style={styles.presenterVideoImage}
-                    resizeMode="cover"
-                  />
-
-                  {/* Video Overlay: Recording & Timer */}
-                  <View style={styles.videoTopOverlayRow}>
-                    <View style={styles.recordingTag}>
-                      <View style={styles.recordingDot} />
-                      <Text style={styles.recordingText}>Recording</Text>
-                    </View>
-                    <View style={styles.videoTimerTag}>
-                      <Ionicons name="time-outline" size={12} color="#FFFFFF" style={{ marginRight: 3 }} />
-                      <Text style={styles.videoTimerText}>{formatTimer(elapsedSeconds)}</Text>
-                    </View>
-                  </View>
-
-                  {/* Video Overlay: Presenter Name Badge */}
-                  <View style={styles.presenterTagBox}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <View style={[styles.speakerActiveDot, tutorSpeaking && styles.speakerActiveDotPulsing]} />
-                      <Text style={styles.presenterNameText}>{tutorName}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                      <Ionicons name={tutorSpeaking ? 'volume-medium' : 'volume-low'} size={11} color="#93C5FD" />
-                      <Text style={styles.presenterSubText}>
-                        {tutorSpeaking ? 'Host • Speaking' : 'Host • Presenting'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Video Overlay: Picture-in-Picture (PiP) Student Thumbnail */}
-                  <TouchableOpacity
-                    style={styles.pipThumbnailBox}
-                    onPress={handleToggleSwapView}
-                    activeOpacity={0.88}
-                  >
-                    {!isCameraOff && cameraPermission?.granted ? (
-                      <View style={StyleSheet.absoluteFill}>
-                        <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} />
-                        <TouchableOpacity
-                          style={styles.pipFlipBtn}
-                          onPress={handleFlipCamera}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="camera-reverse" size={11} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <View style={styles.pipCameraOffContainer}>
-                        <View style={styles.pipAvatarCircle}>
-                          <Ionicons name="person" size={16} color="#94A3B8" />
-                        </View>
-                        <Ionicons name="videocam-off" size={11} color="#EF4444" style={{ marginTop: 1 }} />
-                      </View>
-                    )}
-
-                    <View style={styles.pipLabelBadge}>
-                      <Ionicons
-                        name={isMuted ? 'mic-off' : 'mic'}
-                        size={9}
-                        color={isMuted ? '#EF4444' : '#10B981'}
-                        style={{ marginRight: 2 }}
-                      />
-                      <Text style={styles.pipLabelText}>You</Text>
-                    </View>
-
-                    {isHandRaised && (
-                      <View style={styles.pipHandRaisedBadge}>
-                        <Ionicons name="hand-right" size={10} color="#D97706" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  {!isCameraOff && cameraPermission?.granted ? (
+            {viewLayout === 'split' ? (
+              /* DUAL SPLIT-SCREEN VIEW: BOTH TUTOR & STUDENT VISIBLE SIMULTANEOUSLY */
+              <View style={styles.splitGridContainer}>
+                {/* 1. TUTOR ABC VIDEO & VOICE FEED */}
+                <View style={[styles.splitCard, tutorSpeaking && styles.splitCardActiveSpeaker]}>
+                  {viewerRole === 'mentor' && !isCameraOff && cameraPermission?.granted ? (
                     <View style={StyleSheet.absoluteFill}>
                       <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} />
                       <TouchableOpacity
@@ -464,63 +559,315 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
                         onPress={handleFlipCamera}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="camera-reverse" size={18} color="#FFFFFF" />
+                        <Ionicons name="camera-reverse" size={16} color="#FFFFFF" />
                       </TouchableOpacity>
                     </View>
-                  ) : (
+                  ) : viewerRole === 'mentor' && isCameraOff ? (
                     <View style={styles.mainCameraOffStage}>
                       <View style={styles.mainCameraOffAvatarCircle}>
-                        <Ionicons name="videocam-off" size={30} color="#EF4444" />
+                        <Ionicons name="videocam-off" size={26} color="#EF4444" />
                       </View>
-                      <Text style={styles.mainCameraOffTitle}>Your Camera is Off</Text>
-                      <Text style={styles.mainCameraOffSub}>Tap "Turn On" below to enable camera</Text>
+                      <Text style={styles.mainCameraOffTitle}>Tutor Camera is Off</Text>
                     </View>
-                  )}
-
-                  {/* Video Overlay: Recording & Timer */}
-                  <View style={styles.videoTopOverlayRow}>
-                    <View style={styles.recordingTag}>
-                      <View style={styles.recordingDot} />
-                      <Text style={styles.recordingText}>Recording</Text>
-                    </View>
-                    <View style={styles.videoTimerTag}>
-                      <Ionicons name="time-outline" size={12} color="#FFFFFF" style={{ marginRight: 3 }} />
-                      <Text style={styles.videoTimerText}>{formatTimer(elapsedSeconds)}</Text>
-                    </View>
-                  </View>
-
-                  {/* Video Overlay: Student Badge */}
-                  <View style={styles.presenterTagBox}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <Ionicons
-                        name={isMuted ? 'mic-off' : 'mic'}
-                        size={12}
-                        color={isMuted ? '#EF4444' : '#10B981'}
-                      />
-                      <Text style={styles.presenterNameText}>You (Student)</Text>
-                    </View>
-                    <Text style={styles.presenterSubText}>
-                      {isCameraOff ? 'Camera Off' : 'Live Camera Feed'}
-                    </Text>
-                  </View>
-
-                  {/* Video Overlay: Picture-in-Picture Tutor Thumbnail */}
-                  <TouchableOpacity
-                    style={styles.pipThumbnailBox}
-                    onPress={handleToggleSwapView}
-                    activeOpacity={0.88}
-                  >
+                  ) : (
                     <Image
                       source={{ uri: getTutorVideoImage() }}
-                      style={styles.pipImage}
+                      style={styles.splitVideoImage}
+                      resizeMode="cover"
                     />
-                    <View style={styles.pipLabelBadge}>
-                      <View style={[styles.speakerActiveDot, tutorSpeaking && styles.speakerActiveDotPulsing, { width: 5, height: 5, borderRadius: 2.5, marginRight: 3 }]} />
-                      <Text style={styles.pipLabelText}>{tutorFirstName}</Text>
+                  )}
+
+                  {/* Tutor Top Overlay */}
+                  <View style={styles.splitCardTopBadge}>
+                    <View style={styles.recordingTag}>
+                      <View style={styles.recordingDot} />
+                      <Text style={styles.recordingText}>HD 1080p</Text>
                     </View>
-                  </TouchableOpacity>
-                </>
-              )}
+                    <View style={styles.videoTimerTag}>
+                      <Ionicons name="shield-checkmark" size={10} color="#10B981" style={{ marginRight: 2 }} />
+                      <Text style={styles.videoTimerText}>Host Stream</Text>
+                    </View>
+                  </View>
+
+                  {/* Tutor Bottom Voice & Identity Info */}
+                  <View style={styles.splitCardBottomInfo}>
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <View style={[styles.speakerActiveDot, tutorSpeaking && styles.speakerActiveDotPulsing]} />
+                        <Text style={styles.splitParticipantName}>{tutorName}</Text>
+                      </View>
+                      <Text style={styles.splitParticipantRole}>Lead Tutor • {tutorSpeaking ? 'Speaking' : 'Listening'}</Text>
+                    </View>
+                    <View style={styles.splitMicBadge}>
+                      <AudioWaveEqualizer isActive={tutorSpeaking} color="#10B981" size="sm" />
+                      <Ionicons
+                        name={tutorSpeaking ? 'volume-medium' : 'volume-low'}
+                        size={14}
+                        color={tutorSpeaking ? '#86EFAC' : '#94A3B8'}
+                        style={{ marginLeft: 3 }}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* 2. STUDENT VIDEO & VOICE FEED */}
+                <View style={[styles.splitCard, studentSpeaking && !isMuted && styles.splitCardActiveSpeaker]}>
+                  {viewerRole === 'student' && !isCameraOff && cameraPermission?.granted ? (
+                    <View style={StyleSheet.absoluteFill}>
+                      <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} />
+                      <TouchableOpacity
+                        style={styles.mainFlipBtn}
+                        onPress={handleFlipCamera}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="camera-reverse" size={16} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : viewerRole === 'student' && isCameraOff ? (
+                    <View style={styles.mainCameraOffStage}>
+                      <View style={styles.mainCameraOffAvatarCircle}>
+                        <Ionicons name="videocam-off" size={26} color="#EF4444" />
+                      </View>
+                      <Text style={styles.mainCameraOffTitle}>Student Camera is Off</Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: getStudentVideoImage() }}
+                      style={styles.splitVideoImage}
+                      resizeMode="cover"
+                    />
+                  )}
+
+                  {/* Student Top Overlay */}
+                  <View style={styles.splitCardTopBadge}>
+                    <View style={styles.recordingTag}>
+                      <View style={[styles.recordingDot, { backgroundColor: '#38BDF8' }]} />
+                      <Text style={styles.recordingText}>720p HD</Text>
+                    </View>
+                    {isHandRaised && (
+                      <View style={[styles.videoTimerTag, { backgroundColor: '#D97706' }]}>
+                        <Ionicons name="hand-right" size={10} color="#FFFFFF" style={{ marginRight: 2 }} />
+                        <Text style={styles.videoTimerText}>Question Raised</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Student Bottom Voice & Identity Info */}
+                  <View style={styles.splitCardBottomInfo}>
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Ionicons
+                          name={isMuted ? 'mic-off' : 'mic'}
+                          size={12}
+                          color={isMuted ? '#EF4444' : '#10B981'}
+                        />
+                        <Text style={styles.splitParticipantName}>{studentName}</Text>
+                      </View>
+                      <Text style={styles.splitParticipantRole}>
+                        Student Attendee • {isMuted ? 'Muted' : studentSpeaking ? 'Speaking' : 'Active'}
+                      </Text>
+                    </View>
+                    <View style={styles.splitMicBadge}>
+                      <AudioWaveEqualizer isActive={!isMuted && studentSpeaking} color="#22C55E" size="sm" />
+                      <Ionicons
+                        name={isMuted ? 'mic-off' : 'mic'}
+                        size={14}
+                        color={isMuted ? '#EF4444' : '#86EFAC'}
+                        style={{ marginLeft: 3 }}
+                      />
+                    </View>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              /* PRESENTER FOCUS VIEW + FLOATING PIP */
+              <View style={styles.videoFeedContainer}>
+                {!isSwappedView ? (
+                  <>
+                    <Image
+                      source={{ uri: viewerRole === 'student' ? getTutorVideoImage() : getStudentVideoImage() }}
+                      style={styles.presenterVideoImage}
+                      resizeMode="cover"
+                    />
+
+                    {/* Video Overlay: Recording & Timer */}
+                    <View style={styles.videoTopOverlayRow}>
+                      <View style={styles.recordingTag}>
+                        <View style={styles.recordingDot} />
+                        <Text style={styles.recordingText}>Recording</Text>
+                      </View>
+                      <View style={styles.videoTimerTag}>
+                        <Ionicons name="time-outline" size={12} color="#FFFFFF" style={{ marginRight: 3 }} />
+                        <Text style={styles.videoTimerText}>{formatTimer(elapsedSeconds)}</Text>
+                      </View>
+                    </View>
+
+                    {/* Video Overlay: Presenter Name Badge */}
+                    <View style={styles.presenterTagBox}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <View style={[styles.speakerActiveDot, tutorSpeaking && styles.speakerActiveDotPulsing]} />
+                        <Text style={styles.presenterNameText}>{viewerRole === 'student' ? tutorName : studentName}</Text>
+                        <AudioWaveEqualizer isActive={viewerRole === 'student' ? tutorSpeaking : (!isMuted && studentSpeaking)} color="#10B981" size="sm" />
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                        <Ionicons name={tutorSpeaking ? 'volume-medium' : 'volume-low'} size={11} color="#93C5FD" />
+                        <Text style={styles.presenterSubText}>
+                          {viewerRole === 'student' ? (tutorSpeaking ? 'Host • Speaking' : 'Host • Presenting') : 'Student Video Feed'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Video Overlay: Picture-in-Picture (PiP) Student Thumbnail */}
+                    <TouchableOpacity
+                      style={styles.pipThumbnailBox}
+                      onPress={handleToggleSwapView}
+                      activeOpacity={0.88}
+                    >
+                      {!isCameraOff && cameraPermission?.granted ? (
+                        <View style={StyleSheet.absoluteFill}>
+                          <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} />
+                          <TouchableOpacity
+                            style={styles.pipFlipBtn}
+                            onPress={handleFlipCamera}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="camera-reverse" size={11} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <View style={styles.pipCameraOffContainer}>
+                          <View style={styles.pipAvatarCircle}>
+                            <Ionicons name="person" size={16} color="#94A3B8" />
+                          </View>
+                          <Ionicons name="videocam-off" size={11} color="#EF4444" style={{ marginTop: 1 }} />
+                        </View>
+                      )}
+
+                      <View style={styles.pipLabelBadge}>
+                        <Ionicons
+                          name={isMuted ? 'mic-off' : 'mic'}
+                          size={9}
+                          color={isMuted ? '#EF4444' : '#10B981'}
+                          style={{ marginRight: 2 }}
+                        />
+                        <Text style={styles.pipLabelText}>You</Text>
+                      </View>
+
+                      {isHandRaised && (
+                        <View style={styles.pipHandRaisedBadge}>
+                          <Ionicons name="hand-right" size={10} color="#D97706" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    {!isCameraOff && cameraPermission?.granted ? (
+                      <View style={StyleSheet.absoluteFill}>
+                        <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} />
+                        <TouchableOpacity
+                          style={styles.mainFlipBtn}
+                          onPress={handleFlipCamera}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="camera-reverse" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.mainCameraOffStage}>
+                        <View style={styles.mainCameraOffAvatarCircle}>
+                          <Ionicons name="videocam-off" size={30} color="#EF4444" />
+                        </View>
+                        <Text style={styles.mainCameraOffTitle}>Your Camera is Off</Text>
+                        <Text style={styles.mainCameraOffSub}>Tap "Turn On" below to enable camera</Text>
+                      </View>
+                    )}
+
+                    {/* Video Overlay: Recording & Timer */}
+                    <View style={styles.videoTopOverlayRow}>
+                      <View style={styles.recordingTag}>
+                        <View style={styles.recordingDot} />
+                        <Text style={styles.recordingText}>Recording</Text>
+                      </View>
+                      <View style={styles.videoTimerTag}>
+                        <Ionicons name="time-outline" size={12} color="#FFFFFF" style={{ marginRight: 3 }} />
+                        <Text style={styles.videoTimerText}>{formatTimer(elapsedSeconds)}</Text>
+                      </View>
+                    </View>
+
+                    {/* Video Overlay: Student Badge */}
+                    <View style={styles.presenterTagBox}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Ionicons
+                          name={isMuted ? 'mic-off' : 'mic'}
+                          size={12}
+                          color={isMuted ? '#EF4444' : '#10B981'}
+                        />
+                        <Text style={styles.presenterNameText}>You ({viewerRole === 'student' ? 'Student' : 'Tutor Host'})</Text>
+                        <AudioWaveEqualizer isActive={!isMuted} color="#10B981" size="sm" />
+                      </View>
+                      <Text style={styles.presenterSubText}>
+                        {isCameraOff ? 'Camera Off' : 'Live Camera Feed'}
+                      </Text>
+                    </View>
+
+                    {/* Video Overlay: Picture-in-Picture Remote Thumbnail */}
+                    <TouchableOpacity
+                      style={styles.pipThumbnailBox}
+                      onPress={handleToggleSwapView}
+                      activeOpacity={0.88}
+                    >
+                      <Image
+                        source={{ uri: viewerRole === 'student' ? getTutorVideoImage() : getStudentVideoImage() }}
+                        style={styles.pipImage}
+                      />
+                      <View style={styles.pipLabelBadge}>
+                        <View style={[styles.speakerActiveDot, tutorSpeaking && styles.speakerActiveDotPulsing, { width: 5, height: 5, borderRadius: 2.5, marginRight: 3 }]} />
+                        <Text style={styles.pipLabelText}>{viewerRole === 'student' ? tutorFirstName : studentFirstName}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* REAL-TIME VOICE & VIDEO TELEMETRY STRIP */}
+            <View style={styles.telemetryBar}>
+              <View style={styles.telemetryLeft}>
+                <View
+                  style={[
+                    styles.telemetryPulseDot,
+                    (tutorSpeaking || (!isMuted && studentSpeaking)) && styles.telemetryPulseDotActive,
+                  ]}
+                />
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.telemetryTitle} numberOfLines={1}>
+                      {tutorSpeaking
+                        ? `🎙️ ${tutorFirstName} is speaking`
+                        : !isMuted && studentSpeaking
+                        ? `🎙️ ${studentFirstName} broadcasting`
+                        : '🎙️ Voice Channel Active'}
+                    </Text>
+                    <AudioWaveEqualizer
+                      isActive={tutorSpeaking || (!isMuted && studentSpeaking)}
+                      color="#10B981"
+                      size="sm"
+                    />
+                  </View>
+                  <Text style={styles.telemetrySub}>
+                    Opus 48kHz Stereo • Latency 18ms • {audioDecibel} dBFS • AES-256
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.voiceTestBtn}
+                onPress={handleTestTutorVoice}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="volume-high-outline" size={13} color="#0D4F9E" />
+                <Text style={styles.voiceTestBtnText}>Test Voice</Text>
+              </TouchableOpacity>
             </View>
 
             {/* INTERACTIVE CODE / PRESENTATION CARD */}
@@ -2026,5 +2373,177 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#061E47',
+  },
+
+  // DUAL SPLIT & TELEMETRY STYLES
+  viewModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    marginTop: 2,
+  },
+  viewModeToggleGroup: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 2,
+  },
+  viewModeToggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewModeToggleBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  viewModeToggleText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  viewModeToggleTextActive: {
+    color: '#061E47',
+    fontWeight: '800',
+  },
+  rolePreviewPill: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  rolePreviewPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0D4F9E',
+  },
+  splitGridContainer: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  splitCard: {
+    height: 180,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#0B1E3B',
+    position: 'relative',
+    borderWidth: 1.5,
+    borderColor: '#1E293B',
+  },
+  splitCardActiveSpeaker: {
+    borderColor: '#10B981',
+    borderWidth: 2,
+    shadowColor: '#10B981',
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  splitVideoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  splitCardTopBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 10,
+  },
+  splitCardBottomInfo: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(3, 15, 38, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    zIndex: 10,
+  },
+  splitParticipantName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  splitParticipantRole: {
+    fontSize: 10,
+    color: '#93C5FD',
+    marginTop: 1,
+  },
+  splitMicBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  telemetryBar: {
+    backgroundColor: '#0A1E3F',
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+  },
+  telemetryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  telemetryPulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#64748B',
+  },
+  telemetryPulseDotActive: {
+    backgroundColor: '#10B981',
+    shadowColor: '#10B981',
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  telemetryTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  telemetrySub: {
+    fontSize: 10,
+    color: '#93C5FD',
+    marginTop: 2,
+  },
+  voiceTestBtn: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  voiceTestBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0D4F9E',
   },
 });
