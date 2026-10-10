@@ -5,6 +5,7 @@ import { listNotifications, markNotificationRead } from '../controllers/notifica
 // Add notification Routes
 const router = Router();
 
+
 router.get('/', authenticate, listNotifications);
 router.patch('/:id/read', authenticate, markNotificationRead);
 
