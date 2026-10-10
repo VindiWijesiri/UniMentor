@@ -15,13 +15,15 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useUserStore } from '../../../domain/stores/userStore';
 import { tutorSettingsRepository, TutorBookingSettings } from '../../../data/repositories/tutorSettingsRepository';
 import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
 import { TutorSlot } from '../../../domain/entities/TutorSlot';
+import { chatRepository } from '../../../data/repositories/chatRepository';
+import type { ChatConversation } from '../../../domain/entities/ChatMessage';
 import {
   SvgUser,
   SvgWallet,
@@ -34,6 +36,7 @@ import {
   SvgClose,
   SvgTrash,
   SvgBook,
+  SvgChat,
 } from '../../components/common/SvgIcons';
 import { Ionicons } from '@expo/vector-icons';
 import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
@@ -76,6 +79,49 @@ export default function TutorOwnerProfileScreen() {
   const [editAvatar, setEditAvatar] = useState('');
   const [editRate1on1, setEditRate1on1] = useState('2500');
   const [editRateGroup, setEditRateGroup] = useState('1200');
+
+  // Real-time Chat & Inquiries State
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [loadingChats, setLoadingChats] = useState(false);
+
+  const fetchTutorChats = useCallback(async () => {
+    try {
+      setLoadingChats(true);
+      const data = await chatRepository.getInbox();
+      setConversations(data || []);
+    } catch {
+      // Silently maintain current list on background interval
+    } finally {
+      setLoadingChats(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchTutorChats();
+      const interval = setInterval(fetchTutorChats, 3500);
+      return () => clearInterval(interval);
+    }, [fetchTutorChats])
+  );
+
+  const unreadChatCount = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+
+  const handleOpenStudentChat = (participant: any) => {
+    const studentEntity = {
+      _id: participant._id,
+      name: participant.name,
+      email: participant.email,
+      role: participant.role || 'student',
+      subjects: participant.subjects || [],
+      bio: participant.bio || '',
+      rating: participant.rating || 0,
+      reviewCount: participant.reviewCount || 0,
+      profilePicture: participant.profilePicture,
+      degreeProgramme: participant.degreeProgramme,
+      academicYear: participant.academicYear,
+    };
+    navigation.navigate('Chat', { mentor: studentEntity });
+  };
 
   useEffect(() => {
     fetchProfile();
@@ -247,9 +293,23 @@ export default function TutorOwnerProfileScreen() {
       <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Tutor Profile</Text>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandUni}>Uni</Text>
-            <Text style={styles.brandMentor}>Mentor</Text>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              style={styles.headerChatBtn}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chatbubbles" size={19} color="#FFFFFF" />
+              {unreadChatCount > 0 ? (
+                <View style={styles.headerChatBadge}>
+                  <Text style={styles.headerChatBadgeText}>{unreadChatCount}</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+            <View style={styles.brandRow}>
+              <Text style={styles.brandUni}>Uni</Text>
+              <Text style={styles.brandMentor}>Mentor</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -289,11 +349,182 @@ export default function TutorOwnerProfileScreen() {
             </View>
           </View>
 
-          {/* Edit Tutor Details Button */}
-          <TouchableOpacity style={styles.editProfileLowerBtn} onPress={openEditModal} activeOpacity={0.85}>
-            <Ionicons name="create-outline" size={14} color="#061E47" />
-            <Text style={styles.editProfileLowerBtnText}>Edit Tutor Profile</Text>
-          </TouchableOpacity>
+          {/* Action Buttons: Edit Tutor Details & Direct Student Chats */}
+          <View style={styles.heroActionBtnsRow}>
+            <TouchableOpacity style={styles.editProfileLowerBtn} onPress={openEditModal} activeOpacity={0.85}>
+              <Ionicons name="create-outline" size={14} color="#061E47" />
+              <Text style={styles.editProfileLowerBtnText}>Edit Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.chatProfileHeroBtn}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="chatbubbles" size={14} color="#FFFFFF" />
+              <Text style={styles.chatProfileHeroBtnText}>
+                Student Chats{unreadChatCount > 0 ? ` (${unreadChatCount})` : ''}
+              </Text>
+              {unreadChatCount > 0 && <View style={styles.chatHeroUnreadDot} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ======================================================== */}
+        {/* STUDENT INQUIRIES & DIRECT CHAT SECTION                  */}
+        {/* ======================================================== */}
+        <View style={styles.tutorChatCard}>
+          <View style={styles.tutorChatHeader}>
+            <View style={styles.tutorChatHeaderLeft}>
+              <View style={styles.chatIconBadge}>
+                <Ionicons name="chatbubbles" size={18} color="#061E47" />
+              </View>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.tutorChatHeaderTitle}>Student Inquiries & Chats</Text>
+                  {unreadChatCount > 0 ? (
+                    <View style={styles.unreadCountPill}>
+                      <Text style={styles.unreadCountPillText}>{unreadChatCount} UNREAD</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.activePill}>
+                      <View style={styles.activePillDot} />
+                      <Text style={styles.activePillText}>SYNCED</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.tutorChatHeaderSub}>
+                  Live questions, voice notes & requests from your students
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.viewAllChatsBtn}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.viewAllChatsLink}>Open Inbox →</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loadingChats && conversations.length === 0 ? (
+            <View style={styles.chatLoadingBox}>
+              <ActivityIndicator size="small" color="#061E47" />
+              <Text style={styles.chatLoadingText}>Syncing student messages...</Text>
+            </View>
+          ) : conversations.length === 0 ? (
+            <View style={styles.emptyChatBox}>
+              <View style={styles.emptyChatIconCircle}>
+                <Ionicons name="chatbubble-ellipses-outline" size={26} color="#061E47" />
+              </View>
+              <Text style={styles.emptyChatTitle}>No student inquiries yet</Text>
+              <Text style={styles.emptyChatDesc}>
+                When students reach out about course modules, exam revision, or session bookings, their direct messages will appear here in real-time.
+              </Text>
+              <TouchableOpacity
+                style={styles.openInboxBtn}
+                onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="mail-outline" size={14} color="#061E47" />
+                <Text style={styles.openInboxBtnText}>Open Chat Inbox</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.chatItemsList}>
+              {conversations.slice(0, 4).map((conv) => {
+                const isVoice = conv.lastMessage.messageType === 'voice';
+                const hasUnread = conv.unreadCount > 0;
+                const formattedTime = new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+                return (
+                  <TouchableOpacity
+                    key={conv.lastMessage.conversationKey}
+                    style={[styles.studentChatRow, hasUnread && styles.studentChatRowUnread]}
+                    onPress={() => handleOpenStudentChat(conv.participant)}
+                    activeOpacity={0.82}
+                  >
+                    <View style={styles.studentAvatarWrap}>
+                      {conv.participant.profilePicture ? (
+                        <Image source={{ uri: conv.participant.profilePicture }} style={styles.studentAvatarImg} />
+                      ) : (
+                        <View style={styles.studentAvatarPlaceholder}>
+                          <Text style={styles.studentAvatarInitial}>
+                            {conv.participant.name.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.studentOnlineDot} />
+                    </View>
+
+                    <View style={styles.studentChatContent}>
+                      <View style={styles.studentChatTopRow}>
+                        <Text style={styles.studentChatName} numberOfLines={1}>
+                          {conv.participant.name}
+                        </Text>
+                        <Text style={[styles.studentChatTime, hasUnread && styles.studentChatTimeUnread]}>
+                          {formattedTime}
+                        </Text>
+                      </View>
+
+                      <View style={styles.studentMetaRow}>
+                        <Text style={styles.studentMetaText} numberOfLines={1}>
+                          {conv.participant.degreeProgramme || conv.participant.academicYear || 'Student Mentee'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.studentMsgRow}>
+                        {isVoice ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Ionicons name="mic" size={13} color="#0284C7" />
+                            <Text style={styles.studentVoiceSnippet}>Voice note ({conv.lastMessage.voiceDuration || 15}s)</Text>
+                          </View>
+                        ) : (
+                          <Text
+                            style={[
+                              styles.studentMessageSnippet,
+                              hasUnread && styles.studentMessageSnippetUnread,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {conv.lastMessage.text}
+                          </Text>
+                        )}
+                        {hasUnread && (
+                          <View style={styles.unreadBadgeMini}>
+                            <Text style={styles.unreadBadgeMiniText}>{conv.unreadCount}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.replyStudentQuickBtn}
+                      onPress={() => handleOpenStudentChat(conv.participant)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="chatbubble" size={12} color="#FFFFFF" />
+                      <Text style={styles.replyStudentQuickBtnText}>Chat</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {conversations.length > 4 && (
+                <TouchableOpacity
+                  style={styles.viewMoreChatsBtn}
+                  onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.viewMoreChatsBtnText}>
+                    +{conversations.length - 4} more student conversations in Chat Inbox
+                  </Text>
+                  <Ionicons name="arrow-forward" size={13} color="#0284C7" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Tutor Earnings & Tutoring Metrics Card */}
@@ -480,6 +711,27 @@ export default function TutorOwnerProfileScreen() {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionHeading}>ACCOUNT & SECURITY</Text>
 
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+            activeOpacity={0.8}
+          >
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconWrap, { backgroundColor: '#E0F2FE' }]}>
+                <Ionicons name="chatbubbles" size={16} color="#0284C7" />
+              </View>
+              <Text style={styles.menuLabel}>Student Messages & Live Inquiries</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {unreadChatCount > 0 ? (
+                <View style={styles.menuBadge}>
+                  <Text style={styles.menuBadgeText}>{unreadChatCount} new</Text>
+                </View>
+              ) : null}
+              <SvgChevronRight size={16} color="#94A3B8" />
+            </View>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.menuRow} onPress={openEditModal} activeOpacity={0.8}>
             <View style={styles.menuLeft}>
               <View style={styles.menuIconWrap}>
@@ -630,6 +882,39 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -0.2,
   },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerChatBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  headerChatBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#061E47',
+  },
+  headerChatBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+  },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -753,14 +1038,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
+  heroActionBtnsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
   editProfileLowerBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F1F5F9',
-    paddingVertical: 9,
-    borderRadius: 10,
-    marginTop: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
     gap: 6,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -769,6 +1060,335 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#061E47',
+  },
+  chatProfileHeroBtn: {
+    flex: 1.25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#061E47',
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+    position: 'relative',
+    shadowColor: '#061E47',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  chatProfileHeroBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  chatHeroUnreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F59E0B',
+  },
+
+  /* Student Inquiries & Chat Card */
+  tutorChatCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#061E47',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  tutorChatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  tutorChatHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  chatIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  tutorChatHeaderTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  tutorChatHeaderSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  unreadCountPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  unreadCountPillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  activePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 4,
+  },
+  activePillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  activePillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  viewAllChatsBtn: {
+    paddingLeft: 8,
+  },
+  viewAllChatsLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  chatLoadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 24,
+  },
+  chatLoadingText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  emptyChatBox: {
+    alignItems: 'center',
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+  },
+  emptyChatIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptyChatTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  emptyChatDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 17,
+    marginBottom: 14,
+  },
+  openInboxBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  openInboxBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#061E47',
+  },
+  chatItemsList: {
+    gap: 10,
+  },
+  studentChatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 11,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  studentChatRowUnread: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  studentAvatarWrap: {
+    position: 'relative',
+    marginRight: 10,
+  },
+  studentAvatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E2E8F0',
+  },
+  studentAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#061E47',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studentAvatarInitial: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  studentOnlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  studentChatContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  studentChatTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  studentChatName: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    flex: 1,
+  },
+  studentChatTime: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  studentChatTimeUnread: {
+    color: '#0284C7',
+    fontWeight: '700',
+  },
+  studentMetaRow: {
+    marginTop: 1,
+  },
+  studentMetaText: {
+    fontSize: 10.5,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  studentMsgRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    gap: 6,
+  },
+  studentVoiceSnippet: {
+    fontSize: 11.5,
+    color: '#0284C7',
+    fontWeight: '600',
+  },
+  studentMessageSnippet: {
+    fontSize: 11.5,
+    color: '#475569',
+    flex: 1,
+  },
+  studentMessageSnippetUnread: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  unreadBadgeMini: {
+    backgroundColor: '#EF4444',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  unreadBadgeMiniText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  replyStudentQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#061E47',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 9,
+  },
+  replyStudentQuickBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  viewMoreChatsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginTop: 2,
+  },
+  viewMoreChatsBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  menuBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  menuBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B45309',
   },
 
   /* Tutor Earnings Card */

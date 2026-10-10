@@ -509,9 +509,25 @@ export default function TutorDashboardScreen({ navigation }: any) {
             <View>
               <Text style={styles.headerTitle}>Tutor Dashboard</Text>
             </View>
-            <View style={styles.brandRow}>
-              <Text style={styles.brandUni}>Uni</Text>
-              <Text style={styles.brandMentor}>Mentor</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubbles" size={19} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={styles.brandRow}>
+                <Text style={styles.brandUni}>Uni</Text>
+                <Text style={styles.brandMentor}>Mentor</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -536,6 +552,53 @@ export default function TutorDashboardScreen({ navigation }: any) {
             <Text style={styles.scheduleBtnText}>Schedule Booking</Text>
           </TouchableOpacity>
         </View>
+
+        {/* 2b. Student Inquiries & Direct Chat Banner */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#061E47',
+            borderRadius: 16,
+            padding: 14,
+            marginBottom: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderWidth: 1,
+            borderColor: '#1E3A8A',
+            shadowColor: '#061E47',
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+            elevation: 3,
+          }}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+          activeOpacity={0.85}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+            <View
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF' }}>
+                Student Inquiries & Chats
+              </Text>
+              <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                Open live messages, doubt discussions & audio notes
+              </Text>
+            </View>
+          </View>
+          <View style={{ backgroundColor: '#EAA023', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: '#061E47' }}>Open Chat</Text>
+          </View>
+        </TouchableOpacity>
 
         {/* 3. Tutor Profile Card */}
         <View style={styles.profileCard}>

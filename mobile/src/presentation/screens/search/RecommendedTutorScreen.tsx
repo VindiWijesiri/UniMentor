@@ -56,7 +56,8 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
    * Validates tutor registration ID and navigates student into direct 1-on-1 chat
    */
   const startChat = () => {
-    if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
+    const id = mentor._id || (mentor as any).id;
+    if (!id) {
       Alert.alert(
         'Select a registered tutor',
         'This tutor profile is no longer available. Please return to Find Tutors and select a registered tutor.',
@@ -64,7 +65,7 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
       );
       return;
     }
-    navigation.navigate('Chat', { mentor });
+    navigation.navigate('Chat', { mentor: { ...mentor, _id: id } });
   };
 
   return (

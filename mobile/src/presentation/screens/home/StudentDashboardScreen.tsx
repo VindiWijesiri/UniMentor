@@ -280,7 +280,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
   const handleOpenChat = (mentor: EnrolledMentor) => {
     const mentorEntity = {
-      _id: mentor.id || 'mentor-default',
+      _id: (mentor as any)._id || mentor.id || 'mentor-default',
       name: mentor.name,
       email: mentor.email || `${mentor.name.toLowerCase().replace(/\s+/g, '.')}@unimentor.lk`,
       bio: mentor.bio || `${mentor.roleTitle || 'Mentor'} specializing in academic guidance.`,

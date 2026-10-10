@@ -156,6 +156,26 @@ export default function TutorProfileManageScreen({ navigation }: Props) {
           </Text>
         </View>
 
+        {/* Student Inquiries & Direct Chat Banner */}
+        <TouchableOpacity
+          style={styles.chatBanner}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Messages' })}
+          activeOpacity={0.85}
+        >
+          <View style={styles.chatBannerLeft}>
+            <View style={styles.chatBannerIcon}>
+              <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
+            </View>
+            <View>
+              <Text style={styles.chatBannerTitle}>Student Inquiries & Live Chat</Text>
+              <Text style={styles.chatBannerSub}>Direct student questions, peer inquiries & voice notes</Text>
+            </View>
+          </View>
+          <View style={styles.chatBannerRight}>
+            <Text style={styles.chatBannerAction}>Open Chat →</Text>
+          </View>
+        </TouchableOpacity>
+
         {/* Action Buttons */}
         <View style={styles.actionsRow}>
           <TouchableOpacity
@@ -473,6 +493,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.navy,
+  },
+  chatBanner: {
+    backgroundColor: '#061E47',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#061E47',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  chatBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  chatBannerIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatBannerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  chatBannerSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  chatBannerRight: {
+    paddingLeft: 8,
+  },
+  chatBannerAction: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#EAA023',
   },
   dashboardBtn: {
     flex: 1.2,

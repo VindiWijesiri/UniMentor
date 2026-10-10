@@ -340,7 +340,7 @@ export default function SessionsScreen() {
 
   const handleOpenChat = (mentor: EnrolledMentor | BookedTutorItem['mentor']) => {
     const mentorEntity = {
-      _id: mentor.id || 'mentor-default',
+      _id: (mentor as any)._id || mentor.id || 'mentor-default',
       name: mentor.name,
       email: mentor.email || `${mentor.name.toLowerCase().replace(/\s+/g, '.')}@unimentor.lk`,
       bio: mentor.bio || 'Peer Mentor',

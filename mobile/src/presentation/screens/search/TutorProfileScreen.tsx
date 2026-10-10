@@ -156,11 +156,12 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
    * Validates tutor identifier and opens 1-on-1 direct conversation with the tutor
    */
   const openChat = () => {
-    if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
+    const id = mentor._id || (mentor as any).id;
+    if (!id) {
       Alert.alert('Chat unavailable', 'Please select a registered tutor from the updated tutor list.');
       return;
     }
-    navigation.navigate('Chat', { mentor });
+    navigation.navigate('Chat', { mentor: { ...mentor, _id: id } });
   };
 
   return (

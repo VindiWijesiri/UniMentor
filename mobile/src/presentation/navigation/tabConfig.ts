@@ -7,6 +7,7 @@ import {
   SvgNotifications,
   SvgUser,
   SvgVideocam,
+  SvgChat,
 } from '../components/common/SvgIcons';
 
 export type AppRole = User['role'];
@@ -33,6 +34,7 @@ export const mentorFooterTabs: FooterTabItem[] = [
   { name: 'Home', screen: 'Home', label: 'Home', Icon: SvgHome },
   { name: 'Scheduling', screen: 'Scheduling', label: 'Scheduling', Icon: SvgCalendar },
   { name: 'Sessions', screen: 'Sessions', label: 'Sessions', Icon: SvgVideocam },
+  { name: 'Messages', screen: 'Messages', label: 'Chat', Icon: SvgChat },
   { name: 'Profile', screen: 'Profile', label: 'Profile', Icon: SvgUser },
 ];
 

@@ -111,6 +111,7 @@ import {
   SvgLock,
   SvgUserPlus,
   SvgBarChart,
+  SvgChat,
 } from '../components/common/SvgIcons';
 
 export type BookingsStackParamList = {
@@ -490,7 +491,19 @@ function MainTabs() {
             }}
           />
 
-          {/* 4. Profile */}
+          {/* 4. Tutor Messages / Chat */}
+          <Tab.Screen
+            name="Messages"
+            component={ChatInboxScreen}
+            options={{
+              tabBarLabel: 'Chat',
+              tabBarIcon: ({ color }) => (
+                <SvgChat size={22} color={color} />
+              ),
+            }}
+          />
+
+          {/* 5. Profile */}
           <Tab.Screen
             name="Profile"
             component={TutorOwnerProfileScreen}
