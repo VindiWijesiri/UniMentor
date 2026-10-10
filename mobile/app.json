@@ -57,11 +57,11 @@
         }
       ]
     ],
+    "owner": "unimentor",
     "extra": {
       "eas": {
-        "projectId": "0026cf68-fc7d-4216-b81b-4723d2603f04"
+        "projectId": "0d9d8563-c683-49b8-8b51-0063cc32765d"
       }
-    },
-    "owner": "2026oslo"
+    }
   }
 }
