@@ -575,10 +575,21 @@ export async function updateShortlist(req: AuthRequest, res: Response, next: Nex
     }
 
     user.shortlistedMentors = user.shortlistedMentors || [];
-    const item = user.shortlistedMentors.find((m) => m.mentorId === mentorId);
+    let item = user.shortlistedMentors.find((m) => m.mentorId === mentorId);
     if (!item) {
-      res.status(404).json({ message: 'Shortlisted tutor not found.' });
-      return;
+      const name = String(req.body.name || '').trim() || 'Saved tutor';
+      user.shortlistedMentors.push({
+        mentorId,
+        name,
+        avatar: req.body.avatar,
+        hourlyRate: Number(req.body.hourlyRate) || 2000,
+        rating: Number(req.body.rating) || 4.8,
+        subjects: Array.isArray(req.body.subjects) ? req.body.subjects : [],
+        priority: priority || 'Considering',
+        notes: notes || '',
+        savedAt: new Date(),
+      });
+      item = user.shortlistedMentors[user.shortlistedMentors.length - 1];
     }
 
     if (priority) item.priority = priority;
@@ -628,7 +639,8 @@ export async function listDirectory(req: AuthRequest, res: Response, next: NextF
     const users = await User.find()
       .select('name email role verificationStatus accountStatus isVerified university faculty department studentId degreeProgramme subjects hourlyRate phone createdAt')
       .sort({ createdAt: -1 })
-      .limit(300);
+      .limit(300)
+      .lean();
     res.json({ users });
   } catch (err) {
     next(err);
@@ -726,7 +738,54 @@ export async function saveDocument(req: AuthRequest, res: Response, next: NextFu
     );
     if (kind === 'front') user.idPhoto = image;
     await user.save();
-    res.json({ kind: saved?.kind ?? kind, fileName: saved?.fileName ?? fileName, status: saved?.status ?? 'pending' });
+    res.json({ kind: saved?.kind ?? kind, fileName: saved?.fileName ?? fileName, status: saved?.status ?? 'pending', image });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getMyDocuments(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const docs = await UserDocument.find({ userId: req.userId }).select('kind image fileName status');
+    res.json({
+      documents: docs.map((doc) => ({
+        kind: doc.kind,
+        fileName: doc.fileName,
+        status: doc.status,
+        image: doc.image,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listDocumentQueue(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!assertStaff(req, res)) return;
+    const mentors = await User.find({ role: 'mentor' })
+      .select('name email studentId university faculty degreeProgramme verificationStatus createdAt')
+      .sort({ createdAt: -1 })
+      .limit(80)
+      .lean();
+    const docs = await UserDocument.find({ userId: { $in: mentors.map((mentor) => mentor._id) } })
+      .select('userId kind fileName status')
+      .lean();
+    res.json({
+      applicants: mentors.map((mentor) => ({
+        _id: String(mentor._id),
+        name: mentor.name,
+        email: mentor.email,
+        studentId: mentor.studentId,
+        university: mentor.university,
+        faculty: mentor.faculty,
+        degreeProgramme: mentor.degreeProgramme,
+        verificationStatus: mentor.verificationStatus,
+        documents: docs
+          .filter((doc) => String(doc.userId) === String(mentor._id))
+          .map((doc) => ({ kind: doc.kind, fileName: doc.fileName, status: doc.status })),
+      })),
+    });
   } catch (err) {
     next(err);
   }

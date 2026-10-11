@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -26,18 +26,18 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
   const email = route?.params?.email || 'student@campus.ac.lk';
   const role = route?.params?.role || 'student';
 
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [code, setCode] = useState('');
+  const codeInput = useRef<TextInput>(null);
   const [timer, setTimer] = useState(59);
   const [loading, setLoading] = useState(false);
+  const [devCode, setDevCode] = useState('');
 
   const { setUser, setToken } = useAuthStore();
 
   const requestOtpFromBackend = async () => {
     try {
       const result = await authRepository.sendVerificationOtp(email);
-      if (result.devCode) {
-        Alert.alert('Verification code', `Email is not configured on this server. Your code is ${result.devCode}.`);
-      }
+      setDevCode(result.devCode || '');
     } catch (err: any) {
       Alert.alert('Code not sent', err?.response?.data?.message || 'The verification code could not be requested.');
     }
@@ -55,23 +55,20 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
     return () => clearInterval(interval);
   }, [timer]);
 
-  const handleDigitChange = (val: string, index: number) => {
-    const clean = val.replace(/[^0-9]/g, '');
-    const newOtp = [...otp];
-    newOtp[index] = clean.slice(-1);
-    setOtp(newOtp);
+  const handleCodeChange = (value: string) => {
+    setCode(value.replace(/\D/g, '').slice(0, 6));
   };
 
   const handleVerify = async () => {
-    const code = otp.join('').trim();
-    if (code.length < 6) {
+    const entered = code.trim();
+    if (entered.length < 6) {
       Alert.alert('Incomplete Code', 'Please enter all 6 digits of the verification code sent to your email.');
       return;
     }
 
     setLoading(true);
     try {
-      const verified = await authRepository.verifyEmailOtp(email, code);
+      const verified = await authRepository.verifyEmailOtp(email, entered);
       setLoading(false);
       const account = verified.user || route?.params?.user;
       const token = route?.params?.token;
@@ -110,12 +107,8 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
 
   const handleResend = async () => {
     setTimer(59);
-    setOtp(['', '', '', '', '', '']);
+    setCode('');
     await requestOtpFromBackend();
-    Alert.alert(
-      'Verification Code Dispatched',
-      'A new 6-digit verification code has been sent to your email address. Please check your inbox.'
-    );
   };
 
   const maskedEmail = email.replace(/^(.{2})(.*)(@.*)$/, (_: string, a: string, _b: string, c: string) => `${a}****${c}`);
@@ -126,7 +119,6 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backArrow}>‹</Text>
@@ -135,7 +127,6 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Envelope Graphic */}
         <View style={styles.illustrationBox}>
           <View style={styles.envelopeCard}>
             <Text style={styles.mailIcon}>✉️</Text>
@@ -148,25 +139,38 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
 
         <Text style={styles.heading}>Enter Verification Code</Text>
         <Text style={styles.helperText}>
-          We sent a 6-digit verification code to your official address:{' '}
+          {devCode
+            ? 'We could not email the code just now. Enter this code to continue:'
+            : 'We sent a 6-digit verification code to your official address:'}{' '}
           <Text style={styles.emailHighlight}>{maskedEmail}</Text>
         </Text>
+        {devCode ? <Text style={styles.devCode}>{devCode}</Text> : null}
 
-        {/* 6 Digit Input Cells */}
-        <View style={styles.otpRow}>
-          {otp.map((digit, idx) => (
-            <TextInput
-              key={idx}
-              style={[styles.otpCell, digit ? styles.otpCellFilled : null]}
-              keyboardType="number-pad"
-              maxLength={1}
-              value={digit}
-              onChangeText={(text) => handleDigitChange(text, idx)}
-            />
-          ))}
-        </View>
+        <TouchableOpacity activeOpacity={1} onPress={() => codeInput.current?.focus()} style={styles.otpRow}>
+          {Array.from({ length: 6 }, (_, idx) => {
+            const digit = code[idx] || '';
+            const active = idx === code.length || (idx === 5 && code.length === 6);
+            return (
+              <View key={idx} style={[styles.otpCell, digit ? styles.otpCellFilled : null, active && styles.otpCellActive]}>
+                <Text style={styles.otpDigit}>{digit}</Text>
+              </View>
+            );
+          })}
+          <TextInput
+            ref={codeInput}
+            value={code}
+            onChangeText={handleCodeChange}
+            keyboardType="number-pad"
+            inputMode="numeric"
+            maxLength={6}
+            autoFocus
+            caretHidden
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
+            style={styles.otpCapture}
+          />
+        </TouchableOpacity>
 
-        {/* Timer / Resend */}
         <View style={styles.timerRow}>
           {timer > 0 ? (
             <Text style={styles.timerText}>
@@ -179,7 +183,6 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        {/* Verify Button */}
         <TouchableOpacity
           style={styles.button}
           onPress={handleVerify}
@@ -304,7 +307,17 @@ const styles = StyleSheet.create({
     color: colors.navy,
     fontWeight: '800',
   },
+  devCode: {
+    textAlign: 'center',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 6,
+    color: colors.navy,
+    marginTop: -16,
+    marginBottom: 24,
+  },
   otpRow: {
+    position: 'relative',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
@@ -316,14 +329,29 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   otpCellFilled: {
     borderColor: colors.primary,
     backgroundColor: colors.white,
+  },
+  otpCellActive: {
+    borderColor: colors.navy,
+  },
+  otpDigit: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+  otpCapture: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0,
+    fontSize: 22,
   },
   timerRow: {
     alignItems: 'center',

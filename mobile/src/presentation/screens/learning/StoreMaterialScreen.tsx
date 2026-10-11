@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,15 +13,18 @@ import { ink, muted, navy, pageBg, yellow } from './learningTheme';
 type Props = NativeStackScreenProps<AppStackParamList, 'StoreMaterial'>;
 
 const kinds: { key: LibraryKind; label: string }[] = [
-  { key: 'pdf', label: 'PDF Notes' },
+  { key: 'pdf', label: 'PDF' },
   { key: 'video', label: 'Video' },
+  { key: 'image', label: 'Image' },
   { key: 'quiz', label: 'Quiz' },
   { key: 'audio', label: 'Audio' },
   { key: 'code', label: 'Code' },
+  { key: 'text', label: 'Text' },
 ];
 
 export default function StoreMaterialScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const materialId = route.params?.materialId;
   const [kind, setKind] = useState<LibraryKind>('pdf');
   const [title, setTitle] = useState('');
   const [moduleCode, setModuleCode] = useState('IT2040');
@@ -29,41 +32,100 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
   const [body, setBody] = useState('');
   const [conversationId, setConversationId] = useState(route.params?.conversationId ?? '');
   const [conversations, setConversations] = useState<PodConversation[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [fileContent, setFileContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const upload = async () => {
+    try {
+      const picker = await import('expo-image-picker');
+      const permission = await picker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError('Photo access is needed to upload an image or video.');
+        return;
+      }
+      const result = await picker.launchImageLibraryAsync({
+        mediaTypes: kind === 'video' ? ['videos'] : ['images'],
+        quality: 0.4,
+        base64: kind !== 'video',
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      const name = asset.fileName || (kind === 'video' ? 'video' : 'image');
+      setFileName(name);
+      if (!title.trim()) setTitle(name.replace(/\.[^.]+$/, ''));
+      if (asset.base64) {
+        setFileContent(`data:image/jpeg;base64,${asset.base64}`);
+        setKind('image');
+      } else {
+        setFileContent(name);
+        setKind('video');
+      }
+    } catch {
+      setError('Could not open the photo library.');
+    }
+  };
 
   useFocusEffect(useCallback(() => {
     podRepository.list('all').then(setConversations).catch(() => {});
-  }, []));
+    if (!materialId) return;
+    libraryRepository.get(materialId).then((item) => {
+      setKind(item.kind);
+      setTitle(item.title);
+      setModuleCode(item.moduleCode || '');
+      setModuleName(item.moduleName || '');
+      setBody(item.body || '');
+      if (item.conversation) setConversationId(item.conversation);
+    }).catch(() => setError('Could not open this material for editing.'));
+  }, [materialId]));
 
   const save = async () => {
-    if (!title.trim() || !body.trim()) {
-      Alert.alert('Add a title and the material content to store.');
+    if (!title.trim() || (!materialId && !body.trim() && !fileContent)) {
+      setError('Add a title and either upload a file or paste the content.');
       return;
     }
     setSaving(true);
+    setError('');
     try {
+      const storedBody = body.trim() || (kind === 'image' ? 'Image' : fileName || 'Uploaded file');
       const payload: Record<string, unknown> = {
         title: title.trim(),
         kind,
         source: conversationId ? 'group' : 'library',
         moduleCode,
         moduleName,
-        body: body.trim(),
-        subtitle: `Stored ${kind} resource`,
-        conversationId: conversationId || undefined,
+        body: materialId && !body.trim() ? undefined : storedBody,
+        conversationId: conversationId || null,
       };
+      if (!materialId || fileName || body.trim()) {
+        payload.subtitle = fileName ? `Uploaded ${fileName}` : `Stored ${kind} resource`;
+      }
+      if (fileContent) {
+        payload.files = [{ name: fileName || `${kind}-file`, language: kind, content: fileContent }];
+      }
       if (kind === 'quiz') {
         payload.questions = [
-          { prompt: body.trim(), options: ['True', 'False', 'Depends on the graph', 'Not enough data'], answer: 0 },
+          { prompt: body.trim() || title.trim(), options: ['True', 'False', 'Depends on the graph', 'Not enough data'], answer: 0 },
         ];
       }
-      if (kind === 'code') {
-        payload.files = [{ name: 'notes.txt', language: 'text', content: body.trim() }];
+      if (kind === 'code' && body.trim()) {
+        payload.files = [{ name: fileName || 'notes.txt', language: 'text', content: body.trim() }];
       }
-      const item = await libraryRepository.create(payload);
+      const item = materialId
+        ? await libraryRepository.update(materialId, payload)
+        : await libraryRepository.create(payload);
+      if (conversationId) {
+        try {
+          await podRepository.send(conversationId, title.trim(), { kind: 'file', materialId: item._id });
+        } catch {
+          // The material is already stored even if the chat note could not be sent.
+        }
+      }
       navigation.replace('StudyMaterialDetail', { id: item._id });
-    } catch {
-      Alert.alert('Could not store this material.');
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(message || 'Could not save this material.');
     } finally {
       setSaving(false);
     }
@@ -76,7 +138,7 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
           <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>‹</Text></TouchableOpacity>
           <View style={{ flex: 1 }}>
             <View style={styles.titleRow}>
-              <Text style={styles.heroTitle}>Store Material</Text>
+              <Text style={styles.heroTitle}>{materialId ? 'Edit Material' : 'Store Material'}</Text>
               <View style={styles.libraryPill}><Text style={styles.libraryText}>LIBRARY</Text></View>
             </View>
             <Text style={styles.sub}>Saved to MongoDB and visible in Chat Pod + dashboards</Text>
@@ -112,6 +174,10 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+        <TouchableOpacity style={styles.upload} onPress={() => void upload()}>
+          <Text style={styles.uploadText}>{fileName ? `Uploaded: ${fileName}` : 'Upload image or video'}</Text>
+        </TouchableOpacity>
+        <Text style={styles.hint}>PDF, quiz, audio, code, and text are saved from the box below. Images and videos come from your photo library.</Text>
         <Text style={styles.label}>Content to store</Text>
         <TextInput
           value={body}
@@ -121,8 +187,9 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
           placeholder="Paste notes, transcript, code, or a quiz prompt..."
           placeholderTextColor="#8B98AE"
         />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
         <TouchableOpacity style={[styles.primary, saving && { opacity: 0.6 }]} onPress={() => void save()} disabled={saving}>
-          <Text style={styles.primaryText}>{saving ? 'Storing...' : 'Store in library'}</Text>
+          <Text style={styles.primaryText}>{saving ? 'Saving...' : materialId ? 'Save changes' : 'Store in library'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -148,6 +215,10 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: navy, borderColor: navy },
   chipText: { color: ink, fontWeight: '800', fontSize: 12 },
   chipTextOn: { color: '#FFF' },
+  upload: { borderWidth: 1, borderColor: navy, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 8, backgroundColor: '#FFF' },
+  uploadText: { color: navy, fontWeight: '800' },
+  hint: { color: muted, fontSize: 12, marginTop: 8, lineHeight: 18 },
+  error: { color: '#A63838', fontWeight: '700', marginTop: 12 },
   primary: { backgroundColor: yellow, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   primaryText: { color: navy, fontWeight: '900', fontSize: 15 },
 });

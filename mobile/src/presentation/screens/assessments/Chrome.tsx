@@ -29,10 +29,15 @@ export function AssessmentScreen<T extends keyof AppStackParamList>({
   );
 }
 
-export function KuppiyaBar({ onSearch, title }: { onSearch?: () => void; title?: string }) {
+export function KuppiyaBar({ onSearch, onBack, title }: { onSearch?: () => void; onBack?: () => void; title?: string }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
+      {onBack ? (
+        <TouchableOpacity style={styles.iconBtn} onPress={onBack} accessibilityLabel="Back" hitSlop={8}>
+          <SvgChevronLeft size={22} color="#fff" />
+        </TouchableOpacity>
+      ) : null}
       <View style={styles.logoTile}>
         <SvgGraduationCap size={20} color={orange} />
       </View>

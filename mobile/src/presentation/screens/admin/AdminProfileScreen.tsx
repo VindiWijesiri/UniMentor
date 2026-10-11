@@ -34,6 +34,10 @@ export default function AdminProfileScreen({ navigation }: Props) {
   const { user, logout } = useAuthStore();
 
   const handleSignOut = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to end your administrative session?')) logout();
+      return;
+    }
     Alert.alert(
       'Sign Out of Admin Console',
       'Are you sure you want to end your administrative session?',

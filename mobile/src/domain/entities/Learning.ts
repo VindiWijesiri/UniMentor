@@ -7,6 +7,12 @@ export type LearningGoal = {
   current: number;
   total: number;
   completed: boolean;
+  moduleCode?: string;
+  progress?: number;
+  priority?: string;
+  kind?: 'weekly' | 'module';
+  areas?: string[];
+  canDelete?: boolean;
 };
 
 export type LearningActivity = {
@@ -69,6 +75,8 @@ export type LearningMaterial = {
   sourceLabel: string;
   sourceType: 'group' | 'session';
   uploadedAt: string;
+  isOwner?: boolean;
+  libraryKind?: string;
 };
 
 export type LearningPlan = {

@@ -183,6 +183,10 @@ export default function ProfileScreen() {
   };
 
   const handleLogoutPrompt = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to log out of UniMentor?')) logout();
+      return;
+    }
     Alert.alert('Log Out', 'Are you sure you want to log out of UniMentor?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log Out', style: 'destructive', onPress: logout },
@@ -439,7 +443,7 @@ export default function ProfileScreen() {
                   <View style={styles.modalCameraBadge}>
                     <Ionicons name="camera" size={13} color="#FFFFFF" />
                   </View>
-                </TouchableOpacity>
+        </TouchableOpacity>
 
                 <TouchableOpacity style={styles.choosePhotoBtn} onPress={handlePickFromGallery} disabled={isPickingImage}>
                   {isPickingImage ? (
@@ -524,7 +528,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalSaveBtn} onPress={handleAddInterest}>
                 <Text style={styles.modalSaveBtnText}>Add</Text>
-              </TouchableOpacity>
+      </TouchableOpacity>
             </View>
           </Pressable>
         </Pressable>

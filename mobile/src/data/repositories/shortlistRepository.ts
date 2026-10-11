@@ -28,6 +28,11 @@ export const shortlistRepository = {
   async update(
     mentorId: string,
     payload: {
+      name?: string;
+      avatar?: string;
+      hourlyRate?: number;
+      rating?: number;
+      subjects?: string[];
       priority?: 'Top Choice' | 'Considering' | 'Backup';
       notes?: string;
     }

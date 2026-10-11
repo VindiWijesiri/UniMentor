@@ -17,6 +17,8 @@ import {
   setAccountStatus,
   setVerificationStatus,
   saveDocument,
+  getMyDocuments,
+  listDocumentQueue,
   getDocuments,
   reviewDocument,
   getSecuritySettings,
@@ -47,6 +49,8 @@ router.put('/shortlist/:mentorId', authenticate, updateShortlist);
 router.delete('/shortlist/:mentorId', authenticate, removeFromShortlist);
 router.get('/directory', authenticate, listDirectory);
 router.post('/documents', authenticate, saveDocument);
+router.get('/documents/mine', authenticate, getMyDocuments);
+router.get('/documents/queue', authenticate, listDocumentQueue);
 router.get('/security', authenticate, getSecuritySettings);
 router.put('/security', authenticate, updateSecuritySettings);
 router.get('/notification-settings', authenticate, getNotificationSettings);

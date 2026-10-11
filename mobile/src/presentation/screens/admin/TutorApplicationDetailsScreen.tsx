@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -66,7 +67,7 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
 
   useEffect(() => {
     if (!realApplication) return;
-    documentRepository.get(applicationId)
+    documentRepository.get(applicationId, true)
       .then((bundle) => setDocuments(bundle.documents))
       .catch(() => setDocuments([]));
   }, [applicationId, realApplication]);
@@ -194,7 +195,11 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
           <View style={styles.docsList}>
             <TouchableOpacity style={styles.docItem} onPress={() => openDocument('front', 'Student ID Card (Front)')}>
               <View style={styles.docIconWrap}>
-                <Text style={styles.docIcon}>🪪</Text>
+                {documents.find((item) => item.kind === 'front')?.image ? (
+                  <Image source={{ uri: documents.find((item) => item.kind === 'front')?.image }} style={styles.docThumb} />
+                ) : (
+                  <Text style={styles.docIcon}>🪪</Text>
+                )}
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.docName}>University ID Card (Front)</Text>
@@ -205,7 +210,11 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
 
             <TouchableOpacity style={styles.docItem} onPress={() => openDocument('back', 'Student ID Card (Back)')}>
               <View style={styles.docIconWrap}>
-                <Text style={styles.docIcon}>💳</Text>
+                {documents.find((item) => item.kind === 'back')?.image ? (
+                  <Image source={{ uri: documents.find((item) => item.kind === 'back')?.image }} style={styles.docThumb} />
+                ) : (
+                  <Text style={styles.docIcon}>💳</Text>
+                )}
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.docName}>University ID Card (Back)</Text>
@@ -216,7 +225,11 @@ export default function TutorApplicationDetailsScreen({ navigation, route }: Pro
 
             <TouchableOpacity style={styles.docItem} onPress={() => openDocument('transcript', 'Official Academic Transcript')}>
               <View style={[styles.docIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                <Text style={styles.docIcon}>📜</Text>
+                {documents.find((item) => item.kind === 'transcript')?.image ? (
+                  <Image source={{ uri: documents.find((item) => item.kind === 'transcript')?.image }} style={styles.docThumb} />
+                ) : (
+                  <Text style={styles.docIcon}>📜</Text>
+                )}
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.docName}>Faculty Academic Transcript</Text>
@@ -543,13 +556,18 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
   },
   docIconWrap: {
-    width: 36,
-    height: 36,
+    width: 48,
+    height: 48,
     borderRadius: 10,
     backgroundColor: '#EBF4FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+    overflow: 'hidden',
+  },
+  docThumb: {
+    width: 48,
+    height: 48,
   },
   docIcon: {
     fontSize: 18,

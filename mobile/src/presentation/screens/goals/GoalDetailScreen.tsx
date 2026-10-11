@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { learningRepository } from '../../../data/repositories/learningRepository';
@@ -16,6 +16,14 @@ export default function GoalDetailScreen({ navigation, route }: Props) {
   const [goal, setGoal] = useState<GoalPlanView | null>(null);
   const [loading, setLoading] = useState(true);
   const [focusOn, setFocusOn] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState('');
+  const [moduleCode, setModuleCode] = useState('');
+  const [dueLabel, setDueLabel] = useState('');
+  const [priority, setPriority] = useState('Medium');
+  const [summary, setSummary] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState('');
   const load = useCallback(() => {
     let active = true;
     if (!goalId) {
@@ -29,6 +37,66 @@ export default function GoalDetailScreen({ navigation, route }: Props) {
     return () => { active = false; };
   }, [goalId]);
   useFocusEffect(useCallback(() => load(), [load]));
+
+  const weekly = goal?.seedKey === 'goal-weekly' || goal?.moduleCode === 'WEEK';
+
+  const startEdit = () => {
+    if (!goal) return;
+    setTitle(goal.title);
+    setModuleCode(goal.moduleCode === 'WEEK' ? '' : goal.moduleCode);
+    setDueLabel(goal.dueLabel);
+    setPriority(goal.priority || 'Medium');
+    setSummary(goal.summary || '');
+    setFormError('');
+    setEditing(true);
+  };
+
+  const saveGoal = async () => {
+    if (!goal || !title.trim()) {
+      setFormError('Add a goal title.');
+      return;
+    }
+    setBusy(true);
+    setFormError('');
+    try {
+      const updated = await learningRepository.updateGoal(goal._id, {
+        title: title.trim(),
+        moduleCode: weekly ? 'WEEK' : moduleCode.trim(),
+        dueLabel: dueLabel.trim() || goal.dueLabel,
+        priority,
+        summary: summary.trim(),
+      });
+      setGoal(updated as GoalPlanView);
+      setEditing(false);
+    } catch (err: any) {
+      setFormError(err?.response?.data?.message ?? 'Could not save this goal.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeGoal = async () => {
+    if (!goal) return;
+    const confirmed = await new Promise<boolean>((resolve) => {
+      if (Platform.OS === 'web') {
+        resolve(window.confirm('Remove this study goal?'));
+        return;
+      }
+      Alert.alert('Delete', 'Remove this study goal?', [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+      ]);
+    });
+    if (!confirmed) return;
+    setBusy(true);
+    try {
+      await learningRepository.deleteGoal(goal._id);
+      navigation.goBack();
+    } catch (err: any) {
+      setFormError(err?.response?.data?.message ?? 'Could not delete this goal.');
+      setBusy(false);
+    }
+  };
 
   if (loading || !goal) {
     return <AssessmentScreen navigation={navigation}><KuppiyaBar title="Goal" /><ActivityIndicator color={navy} style={styles.loader} /></AssessmentScreen>;
@@ -55,6 +123,14 @@ export default function GoalDetailScreen({ navigation, route }: Props) {
           <Text style={styles.meta}>{goal.dueLabel}</Text>
         </View>
         <View style={styles.actions}>
+          <TouchableOpacity style={styles.action} onPress={startEdit}>
+            <Text style={styles.actionText}>Edit</Text>
+          </TouchableOpacity>
+          {!weekly ? (
+            <TouchableOpacity style={styles.action} onPress={() => { void removeGoal(); }} disabled={busy}>
+              <Text style={styles.deleteText}>Delete</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity style={styles.action} onPress={() => setFocusOn(true)}>
             <Text style={styles.actionText}>Focus</Text>
           </TouchableOpacity>
@@ -65,6 +141,26 @@ export default function GoalDetailScreen({ navigation, route }: Props) {
             <Text style={styles.actionText}>Log Study</Text>
           </TouchableOpacity>
         </View>
+        {editing ? (
+          <View style={styles.editor}>
+            <TextInput value={title} onChangeText={setTitle} placeholder="Goal title" placeholderTextColor={muted} style={styles.input} />
+            {!weekly ? <TextInput value={moduleCode} onChangeText={setModuleCode} placeholder="Module code" placeholderTextColor={muted} style={styles.input} /> : null}
+            <TextInput value={dueLabel} onChangeText={setDueLabel} placeholder="Due" placeholderTextColor={muted} style={styles.input} />
+            <TextInput value={summary} onChangeText={setSummary} placeholder="Summary" placeholderTextColor={muted} style={[styles.input, styles.area]} multiline />
+            <View style={styles.priorities}>
+              {['High Priority', 'Medium', 'Low'].map((item) => (
+                <TouchableOpacity key={item} style={[styles.priorityChip, priority === item && styles.priorityChipOn]} onPress={() => setPriority(item)}>
+                  <Text style={[styles.priorityChipText, priority === item && styles.priorityChipTextOn]}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+            <TouchableOpacity style={styles.primary} onPress={() => { void saveGoal(); }} disabled={busy}>
+              <Text style={styles.primaryText}>{busy ? 'Saving...' : 'Save goal'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditing(false)}><Text style={styles.analytics}>Cancel</Text></TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={styles.head}>
           <Text style={styles.section}>Linked Assessments · {goal.assessments.length}</Text>
@@ -155,9 +251,19 @@ const styles = StyleSheet.create({
   fill: { height: 8, backgroundColor: orange, borderRadius: 8 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   meta: { color: muted, fontSize: 12 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  action: { flex: 1, backgroundColor: '#EEF3FB', borderRadius: 14, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  action: { flexGrow: 1, flexBasis: '30%', backgroundColor: '#EEF3FB', borderRadius: 14, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   actionText: { color: navy, fontWeight: '800' },
+  deleteText: { color: '#B45309', fontWeight: '800' },
+  editor: { marginTop: 12, backgroundColor: card, borderRadius: 16, borderWidth: 1, borderColor: line, padding: 12 },
+  input: { backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: line, paddingHorizontal: 12, minHeight: 44, color: ink, marginBottom: 8 },
+  area: { minHeight: 80, textAlignVertical: 'top', paddingTop: 10 },
+  priorities: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  priorityChip: { borderRadius: 12, borderWidth: 1, borderColor: line, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#F8FAFC' },
+  priorityChipOn: { backgroundColor: navy, borderColor: navy },
+  priorityChipText: { color: navy, fontSize: 12, fontWeight: '800' },
+  priorityChipTextOn: { color: '#fff' },
+  formError: { color: '#B45309', fontWeight: '700', marginTop: 8 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 8 },
   section: { color: ink, fontWeight: '800', fontSize: 16 },
   link: { color: blue, fontWeight: '800' },

@@ -51,6 +51,9 @@ function serializeConversation(conversation: ConversationView, userId: string) {
     _id: conversation._id,
     type: conversation.type,
     category: conversation.category,
+    createdBy: (conversation as { createdBy?: unknown }).createdBy
+      ? String((conversation as { createdBy?: unknown }).createdBy)
+      : undefined,
     title: conversation.title,
     lastMessageText: conversation.lastMessageText,
     lastSenderName: conversation.lastSenderName,
@@ -183,7 +186,10 @@ export async function getPodMessages(req: AuthRequest, res: Response, next: Next
 export async function sendPodMessage(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = await ready(req);
-    const text = String(req.body.text ?? '').trim();
+    const materialId = String(req.body.materialId ?? '');
+    const attachment = req.body.kind === 'file' && mongoose.isValidObjectId(materialId);
+    let text = String(req.body.text ?? '').trim();
+    if (attachment && !text) text = 'Shared a study material';
     if (!text || text.length > 2000) {
       res.status(400).json({ message: 'Message must contain 1 to 2000 characters.' });
       return;
@@ -200,7 +206,8 @@ export async function sendPodMessage(req: AuthRequest, res: Response, next: Next
       senderName: sender?.name ?? 'You',
       senderInitials: initials(sender?.name ?? 'You'),
       text,
-      kind: 'text',
+      kind: attachment ? 'file' : 'text',
+      meta: attachment ? { materialId } : undefined,
       readBy: [userId],
     });
     conversation.lastMessageText = text;
@@ -319,6 +326,50 @@ export async function createPodSquad(req: AuthRequest, res: Response, next: Next
       readBy: [userId],
     });
     res.status(201).json(serializeConversation(conversation, userId));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updatePodConversation(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = await ready(req);
+    const conversation = await ownedConversation(req.params.id, userId);
+    if (!conversation) {
+      res.status(404).json({ message: 'Conversation not found.' });
+      return;
+    }
+    if (conversation.type !== 'group') {
+      res.status(400).json({ message: 'Only study groups can be edited.' });
+      return;
+    }
+    const title = String(req.body.title ?? conversation.title).trim();
+    if (!title) {
+      res.status(400).json({ message: 'Group title is required.' });
+      return;
+    }
+    const moduleCode = String(req.body.moduleCode ?? conversation.meta?.moduleCode ?? '').trim();
+    const subtitle = String(req.body.subtitle ?? conversation.meta?.subtitle ?? '').trim();
+    const goal = String(req.body.goal ?? conversation.meta?.assessmentHint ?? '').trim();
+    conversation.title = title;
+    conversation.meta = {
+      ...conversation.meta,
+      moduleCode,
+      subtitle: subtitle || moduleCode || 'Study squad',
+      assessmentHint: goal,
+    };
+    await conversation.save();
+    const participants = await User.find({ _id: { $in: conversation.participants } }).select('name email role');
+    res.json({
+      ...serializeConversation(conversation, userId),
+      participants: participants.map((user) => ({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        initials: initials(user.name),
+      })),
+    });
   } catch (error) {
     next(error);
   }

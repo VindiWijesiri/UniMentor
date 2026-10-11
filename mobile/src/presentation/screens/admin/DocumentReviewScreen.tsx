@@ -13,7 +13,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors } from '../../../shared/theme';
-import { documentRepository, DocumentKind, StoredDocument } from '../../../data/repositories/documentRepository';
+import { documentRepository, DocumentApplicant, DocumentKind, StoredDocument } from '../../../data/repositories/documentRepository';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -36,10 +36,15 @@ export default function DocumentReviewScreen({ navigation, route }: Props) {
   const [saving, setSaving] = useState(false);
   const [account, setAccount] = useState<{ name: string; email: string; studentId?: string; university?: string; faculty?: string; degreeProgramme?: string } | null>(null);
   const [document, setDocument] = useState<StoredDocument | null>(null);
+  const [applicants, setApplicants] = useState<DocumentApplicant[]>([]);
+  const inspecting = /^[a-f\d]{24}$/i.test(userId);
 
   useEffect(() => {
-    if (!/^[a-f\d]{24}$/i.test(userId)) {
-      setLoading(false);
+    if (!inspecting) {
+      documentRepository.queue()
+        .then(setApplicants)
+        .catch(() => setApplicants([]))
+        .finally(() => setLoading(false));
       return;
     }
     documentRepository.get(userId, true)
@@ -52,7 +57,7 @@ export default function DocumentReviewScreen({ navigation, route }: Props) {
         setDocument(null);
       })
       .finally(() => setLoading(false));
-  }, [userId, kind]);
+  }, [userId, kind, inspecting]);
 
   const fileName = document?.fileName || route?.params?.fileName || 'No photo uploaded';
 
@@ -77,6 +82,57 @@ export default function DocumentReviewScreen({ navigation, route }: Props) {
       setSaving(false);
     }
   };
+
+  if (!inspecting) {
+    const labels: Record<DocumentKind, string> = KIND_TITLES;
+    return (
+      <View style={styles.page}>
+        <View style={[styles.header, { backgroundColor: '#061E47', borderBottomWidth: 0 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={[styles.backArrow, { color: '#FFFFFF' }]}>‹</Text>
+          </TouchableOpacity>
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>Identity Documents</Text>
+            <Text style={[styles.headerSub, { color: '#C4D4EE' }]}>Photos uploaded during tutor registration</Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
+        <ScrollView contentContainerStyle={styles.container}>
+          {loading ? <ActivityIndicator color="#061E47" style={{ marginTop: 24 }} /> : null}
+          {!loading && applicants.length === 0 ? (
+            <Text style={styles.emptyText}>No tutor applications yet. Uploaded ID and transcript photos will appear here.</Text>
+          ) : null}
+          {applicants.map((applicant) => (
+            <View key={applicant._id} style={styles.queueCard}>
+              <Text style={styles.queueName}>{applicant.name}</Text>
+              <Text style={styles.queueMeta}>{applicant.email}</Text>
+              {(['front', 'back', 'transcript'] as DocumentKind[]).map((itemKind) => {
+                const found = applicant.documents.find((item) => item.kind === itemKind);
+                return (
+                  <TouchableOpacity
+                    key={itemKind}
+                    style={styles.queueRow}
+                    onPress={() => navigation.push('DocumentReview', {
+                      userId: applicant._id,
+                      kind: itemKind,
+                      documentType: labels[itemKind],
+                      fileName: found?.fileName,
+                    })}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.queueDoc}>{labels[itemKind]}</Text>
+                      <Text style={styles.queueMeta}>{found ? `${found.fileName} · ${found.status}` : 'No photo uploaded'}</Text>
+                    </View>
+                    <Text style={styles.queueOpen}>{found ? 'View' : 'Empty'}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.page}>
@@ -422,6 +478,46 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.navy,
     marginBottom: 6,
+  },
+  queueCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  queueName: {
+    color: '#061E47',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  queueMeta: {
+    color: colors.textLight,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  queueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F6',
+  },
+  queueDoc: {
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  queueOpen: {
+    color: '#061E47',
+    fontWeight: '800',
+    backgroundColor: '#FBBF24',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    overflow: 'hidden',
   },
   emptyText: {
     fontSize: 13,

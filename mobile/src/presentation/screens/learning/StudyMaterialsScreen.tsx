@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StatusBar,
@@ -92,11 +93,42 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
     const fallback: LibraryKindFilter[] = [
       { key: 'all', label: 'All', icon: 'all', count: items.length },
     ];
-    (['video', 'pdf', 'quiz', 'audio', 'code'] as const).forEach((key) => {
-      if (tally[key]) fallback.push({ key, label: key === 'pdf' ? 'PDF Notes' : key === 'quiz' ? 'Quizzes' : key === 'video' ? 'Videos' : key === 'audio' ? 'Audio' : 'Code', icon: key, count: tally[key] });
+    ([
+      ['video', 'Videos'],
+      ['pdf', 'PDF Notes'],
+      ['image', 'Images'],
+      ['quiz', 'Quizzes'],
+      ['audio', 'Audio'],
+      ['code', 'Code'],
+      ['text', 'Text'],
+    ] as const).forEach(([key, label]) => {
+      if (tally[key]) fallback.push({ key, label, icon: key, count: tally[key] });
     });
     return fallback;
   }, [kinds, items]);
+
+  const confirmDelete = (message: string) => new Promise<boolean>((resolve) => {
+    if (Platform.OS === 'web') {
+      resolve(window.confirm(message));
+      return;
+    }
+    Alert.alert('Delete', message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+
+  const removeItem = async (id: string) => {
+    if (!(await confirmDelete('Remove this study material from your library?'))) return;
+    try {
+      await libraryRepository.remove(id);
+      setItems((current) => current.filter((item) => item._id !== id));
+      setError('');
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(message || 'Could not delete this material.');
+    }
+  };
 
   const visible = useMemo(() => items.filter((item) => {
     if (kind !== 'all' && item.kind !== kind) return false;
@@ -155,6 +187,10 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
 
+        <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('StoreMaterial', { conversationId })} activeOpacity={0.85}>
+          <Text style={styles.addBtnText}>Add material</Text>
+        </TouchableOpacity>
+
         <View style={styles.sourceRow}>
           <Text style={styles.sourceLabel}>SOURCE:</Text>
           {([
@@ -188,6 +224,8 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
             key={item._id}
             item={item}
             onOpen={() => navigation.navigate('StudyMaterialDetail', { id: item._id })}
+            onEdit={item.isOwner ? () => navigation.navigate('StoreMaterial', { materialId: item._id, conversationId }) : undefined}
+            onDelete={item.isOwner ? () => { void removeItem(item._id); } : undefined}
           />
         ))}
       </ScrollView>
@@ -283,6 +321,8 @@ const styles = StyleSheet.create({
   },
   glyphDot: { width: 3, height: 3, borderRadius: 2 },
   docGlyph: { width: 11, height: 13, borderRadius: 2, borderWidth: 1.5 },
+  addBtn: { backgroundColor: yellow, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginBottom: 12 },
+  addBtnText: { color: navy, fontWeight: '900', fontSize: 15 },
   sourceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 },
   sourceLabel: { color: muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   sourceChip: { color: muted, fontSize: 12, fontWeight: '700' },

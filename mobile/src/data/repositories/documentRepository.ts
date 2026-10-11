@@ -22,7 +22,27 @@ export type DocumentBundle = {
   documents: StoredDocument[];
 };
 
+export type DocumentApplicant = {
+  _id: string;
+  name: string;
+  email: string;
+  studentId?: string;
+  university?: string;
+  faculty?: string;
+  degreeProgramme?: string;
+  verificationStatus?: string;
+  documents: StoredDocument[];
+};
+
 export const documentRepository = {
+  async mine() {
+    const response = await apiClient.get<{ documents: StoredDocument[] }>('/users/documents/mine');
+    return response.data.documents ?? [];
+  },
+  async queue() {
+    const response = await apiClient.get<{ applicants: DocumentApplicant[] }>('/users/documents/queue');
+    return response.data.applicants ?? [];
+  },
   async save(kind: DocumentKind, image: string, fileName: string) {
     const response = await apiClient.post('/users/documents', { kind, image, fileName }, { timeout: 45000 });
     return response.data as { kind: DocumentKind; fileName: string; status: DocumentReviewStatus };

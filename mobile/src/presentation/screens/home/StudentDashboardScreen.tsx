@@ -23,11 +23,14 @@ import { useStudentStore } from '../../../domain/stores/studentStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import type { EnrolledMentor, EnrolledModule } from '../../../domain/entities/StudentDashboard';
 import { bookedTutorsRepository, BookedTutorItem } from '../../../data/repositories/bookedTutorsRepository';
+import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import { paymentRepository } from '../../../data/repositories/paymentRepository';
 import { tutorSlotRepository } from '../../../data/repositories/tutorSlotRepository';
+import type { LibraryMaterial } from '../../../domain/entities/Library';
 import {
   SvgVideocam,
   SvgChat,
+  SvgFileText,
   SvgTrash,
   SvgClose,
   SvgCheckCircle,
@@ -36,6 +39,7 @@ import {
   SvgAlertTriangle,
   SvgChevronRight,
 } from '../../components/common/SvgIcons';
+import RecentDiscussionsCard from '../learning/RecentDiscussionsCard';
 import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
@@ -84,6 +88,7 @@ const academicCatalogData: Record<string, Record<string, string[]>> = {
 export default function StudentDashboardScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const scrollRef = useScrollToTopOnFocus<ScrollView>();
+  const stack = navigation.getParent<NativeStackNavigationProp<AppStackParamList>>();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const authUser = useAuthStore((state) => state.user);
@@ -98,6 +103,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
   const [refreshing, setRefreshing] = useState(false);
   const [bookedPods, setBookedPods] = useState<BookedTutorItem[]>([]);
+  const [libraryItems, setLibraryItems] = useState<LibraryMaterial[]>([]);
   const [activePodSession, setActivePodSession] = useState<BookedTutorItem | null>(null);
 
   const loadBookedPods = useCallback(async () => {
@@ -117,10 +123,36 @@ export default function StudentDashboardScreen({ navigation }: Props) {
     return unsub;
   }, [loadBookedPods]);
 
+  const loadLibrary = useCallback(async () => {
+    try {
+      const feed = await libraryRepository.list();
+      setLibraryItems(feed.items ?? []);
+    } catch (e) {
+      console.warn('Failed to load material library:', e);
+    }
+  }, []);
+
+  const openFindTutor = () => {
+    navigation.navigate('Bookings', { screen: 'FindMentor' });
+  };
+
+  const openChatPod = () => {
+    stack?.navigate('ChatPod');
+  };
+
+  const openLibrary = () => {
+    stack?.navigate('StudyMaterials');
+  };
+
+  const openChoosePlan = () => {
+    stack?.navigate('ChoosePlan');
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadBookedPods();
-    }, [loadBookedPods])
+      loadLibrary();
+    }, [loadBookedPods, loadLibrary])
   );
 
   // Modals state
@@ -274,7 +306,7 @@ export default function StudentDashboardScreen({ navigation }: Props) {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchDashboard(), loadBookedPods()]);
+    await Promise.all([fetchDashboard(), loadBookedPods(), loadLibrary()]);
     setRefreshing(false);
   };
 
@@ -548,24 +580,29 @@ export default function StudentDashboardScreen({ navigation }: Props) {
             </View>
             <TouchableOpacity
               style={styles.emptyHeroBtn}
-              onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor' })}
+              onPress={openFindTutor}
             >
-              <Text style={styles.emptyHeroBtnText}>Find Tutor</Text>
+              <Text style={styles.emptyHeroBtnText}>Find New Tutor</Text>
             </TouchableOpacity>
           </View>
         )}
+
+        <TouchableOpacity style={styles.planButton} activeOpacity={0.85} onPress={openChoosePlan}>
+          <Ionicons name="calendar-outline" size={16} color="#061E47" />
+          <Text style={styles.planButtonText}>Choose your plan</Text>
+        </TouchableOpacity>
 
         {/* ================= 2. QUICK ACTIONS (CLEAR 4 TILES) ================= */}
         <View style={styles.quickNavRow}>
           <TouchableOpacity
             style={styles.quickNavTile}
             activeOpacity={0.8}
-            onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor' })}
+            onPress={openFindTutor}
           >
-            <View style={[styles.quickNavIconCircle, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="search" size={18} color="#1D4ED8" />
+            <View style={[styles.quickNavIconCircle, { backgroundColor: '#FBBF24' }]}>
+              <Ionicons name="search" size={18} color="#061E47" />
             </View>
-            <Text style={styles.quickNavLabel}>Find Mentor</Text>
+            <Text style={styles.quickNavLabel}>Find New Tutor</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -582,12 +619,12 @@ export default function StudentDashboardScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.quickNavTile}
             activeOpacity={0.8}
-            onPress={() => setShowPodsModal(true)}
+            onPress={openChatPod}
           >
-            <View style={[styles.quickNavIconCircle, { backgroundColor: '#FFF7ED' }]}>
-              <Ionicons name="people-outline" size={18} color="#D97706" />
+            <View style={[styles.quickNavIconCircle, { backgroundColor: '#FBBF24' }]}>
+              <SvgChat size={18} color="#061E47" />
             </View>
-            <Text style={styles.quickNavLabel}>Study Pods</Text>
+            <Text style={styles.quickNavLabel}>Chat Pod</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -735,12 +772,12 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               <Text style={styles.sectionSub}>{bookedPods.length} Confirmed</Text>
             </View>
             <TouchableOpacity
-              style={styles.sectionActionPill}
+              style={styles.findTutorPill}
               activeOpacity={0.8}
-              onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor' })}
+              onPress={openFindTutor}
             >
               <Ionicons name="search" size={13} color="#061E47" />
-              <Text style={styles.sectionActionPillText}>Book New</Text>
+              <Text style={styles.findTutorPillText}>Find New Tutor</Text>
             </TouchableOpacity>
           </View>
 
@@ -814,9 +851,63 @@ export default function StudentDashboardScreen({ navigation }: Props) {
               <Ionicons name="calendar-outline" size={28} color="#94A3B8" />
               <Text style={styles.emptyBookingsText}>No sessions scheduled yet</Text>
               <TouchableOpacity
-                onPress={() => (navigation as any).navigate('Bookings', { screen: 'FindMentor' })}
+                onPress={openFindTutor}
               >
-                <Text style={styles.emptyBookingsLink}>Find a mentor to book your first session →</Text>
+                <Text style={styles.emptyBookingsLink}>Find a new tutor to book your first session →</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.podSection}>
+          <RecentDiscussionsCard
+            onOpenPod={openChatPod}
+            onOpenConversation={(conversation) => stack?.navigate('PodThread', { conversationId: conversation._id })}
+          />
+        </View>
+
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.sectionTitle}>Material Library</Text>
+              <Text style={styles.sectionSub}>{libraryItems.length} resources from your study library</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.sectionActionPill}
+              activeOpacity={0.8}
+              onPress={openLibrary}
+            >
+              <Text style={styles.sectionActionPillText}>Open Library</Text>
+            </TouchableOpacity>
+          </View>
+
+          {libraryItems.length > 0 ? (
+            libraryItems.slice(0, 4).map((item) => (
+              <TouchableOpacity
+                key={item._id}
+                style={styles.libraryRow}
+                activeOpacity={0.85}
+                onPress={() => stack?.navigate('StudyMaterialDetail', { id: item._id })}
+              >
+                <View style={styles.libraryIcon}>
+                  <SvgFileText size={16} color="#061E47" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.libraryTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.libraryMeta} numberOfLines={1}>
+                    {item.moduleCode ? `${item.moduleCode} · ` : ''}{item.kind.toUpperCase()}
+                    {item.moduleName ? ` · ${item.moduleName}` : ''}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyBookingsCard}>
+              <SvgFileText size={24} color="#94A3B8" />
+              <Text style={styles.emptyBookingsText}>No study materials yet</Text>
+              <TouchableOpacity onPress={openLibrary}>
+                <Text style={styles.emptyBookingsLink}>Open the material library →</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1543,6 +1634,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  planButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FBBF24',
+    marginHorizontal: 16,
+    marginTop: 14,
+    borderRadius: 14,
+    minHeight: 46,
+  },
+  planButtonText: {
+    color: '#061E47',
+    fontSize: 15,
+    fontWeight: '800',
+  },
   /* Quick Actions Row (Clear 4 Tiles) */
   quickNavRow: {
     flexDirection: 'row',
@@ -1572,6 +1679,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#1E293B',
+    textAlign: 'center',
   },
 
   /* Sections */
@@ -1610,6 +1718,53 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     color: '#061E47',
+  },
+  findTutorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  findTutorPillText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#061E47',
+  },
+  podSection: {
+    marginTop: 20,
+    marginHorizontal: 16,
+  },
+  libraryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  libraryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  libraryTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  libraryMeta: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
 
   /* Module Card (Streamlined) */

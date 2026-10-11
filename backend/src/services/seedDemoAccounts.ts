@@ -33,10 +33,21 @@ export async function seedDemoAccounts(): Promise<void> {
   for (const account of DEMO_ACCOUNTS) {
     const existing = await User.findOne({ email: account.email });
     if (existing) {
+      let changed = false;
       if (existing.role !== account.role) {
         existing.role = account.role;
-        await existing.save();
+        changed = true;
       }
+      if (/demo/i.test(existing.name)) {
+        existing.name = account.name;
+        changed = true;
+      }
+      if (account.email === 'student@unimentor.dev' && !existing.degreeProgramme) {
+        existing.degreeProgramme = 'BSc (Hons) in Software Engineering';
+        existing.academicYear = existing.academicYear || 'Year 2';
+        changed = true;
+      }
+      if (changed) await existing.save();
       continue;
     }
     await User.create({

@@ -91,7 +91,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user) => set({ user, isAuthenticated: true }),
   setToken: (token) => set({ token }),
   logout: () => {
-    set({ user: null, token: null, isAuthenticated: false, pendingRoute: null });
+    set({ user: null, token: null, isAuthenticated: false, pendingRoute: null, needsGuidance: false });
+    import('./userStore')
+      .then(({ useUserStore }) => useUserStore.setState({ profile: null, loading: false, error: null }))
+      .catch(() => undefined);
+    import('../../data/storage/appStorage')
+      .then(({ removeFlag }) => removeFlag('auth.token'))
+      .catch(() => undefined);
     import('expo-secure-store').then((store) => store.deleteItemAsync('auth.token')).catch(() => undefined);
   },
   switchDemoRole: (role) => {

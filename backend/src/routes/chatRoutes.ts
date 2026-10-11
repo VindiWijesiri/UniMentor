@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import {
   getChatInbox,
+  getTutorStudentChats,
   getConversation,
   sendMessage,
   updateMessage,
@@ -12,6 +13,7 @@ import {
 const router = Router();
 
 router.get('/', authenticate, getChatInbox);
+router.get('/students', authenticate, getTutorStudentChats);
 router.get('/:participantId', authenticate, getConversation);
 router.post('/:participantId', authenticate, sendMessage);
 router.put('/messages/:messageId', authenticate, updateMessage);

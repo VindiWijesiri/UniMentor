@@ -10,7 +10,36 @@ export interface SendMessagePayload {
   attachmentName?: string;
 }
 
+export interface TutorStudentChat {
+  student: ChatConversation['participant'];
+  source: 'shortlist' | 'booking' | 'chat' | 'student';
+  lastMessage: ChatMessage | null;
+  unreadCount: number;
+}
+
+export interface TutorStudentChats {
+  tutor: {
+    _id: string;
+    name: string;
+    email: string;
+    role: 'mentor';
+    profilePicture?: string;
+    subjects: string[];
+    bio: string;
+    rating: number;
+    reviewCount: number;
+  };
+  students: TutorStudentChat[];
+}
+
 export const chatRepository = {
+  async getStudentChats(): Promise<TutorStudentChats> {
+    const response = await apiClient.get<TutorStudentChats>('/chats/students', { timeout: 20000 });
+    return {
+      tutor: response.data.tutor,
+      students: Array.isArray(response.data?.students) ? response.data.students : [],
+    };
+  },
   async getInbox(): Promise<ChatConversation[]> {
     const response = await apiClient.get<ChatConversation[]>('/chats');
     return response.data;

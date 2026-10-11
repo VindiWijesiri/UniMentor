@@ -1,11 +1,15 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -14,12 +18,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { learningRepository } from '../../../data/repositories/learningRepository';
+import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import type { LearningDashboard } from '../../../domain/entities/Learning';
-import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import {
   SvgCalendar,
-  SvgChat,
   SvgCheck,
   SvgClipboard,
   SvgFileText,
@@ -27,11 +30,49 @@ import {
 } from '../../components/common/SvgIcons';
 import { card, ice, ink, live, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 import RecentDiscussionsCard from './RecentDiscussionsCard';
+import FocusSession from './FocusSession';
 import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
-
 
 type Props = BottomTabScreenProps<AppTabParamList, 'Learning'>;
 type StackNav = NativeStackNavigationProp<AppStackParamList>;
+
+const HOUR_OPTIONS = [0, 1, 2].map((hour) => ({ key: String(hour), label: hour === 1 ? '1 hour' : `${hour} hours` }));
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, minute) => ({
+  key: String(minute),
+  label: minute === 1 ? '1 min' : `${minute} min`,
+}));
+
+function MenuField({ label, value, options, onSelect }: {
+  label: string;
+  value: string;
+  options: { key: string; label: string }[];
+  onSelect: (key: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.menuField}>
+      <Text style={styles.menuLabel}>{label}</Text>
+      <TouchableOpacity style={styles.menu} onPress={() => setOpen(true)}>
+        <Text style={styles.menuValue} numberOfLines={1}>{value}</Text>
+        <Text style={styles.menuCaret}>▾</Text>
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setOpen(false)}>
+          <Pressable style={styles.menuSheet} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.menuSheetTitle}>{label}</Text>
+            <ScrollView style={styles.menuList}>
+              {options.map((option) => (
+                <TouchableOpacity key={option.key} style={styles.menuOption} onPress={() => { onSelect(option.key); setOpen(false); }}>
+                  <Text style={[styles.menuOptionText, option.label === value && styles.menuOptionOn]}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
 
 function formatWhen(value?: string) {
   if (!value) return '';
@@ -49,18 +90,32 @@ export default function LearningDashboardScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const statusBarHeight =
     Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
-  const user = useAuthStore((state) => state.user);
   const stack = navigation.getParent<StackNav>();
   const [data, setData] = useState<LearningDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [goalId, setGoalId] = useState('');
+  const [studyArea, setStudyArea] = useState('');
+  const [focusHours, setFocusHours] = useState(0);
+  const [focusMins, setFocusMins] = useState(25);
+  const [focusOn, setFocusOn] = useState(false);
+  const [editor, setEditor] = useState<'goal' | 'material' | null>(null);
+  const [editingId, setEditingId] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftCode, setDraftCode] = useState('');
+  const [draftDue, setDraftDue] = useState('This week');
+  const [draftPriority, setDraftPriority] = useState('Medium');
+  const [draftKind, setDraftKind] = useState('pdf');
+  const [draftNotes, setDraftNotes] = useState('');
+  const [savingItem, setSavingItem] = useState(false);
+  const [editorError, setEditorError] = useState('');
   const lastLoad = useRef(0);
   const dataRef = useRef<LearningDashboard | null>(null);
   dataRef.current = data;
 
   const load = useCallback(() => {
     let active = true;
-    if (dataRef.current && Date.now() - lastLoad.current < 20000) return () => { active = false; };
+    if (dataRef.current && Date.now() - lastLoad.current < 5000) return () => { active = false; };
     if (!dataRef.current) setLoading(true);
     learningRepository.getDashboard()
       .then((dashboard) => {
@@ -81,19 +136,135 @@ export default function LearningDashboardScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => load(), [load]));
 
-  const initials = data?.header.initials || user?.name?.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'ST';
   const week = data?.weeklyStudy;
   const maxHours = Math.max(4, ...(week?.days.map((day) => day.hours) ?? [1]));
+  const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+  const todayHours = week?.days[todayIndex]?.hours ?? 0;
   const activity = data?.continueActivity;
+  const focusGoals = (data?.todayGoals ?? []).map((goal) => ({
+    id: goal._id,
+    title: goal.moduleCode ? `${goal.moduleCode} · ${goal.title}` : goal.title,
+    code: goal.moduleCode || 'Goal',
+    areas: goal.areas?.length ? goal.areas : ['Whole goal'],
+  }));
+  const selectedGoal = focusGoals.find((goal) => goal.id === goalId) ?? focusGoals[0];
+  const areaOptions = selectedGoal?.areas ?? ['Whole goal'];
+  const focusMinutes = focusHours * 60 + focusMins;
+
+  useEffect(() => {
+    const first = data?.todayGoals?.[0]?._id;
+    if (!goalId && first) setGoalId(first);
+  }, [goalId, data]);
+
+  useEffect(() => {
+    if (!areaOptions.includes(studyArea)) setStudyArea(areaOptions[0]);
+  }, [areaOptions, studyArea]);
+
+  const refresh = () => {
+    lastLoad.current = 0;
+    load();
+  };
+
+  const askDelete = (message: string) => new Promise<boolean>((resolve) => {
+    if (Platform.OS === 'web') {
+      resolve(window.confirm(message));
+      return;
+    }
+    Alert.alert('Delete', message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+
+  const openGoalEditor = (goal?: NonNullable<LearningDashboard['todayGoals']>[number]) => {
+    setEditor('goal');
+    setEditingId(goal?._id ?? '');
+    setDraftTitle(goal?.title ?? '');
+    setDraftCode(goal?.moduleCode ?? '');
+    setDraftDue(goal?.kind === 'weekly' ? 'This week' : (goal?.dueLabel?.split('·').pop()?.trim() || 'This week'));
+    setDraftPriority(goal?.priority || 'Medium');
+    setDraftNotes(goal?.areas?.[0] && goal.areas[0] !== 'Whole goal' ? goal.areas[0] : '');
+    setEditorError('');
+  };
+
+  const openMaterialEditor = (item?: NonNullable<LearningDashboard['materials']>[number]) => {
+    setEditor('material');
+    setEditingId(item?._id ?? '');
+    setDraftTitle(item?.title ?? '');
+    setDraftCode(item?.sourceLabel ?? '');
+    setDraftKind(item?.libraryKind || (item?.kind === 'set' ? 'code' : item?.kind === 'notes' ? 'text' : 'pdf'));
+    setDraftNotes('');
+    setEditorError('');
+  };
+
+  const saveEditor = async () => {
+    if (!draftTitle.trim()) {
+      setEditorError(editor === 'goal' ? 'Add a goal title.' : 'Add a material title.');
+      return;
+    }
+    setSavingItem(true);
+    setEditorError('');
+    try {
+      if (editor === 'goal') {
+        const body = {
+          title: draftTitle.trim(),
+          moduleCode: draftCode.trim(),
+          dueLabel: draftDue.trim() || 'This week',
+          priority: draftPriority,
+          area: draftNotes.trim(),
+        };
+        if (editingId) await learningRepository.updateGoal(editingId, body);
+        else await learningRepository.createGoal(body);
+      } else if (editor === 'material') {
+        const body = {
+          title: draftTitle.trim(),
+          kind: draftKind,
+          moduleName: draftCode.trim(),
+          moduleCode: draftCode.trim(),
+          body: draftNotes.trim() || draftTitle.trim(),
+          subtitle: draftCode.trim() || 'Study material',
+          source: 'library',
+        };
+        if (editingId) await libraryRepository.update(editingId, body);
+        else await libraryRepository.create(body);
+      }
+      setEditor(null);
+      refresh();
+    } catch (err: any) {
+      setEditorError(err?.response?.data?.message ?? 'Could not save. Check your connection.');
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const removeGoal = async (id: string) => {
+    if (!(await askDelete('Remove this goal from your learning dashboard?'))) return;
+    try {
+      await learningRepository.deleteGoal(id);
+      if (goalId === id) setGoalId('');
+      refresh();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Could not delete this goal.');
+    }
+  };
+
+  const removeMaterial = async (id: string) => {
+    if (!(await askDelete('Remove this study material?'))) return;
+    try {
+      await libraryRepository.remove(id);
+      refresh();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Could not delete this material.');
+    }
+  };
 
   return (
     <View style={styles.page}>
-      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
-      {/* Top Header Bar */}
+      <StatusBar barStyle="light-content" backgroundColor={navy} translucent={true} />
       <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.headerTitle}>Learning Dashboard</Text>
+          <View style={styles.headerLeftRow}>
+            <Text style={styles.headerTitle} numberOfLines={1}>Learning Dashboard</Text>
           </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
@@ -102,38 +273,33 @@ export default function LearningDashboardScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        <View style={styles.shortcutBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutRow}>
-            <TouchableOpacity style={[styles.shortcut, styles.shortcutActive]} onPress={() => stack?.navigate('ChatPod')}>
-              <SvgChat size={15} color={navy} />
-              <Text style={styles.shortcutActiveText}>Chat Pod</Text>
-              {(data?.header.unreadChat ?? 0) > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{data?.header.unreadChat} New</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyPlans')}>
-              <SvgCalendar size={15} color={navy} />
-              <Text style={styles.shortcutText}>My Plans</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyMaterials')}>
-              <SvgFileText size={15} color={navy} />
-              <Text style={styles.shortcutText}>Study Materials</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('Assessments')}>
-              <SvgClipboard size={15} color={navy} />
-              <Text style={styles.shortcutText}>Assessments</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
+      <View style={styles.shortcutBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutRow}>
+          <TouchableOpacity style={[styles.shortcut, styles.shortcutActive]} onPress={() => stack?.navigate('ChatPod')}>
+            <View style={styles.liveDot} />
+            <Text style={styles.shortcutActiveText}>Chat Pod</Text>
+            {(data?.header.unreadChat ?? 0) > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{data?.header.unreadChat} New</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyTaskTracker')}>
+            <SvgCalendar size={14} color={navy} />
+            <Text style={styles.shortcutText}>My Plans</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('StudyMaterials')}>
+            <SvgFileText size={14} color={navy} />
+            <Text style={styles.shortcutText}>Study Materials</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shortcut} onPress={() => stack?.navigate('Assessments')}>
+            <SvgClipboard size={14} color={navy} />
+            <Text style={styles.shortcutText}>Assessments</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
 
-
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {loading && !data ? (
           <View style={styles.state}><ActivityIndicator color={navy} /><Text style={styles.stateText}>Loading dashboard...</Text></View>
         ) : error && !data ? (
@@ -146,51 +312,145 @@ export default function LearningDashboardScreen({ navigation }: Props) {
           </View>
         ) : (
           <View style={styles.body}>
-            <View style={styles.card}>
-              <View style={styles.cardHead}>
-                <Text style={styles.cardTitle}>Weekly Study Hours</Text>
-                <Text style={styles.hoursTotal}>{week?.hoursDone ?? 0} / {week?.hoursGoal ?? 20} hours</Text>
-              </View>
-              <View style={styles.chart}>
-                {(week?.days ?? []).map((day, index) => (
-                  <View key={`${day.day}-${index}`} style={styles.barCol}>
-                    <View style={styles.barTrack}>
-                      <View style={[styles.barFill, { height: `${Math.max(8, (day.hours / maxHours) * 100)}%` }]} />
+            <TouchableOpacity style={[styles.card, styles.todayCard]} activeOpacity={0.9} onPress={() => stack?.navigate('StudyTaskTracker')}>
+              <View style={styles.todayRow}>
+                <View>
+                  <Text style={styles.cardTitle}>Today</Text>
+                  <Text style={styles.todayValue}>{todayHours}h</Text>
+                  <Text style={styles.goalMeta}>{week?.hoursDone ?? 0}h of {week?.hoursGoal ?? 20}h this week</Text>
+                </View>
+                <View style={styles.chart}>
+                  {(week?.days ?? []).map((day, index) => (
+                    <View key={`${day.day}-${index}`} style={styles.barCol}>
+                      <View style={styles.barTrack}>
+                        <View style={[styles.barFill, { height: `${day.hours ? Math.max(8, (day.hours / maxHours) * 100) : 0}%` }]} />
+                      </View>
+                      <Text style={[styles.barLabel, index === todayIndex && styles.barLabelToday]}>{day.day}</Text>
                     </View>
-                    <Text style={styles.barLabel}>{day.day}</Text>
-                  </View>
-                ))}
+                  ))}
+                </View>
               </View>
-              <View style={styles.weekMeta}>
-                <Text style={styles.weekPercent}>{week?.percent ?? 0}% of weekly goal accomplished</Text>
-                <Text style={styles.weekLeft}>{week?.hoursLeft ?? 0}h left</Text>
+              <Text style={styles.weekPercent}>{week?.percent ?? 0}% of the weekly goal</Text>
+            </TouchableOpacity>
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Focus</Text>
+              <Text style={styles.goalMeta}>The study area follows the goal you pick. Set any length.</Text>
+              <MenuField
+                label="Goal"
+                value={selectedGoal?.title || 'Choose a goal'}
+                options={focusGoals.map((goal) => ({ key: goal.id, label: goal.title }))}
+                onSelect={(id) => {
+                  setGoalId(id);
+                  const next = focusGoals.find((goal) => goal.id === id);
+                  setStudyArea(next?.areas[0] || 'Whole goal');
+                }}
+              />
+              <MenuField
+                label="Study area"
+                value={studyArea || 'Choose an area'}
+                options={areaOptions.map((area) => ({ key: area, label: area }))}
+                onSelect={setStudyArea}
+              />
+              <View style={styles.timeRow}>
+                <View style={styles.timeField}>
+                  <MenuField
+                    label="Hours"
+                    value={HOUR_OPTIONS.find((item) => item.key === String(focusHours))?.label || '0 hours'}
+                    options={HOUR_OPTIONS}
+                    onSelect={(key) => setFocusHours(Number(key))}
+                  />
+                </View>
+                <View style={styles.timeField}>
+                  <MenuField
+                    label="Minutes"
+                    value={MINUTE_OPTIONS.find((item) => item.key === String(focusMins))?.label || '0 min'}
+                    options={MINUTE_OPTIONS}
+                    onSelect={(key) => setFocusMins(Number(key))}
+                  />
+                </View>
               </View>
+              <TouchableOpacity
+                style={[styles.focusStart, focusMinutes < 1 && styles.focusStartOff]}
+                disabled={!selectedGoal || focusMinutes < 1}
+                onPress={() => setFocusOn(true)}
+              >
+                <Text style={styles.focusStartText}>Start {focusMinutes} min</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Today's Goals</Text>
+              <View style={styles.cardHead}>
+                <Text style={styles.cardTitle}>Today's Goals</Text>
+                <View style={styles.headActions}>
+                  <TouchableOpacity style={styles.addPill} onPress={() => openGoalEditor()}>
+                    <Text style={styles.addPillText}>Add</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => stack?.navigate('StudyTaskTracker')}>
+                    <Text style={styles.viewAll}>Open tracker</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {(data?.todayGoals ?? []).length === 0 ? (
+                <Text style={styles.goalMeta}>No goals yet. Add one to track it here.</Text>
+              ) : null}
               {(data?.todayGoals ?? []).map((goal) => (
-                <TouchableOpacity
-                  key={goal._id}
-                  style={styles.goalRow}
-                  onPress={async () => {
-                    try {
-                      await learningRepository.toggleGoal(goal._id);
-                      load();
-                    } catch {
-                      setError('Could not update this goal. Check your connection.');
-                    }
-                  }}
-                >
-                  <View style={[styles.goalCheck, goal.completed && styles.goalCheckOn]}>
+                <View key={goal._id} style={styles.goalBlock}>
+                <View style={styles.goalRow}>
+                  <TouchableOpacity
+                    style={[styles.goalCheck, goal.completed && styles.goalCheckOn]}
+                    onPress={async () => {
+                      if (goal.kind === 'weekly') {
+                        stack?.navigate('StudyTaskTracker');
+                        return;
+                      }
+                      try {
+                        await learningRepository.toggleGoal(goal._id);
+                        lastLoad.current = 0;
+                        load();
+                      } catch {
+                        setError('Could not update this goal. Check your connection.');
+                      }
+                    }}
+                  >
                     {goal.completed ? <SvgCheck size={12} color={navy} strokeWidth={3} /> : null}
-                  </View>
-                  <View style={styles.goalCopy}>
-                    <Text style={styles.goalTitle}>{goal.title}</Text>
-                    <Text style={styles.goalMeta}>{goal.dueLabel}</Text>
-                  </View>
-                  <Text style={styles.goalProgress}>{goal.current}/{goal.total} done</Text>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.goalCopy}
+                    onPress={() => {
+                      if (goal.kind === 'weekly') stack?.navigate('StudyTaskTracker');
+                      else stack?.navigate('GoalDetail', { goalId: goal._id });
+                    }}
+                  >
+                    <Text style={styles.goalTitle}>{goal.moduleCode ? `${goal.moduleCode} · ` : ''}{goal.title}</Text>
+                    <Text style={styles.goalMeta}>{goal.priority ? `${goal.priority} · ` : ''}{goal.dueLabel}</Text>
+                    {typeof goal.progress === 'number' ? (
+                      <View style={styles.goalTrack}><View style={[styles.goalFill, { width: `${Math.min(100, goal.progress)}%` }]} /></View>
+                    ) : null}
+                  </TouchableOpacity>
+                  <Text style={styles.goalProgress}>{goal.progress ?? Math.round((goal.current / Math.max(goal.total, 1)) * 100)}%</Text>
+                  <TouchableOpacity
+                    style={styles.focusMini}
+                    onPress={() => {
+                      setGoalId(goal._id);
+                      setStudyArea(goal.areas?.[0] || 'Whole goal');
+                      setFocusOn(true);
+                    }}
+                  >
+                    <Text style={styles.focusMiniText}>Focus</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.rowActions}>
+                  <TouchableOpacity onPress={() => openGoalEditor(goal)}>
+                    <Text style={styles.actionText}>Edit</Text>
+                  </TouchableOpacity>
+                  {goal.canDelete !== false && goal.kind !== 'weekly' ? (
+                    <TouchableOpacity onPress={() => removeGoal(goal._id)}>
+                      <Text style={styles.actionDanger}>Delete</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                </View>
               ))}
             </View>
 
@@ -209,8 +469,8 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                   style={styles.yellowBtn}
                   onPress={() => stack?.navigate('LearningActivity', { id: activity._id })}
                 >
-                  <View style={styles.btnInnerRow}>
-                    <SvgPlay size={13} color={navy} />
+                  <View style={styles.continueRow}>
+                    <SvgPlay size={14} color={navy} />
                     <Text style={styles.yellowBtnText}>Continue Activity</Text>
                   </View>
                 </TouchableOpacity>
@@ -296,35 +556,131 @@ export default function LearningDashboardScreen({ navigation }: Props) {
             <View style={styles.card}>
               <View style={styles.cardHead}>
                 <Text style={styles.cardTitle}>Recent Study Materials</Text>
-                <TouchableOpacity onPress={() => stack?.navigate('StudyMaterials')}>
-                  <Text style={styles.viewAll}>All Docs</Text>
-                </TouchableOpacity>
+                <View style={styles.headActions}>
+                  <TouchableOpacity style={styles.addPill} onPress={() => openMaterialEditor()}>
+                    <Text style={styles.addPillText}>Add</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => stack?.navigate('StudyMaterials')}>
+                    <Text style={styles.viewAll}>All Docs</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
+              {(data?.materials ?? []).length === 0 ? (
+                <Text style={styles.goalMeta}>No study materials yet. Add notes, a PDF, or a quiz.</Text>
+              ) : null}
               {(data?.materials ?? []).map((item) => (
-                <TouchableOpacity
-                  key={item._id}
-                  style={styles.materialRow}
-                  onPress={() => stack?.navigate('StudyMaterialDetail', { id: item._id })}
-                >
-                  <View style={styles.fileIcon}>
-                    {item.kind === 'pdf' ? (
-                      <SvgFileText size={18} color={navy} />
-                    ) : (
-                      <SvgClipboard size={18} color={navy} />
-                    )}
-                  </View>
-                  <View style={styles.goalCopy}>
-                    <Text style={styles.goalTitle}>{item.title}</Text>
-                    <Text style={styles.goalMeta}>
-                      {item.sourceType === 'group' ? 'Group' : 'Session'}: {item.sourceLabel}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                <View key={item._id} style={styles.goalBlock}>
+                  <TouchableOpacity
+                    style={styles.materialRow}
+                    onPress={() => stack?.navigate('StudyMaterialDetail', { id: item._id })}
+                  >
+                    <View style={styles.fileIcon}>
+                      {item.kind === 'pdf' || item.libraryKind === 'pdf' ? (
+                        <SvgFileText size={18} color={navy} />
+                      ) : (
+                        <SvgClipboard size={18} color={navy} />
+                      )}
+                    </View>
+                    <View style={styles.goalCopy}>
+                      <Text style={styles.goalTitle}>{item.title}</Text>
+                      <Text style={styles.goalMeta}>
+                        {item.sourceType === 'group' ? 'Group' : 'Session'}: {item.sourceLabel}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  {item.isOwner ? (
+                    <View style={styles.rowActions}>
+                      <TouchableOpacity onPress={() => openMaterialEditor(item)}>
+                        <Text style={styles.actionText}>Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => removeMaterial(item._id)}>
+                        <Text style={styles.actionDanger}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                </View>
               ))}
             </View>
           </View>
         )}
       </ScrollView>
+      <Modal visible={editor !== null} transparent animationType="fade" onRequestClose={() => setEditor(null)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => !savingItem && setEditor(null)}>
+          <Pressable style={styles.editorSheet} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.menuSheetTitle}>
+              {editor === 'goal' ? (editingId ? 'Edit goal' : 'New goal') : (editingId ? 'Edit material' : 'New study material')}
+            </Text>
+            <Text style={styles.menuLabel}>Title</Text>
+            <TextInput
+              value={draftTitle}
+              onChangeText={setDraftTitle}
+              placeholder={editor === 'goal' ? 'Revise graph traversals' : 'Lecture notes'}
+              placeholderTextColor="#8A97AB"
+              style={styles.editorInput}
+            />
+            <Text style={styles.menuLabel}>{editor === 'goal' ? 'Module code' : 'Module'}</Text>
+            <TextInput
+              value={draftCode}
+              onChangeText={setDraftCode}
+              placeholder={editor === 'goal' ? 'IT2040' : 'Data Structures'}
+              placeholderTextColor="#8A97AB"
+              style={styles.editorInput}
+            />
+            {editor === 'goal' ? (
+              <>
+                <Text style={styles.menuLabel}>Due</Text>
+                <TextInput value={draftDue} onChangeText={setDraftDue} placeholder="This week" placeholderTextColor="#8A97AB" style={styles.editorInput} />
+                <Text style={styles.menuLabel}>Priority</Text>
+                <View style={styles.chipRow}>
+                  {['High Priority', 'Medium', 'Low'].map((priority) => (
+                    <TouchableOpacity key={priority} style={[styles.choice, draftPriority === priority && styles.choiceOn]} onPress={() => setDraftPriority(priority)}>
+                      <Text style={[styles.choiceText, draftPriority === priority && styles.choiceTextOn]}>{priority}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.menuLabel}>Study area</Text>
+                <TextInput value={draftNotes} onChangeText={setDraftNotes} placeholder="Whole goal" placeholderTextColor="#8A97AB" style={styles.editorInput} />
+              </>
+            ) : (
+              <>
+                <Text style={styles.menuLabel}>Type</Text>
+                <View style={styles.chipRow}>
+                  {['pdf', 'text', 'quiz', 'code', 'video', 'image'].map((kind) => (
+                    <TouchableOpacity key={kind} style={[styles.choice, draftKind === kind && styles.choiceOn]} onPress={() => setDraftKind(kind)}>
+                      <Text style={[styles.choiceText, draftKind === kind && styles.choiceTextOn]}>{kind}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.menuLabel}>Notes</Text>
+                <TextInput
+                  value={draftNotes}
+                  onChangeText={setDraftNotes}
+                  placeholder="Paste a short note or description"
+                  placeholderTextColor="#8A97AB"
+                  style={[styles.editorInput, styles.editorNotes]}
+                  multiline
+                />
+              </>
+            )}
+            {editorError ? <Text style={styles.editorError}>{editorError}</Text> : null}
+            <TouchableOpacity style={[styles.focusStart, savingItem && styles.focusStartOff]} disabled={savingItem} onPress={saveEditor}>
+              <Text style={styles.focusStartText}>{savingItem ? 'Saving...' : 'Save'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditor(null)} disabled={savingItem}>
+              <Text style={styles.editorCancel}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <FocusSession
+        visible={focusOn}
+        areas={selectedGoal ? [{ id: selectedGoal.id, title: selectedGoal.title, code: selectedGoal.code }] : []}
+        areaId={selectedGoal?.id || ''}
+        minutes={Math.max(1, focusMinutes)}
+        studyArea={studyArea}
+        onClose={() => setFocusOn(false)}
+        onSaved={() => { lastLoad.current = 0; load(); }}
+      />
     </View>
   );
 }
@@ -343,11 +699,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: 36,
   },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.2,
+    flexShrink: 1,
   },
   brandRow: {
     flexDirection: 'row',
@@ -363,31 +726,33 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  btnInnerRow: {
+  shortcutBar: {
+    backgroundColor: ice,
+    paddingVertical: 12,
+    paddingLeft: 12,
+  },
+  shortcutRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
+    paddingRight: 20,
   },
-  shortcutBar: { backgroundColor: ice, paddingVertical: 12, paddingLeft: 12 },
-  shortcutRow: { flexDirection: 'row', gap: 8, paddingRight: 16 },
   shortcut: {
+    height: 40,
     borderRadius: 22,
     backgroundColor: secondaryBlue,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   shortcutActive: { backgroundColor: yellow },
-  shortcutText: { color: navy, fontSize: 11, fontWeight: '800' },
-  shortcutActiveText: { color: navy, fontSize: 11, fontWeight: '900' },
-  shortcutIcon: { color: navy, fontSize: 12 },
+  shortcutText: { color: navy, fontSize: 13, fontWeight: '800' },
+  shortcutActiveText: { color: navy, fontSize: 13, fontWeight: '900' },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: live },
   badge: { backgroundColor: navy, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
-  badgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
+  badgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   body: { padding: 14, gap: 10 },
   card: {
     backgroundColor: card, borderRadius: 20, padding: 14,
@@ -395,30 +760,90 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   cardTitle: { color: ink, fontSize: 16, fontWeight: '900' },
+  todayCard: { paddingVertical: 10 },
+  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  todayValue: { color: ink, fontSize: 22, fontWeight: '900', marginTop: 2 },
+  menuField: { marginTop: 8 },
+  menuLabel: { color: muted, fontSize: 11, fontWeight: '800', marginBottom: 4 },
+  menu: {
+    minHeight: 42, borderRadius: 12, borderWidth: 1, borderColor: '#E6EAF2',
+    paddingLeft: 12, paddingRight: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
+  },
+  menuValue: { flex: 1, color: ink, fontWeight: '700' },
+  menuCaret: { color: navy, fontSize: 14, fontWeight: '800' },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(6,30,71,0.35)', justifyContent: 'flex-end' },
+  menuSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: 28 },
+  menuSheetTitle: { color: ink, fontSize: 16, fontWeight: '800', marginBottom: 8 },
+  menuList: { maxHeight: 320 },
+  menuOption: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuOptionText: { color: '#334155', fontSize: 15 },
+  menuOptionOn: { color: navy, fontWeight: '800' },
+  timeRow: { flexDirection: 'row', gap: 10 },
+  timeField: { flex: 1 },
+  focusStart: { backgroundColor: yellow, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 12 },
+  focusStartOff: { opacity: 0.45 },
+  focusStartText: { color: navy, fontWeight: '800' },
+  focusMini: { marginLeft: 8, backgroundColor: navy, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 6 },
+  focusMiniText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   hoursTotal: { color: muted, fontSize: 12, fontWeight: '700' },
-  chart: { height: 92, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 6 },
-  barCol: { alignItems: 'center', width: 28, height: '100%', justifyContent: 'flex-end' },
-  barTrack: { width: 10, height: 70, borderRadius: 6, backgroundColor: '#EEF2F7', justifyContent: 'flex-end', overflow: 'hidden' },
+  chart: { height: 46, flex: 1, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  barCol: { alignItems: 'center', flex: 1, height: '100%', justifyContent: 'flex-end' },
+  barTrack: { width: 8, height: 28, borderRadius: 6, backgroundColor: '#EEF2F7', justifyContent: 'flex-end', overflow: 'hidden' },
   barFill: { width: '100%', backgroundColor: yellow, borderRadius: 6 },
-  barLabel: { color: muted, fontSize: 10, fontWeight: '700', marginTop: 6 },
-  weekMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-  weekPercent: { color: ink, fontSize: 12, fontWeight: '700' },
-  weekLeft: { color: muted, fontSize: 12, fontWeight: '700' },
-  goalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
+  barLabel: { color: muted, fontSize: 10, fontWeight: '700', marginTop: 4 },
+  barLabelToday: { color: ink, fontWeight: '900' },
+  weekPercent: { color: ink, fontSize: 12, fontWeight: '700', marginTop: 8 },
+  headActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  addPill: { backgroundColor: yellow, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  addPillText: { color: navy, fontSize: 12, fontWeight: '900' },
+  goalBlock: { borderTopWidth: 1, borderTopColor: '#F0F3F8', paddingBottom: 4 },
+  goalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  rowActions: { flexDirection: 'row', gap: 14, paddingLeft: 32, paddingBottom: 6 },
+  actionText: { color: navy, fontSize: 12, fontWeight: '800' },
+  actionDanger: { color: '#B45309', fontSize: 12, fontWeight: '800' },
+  editorSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 16,
+    paddingBottom: 28,
+    maxHeight: '88%',
+  },
+  editorInput: {
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E6EAF2',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    color: ink,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  editorNotes: { minHeight: 84, textAlignVertical: 'top', paddingTop: 10 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  choice: { borderRadius: 12, borderWidth: 1, borderColor: '#E6EAF2', paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#F8FAFC' },
+  choiceOn: { backgroundColor: navy, borderColor: navy },
+  choiceText: { color: navy, fontSize: 12, fontWeight: '800' },
+  choiceTextOn: { color: '#FFFFFF' },
+  editorError: { color: '#B45309', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  editorCancel: { textAlign: 'center', color: muted, fontWeight: '800', paddingVertical: 10 },
   goalCheck: {
     width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#D5DCE8',
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
   goalCheckOn: { backgroundColor: yellow, borderColor: yellow },
-  goalCheckText: { color: navy, fontSize: 12, fontWeight: '900' },
   goalCopy: { flex: 1, minWidth: 0 },
   goalTitle: { color: ink, fontSize: 14, fontWeight: '800' },
   goalMeta: { color: muted, fontSize: 12, marginTop: 3 },
   goalProgress: { color: muted, fontSize: 11, fontWeight: '700' },
+  goalTrack: { height: 6, backgroundColor: '#E7EDF6', borderRadius: 6, marginTop: 8 },
+  goalFill: { height: 6, backgroundColor: yellow, borderRadius: 6 },
   moduleCode: { color: ink, fontSize: 15, fontWeight: '900' },
   topic: { color: ink, fontSize: 13, fontWeight: '700', marginTop: 4 },
   yellowBtn: { backgroundColor: yellow, borderRadius: 16, paddingVertical: 13, alignItems: 'center', marginTop: 14 },
   yellowBtnText: { color: navy, fontSize: 15, fontWeight: '900' },
+  continueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   navyBtn: { backgroundColor: yellow, borderRadius: 14, paddingVertical: 11, alignItems: 'center', marginTop: 12 },
   navyBtnText: { color: navy, fontSize: 14, fontWeight: '900' },
   ghostBtn: {
@@ -438,12 +863,11 @@ const styles = StyleSheet.create({
   upcomingRow: { paddingTop: 12, marginTop: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
   upcomingLabel: { color: muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.6, marginBottom: 4 },
   assessmentBlock: { paddingTop: 12, marginTop: 8, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
-  materialRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
+  materialRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
   fileIcon: {
     width: 40, height: 40, borderRadius: 12, backgroundColor: '#EEF3FB',
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
-  fileIconText: { color: navy, fontSize: 10, fontWeight: '900' },
   state: { padding: 40, alignItems: 'center' },
   stateText: { color: muted, marginTop: 8 },
   stateTitle: { color: ink, fontWeight: '800' },

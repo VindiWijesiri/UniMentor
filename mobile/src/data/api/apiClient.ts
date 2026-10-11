@@ -1,29 +1,38 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { useAuthStore } from '../../domain/stores/authStore';
 
-// Automatically detect host machine IP from Expo bundler (LAN / Wi-Fi) or fallback to current IP
-const getDetectedHostIp = (): string => {
+function packagerHost(): string {
   const hostUri =
     Constants.expoConfig?.hostUri ||
+    (Constants as any).expoGoConfig?.debuggerHost ||
     (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
     (Constants as any).manifest?.debuggerHost;
 
   if (hostUri && typeof hostUri === 'string') {
-    const ip = hostUri.split(':')[0];
-    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      return ip;
-    }
+    const host = hostUri.split(':')[0];
+    if (host && host !== 'localhost' && host !== '127.0.0.1') return host;
   }
-  return '172.28.13.76';
-};
+  return '';
+}
 
-const DETECTED_IP = getDetectedHostIp();
-const LAN_API_URL = `http://${DETECTED_IP}:5000/api`;
-const LOCALHOST_API_URL = 'http://localhost:5000/api';
+function resolveBaseUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+  if (Platform.OS === 'web') {
+    const pageHost = typeof window !== 'undefined' ? window.location.hostname : '';
+    if (!pageHost || pageHost === 'localhost' || pageHost === '127.0.0.1') {
+      return 'http://127.0.0.1:5000/api';
+    }
+    return `http://${pageHost}:5000/api`;
+  }
+  const host = packagerHost();
+  if (host) return `http://${host}:5000/api`;
+  if (fromEnv && !/localhost|127\.0\.0\.1/.test(fromEnv)) return fromEnv;
+  return fromEnv || 'http://127.0.0.1:5000/api';
+}
 
-// Prefer LAN API URL so physical phone reaches backend over Wi-Fi & USB without ADB routing issues
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || LAN_API_URL;
+const BASE_URL = resolveBaseUrl();
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -32,6 +41,7 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+  config.baseURL = resolveBaseUrl();
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -54,20 +64,34 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    // If request failed with network error, attempt fallback between LAN IP and localhost
-    if ((error.code === 'ERR_NETWORK' || error.message === 'Network Error') && error.config && !error.config._retriedWithFallback) {
-      const currentBase = error.config.baseURL || BASE_URL;
-      const fallbackBase = currentBase.includes('localhost') || currentBase.includes('127.0.0.1')
-        ? LAN_API_URL
-        : LOCALHOST_API_URL;
-
-      console.log(`[MOBILE CLIENT] 🔄 Network error on ${currentBase}. Retrying with fallback: ${fallbackBase}`);
-      error.config.baseURL = fallbackBase;
-      error.config._retriedWithFallback = true;
+    const method = String(error.config?.method || 'get').toLowerCase();
+    if (
+      (error.code === 'ERR_NETWORK' || error.message === 'Network Error')
+      && error.config
+      && !error.config._retriedOnce
+      && method === 'get'
+    ) {
+      error.config._retriedOnce = true;
       try {
         return await axios.request(error.config);
-      } catch (fallbackError: any) {
-        error = fallbackError;
+      } catch (retryError: any) {
+        error = retryError;
+      }
+    }
+
+    if ((error.code === 'ERR_NETWORK' || error.message === 'Network Error') && error.config && !error.config._retriedWithFallback) {
+      const currentBase = error.config.baseURL || BASE_URL;
+      const localBase = 'http://127.0.0.1:5000/api';
+      const fallbackBase = Platform.OS === 'web' && currentBase !== localBase ? localBase : resolveBaseUrl();
+      if (fallbackBase && fallbackBase !== currentBase && (Platform.OS === 'web' || !/localhost|127\.0\.0\.1/.test(fallbackBase))) {
+        console.log(`[MOBILE CLIENT] 🔄 Network error on ${currentBase}. Retrying with ${fallbackBase}`);
+        error.config.baseURL = fallbackBase;
+        error.config._retriedWithFallback = true;
+        try {
+          return await axios.request(error.config);
+        } catch (fallbackError: any) {
+          error = fallbackError;
+        }
       }
     }
 
