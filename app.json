@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "46e805d8-daeb-44f2-8475-b9150039f985"
+      }
+    },
+    "android": {
+      "package": "com.unimentor.app"
+    }
+  }
+}

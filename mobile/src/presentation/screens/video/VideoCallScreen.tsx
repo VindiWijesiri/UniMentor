@@ -79,9 +79,6 @@ export default function VideoCallScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Connecting to session...</Text>
-        <Text style={styles.noteText}>
-          Note: Full video calling requires native build. This is a demo preview.
-        </Text>
       </View>
     );
   }
@@ -103,9 +100,6 @@ export default function VideoCallScreen() {
         <Ionicons name="person-circle" size={80} color="rgba(255,255,255,0.5)" />
         <Text style={styles.waitingText}>
           Waiting for {isTutor ? 'student' : 'tutor'} to join...
-        </Text>
-        <Text style={styles.noteText}>
-          Real-time video requires native build with Agora SDK
         </Text>
       </View>
 
