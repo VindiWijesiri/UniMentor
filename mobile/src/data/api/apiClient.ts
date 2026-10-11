@@ -19,6 +19,12 @@ function packagerHost(): string {
 
 function resolveBaseUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+  
+  // Always prioritize the environment variable if it's a valid URL
+  if (fromEnv && fromEnv.startsWith('http')) {
+    return fromEnv;
+  }
+  
   if (Platform.OS === 'web') {
     const pageHost = typeof window !== 'undefined' ? window.location.hostname : '';
     if (!pageHost || pageHost === 'localhost' || pageHost === '127.0.0.1') {
@@ -26,10 +32,14 @@ function resolveBaseUrl(): string {
     }
     return `http://${pageHost}:5000/api`;
   }
+  
+  // For mobile: use env variable or try local network
+  if (fromEnv) return fromEnv;
+  
   const host = packagerHost();
   if (host) return `http://${host}:5000/api`;
-  if (fromEnv && !/localhost|127\.0\.0\.1/.test(fromEnv)) return fromEnv;
-  return fromEnv || 'http://127.0.0.1:5000/api';
+  
+  return 'http://127.0.0.1:5000/api';
 }
 
 const BASE_URL = resolveBaseUrl();
