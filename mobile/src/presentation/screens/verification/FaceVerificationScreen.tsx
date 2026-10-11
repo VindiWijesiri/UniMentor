@@ -391,13 +391,23 @@ export default function FaceVerificationScreen({ navigation, route }: Props) {
                 'Biometric match score was below security threshold. Please take another photo in good lighting.'}
             </Text>
 
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={handleRetry}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={styles.retakeButton}
+                onPress={handleRetry}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.retakeButtonText}>Try Again</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={handleContinue}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.skipButtonText}>Skip for Now  ➔</Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
@@ -412,13 +422,23 @@ export default function FaceVerificationScreen({ navigation, route }: Props) {
               {errorMessage || 'Service encountered a technical error. Please try again.'}
             </Text>
 
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={handleRetry}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={styles.retakeButton}
+                onPress={handleRetry}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.retakeButtonText}>Try Again</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={handleContinue}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.skipButtonText}>Skip for Now  ➔</Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </View>
@@ -805,5 +825,23 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '800',
+  },
+  skipButton: {
+    flex: 1.2,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  skipButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

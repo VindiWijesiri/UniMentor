@@ -67,10 +67,15 @@ export default function VideoCallScreen() {
     const sessionLink = `unimentor://session/${sessionId}?channel=${channelName}`;
     
     try {
-      await Clipboard.setStringAsync(sessionLink);
-      Alert.alert('Link Copied', 'Session link has been copied to clipboard. You can share it with others.');
+      if (Clipboard && Clipboard.setStringAsync) {
+        await Clipboard.setStringAsync(sessionLink);
+        Alert.alert('Link Copied', 'Session link has been copied to clipboard. You can share it with others.');
+      } else {
+        Alert.alert('Session Link', sessionLink);
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to copy link to clipboard.');
+      console.error('Clipboard error:', error);
+      Alert.alert('Session Link', sessionLink);
     }
   };
 

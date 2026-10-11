@@ -137,6 +137,21 @@ export default function VerificationResultScreen({ navigation, route }: Props) {
                 {initialRole === 'mentor' ? 'Track Verification Status  →' : 'Enter UniMentor  →'}
               </Text>
             </TouchableOpacity>
+
+            {/* Back to Sign In button - for both tutor and student */}
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                // Reset navigation stack to Login screen
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.secondaryButtonText}>Back to Sign In</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           /* ================= FAILED STATE ================= */
@@ -423,11 +438,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+    marginBottom: 12,
   },
   primaryButtonText: {
     color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
+  },
+  secondaryButton: {
+    width: '100%',
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  secondaryButtonText: {
+    color: colors.navy,
+    fontSize: 16,
+    fontWeight: '700',
   },
   retryButton: {
     backgroundColor: colors.secondary,
