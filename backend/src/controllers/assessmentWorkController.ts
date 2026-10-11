@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 import {
@@ -12,6 +13,7 @@ import {
   type WorkQuestion,
 } from '../models/assessmentWork';
 import { ensureAssessmentCatalog, ensureStudentAssessmentExtras } from '../services/seedAssessmentWork';
+import { notify } from '../services/notify';
 
 function words(value: string): number {
   const trimmed = value.trim();
@@ -188,7 +190,11 @@ export async function getAssessmentCenter(req: AuthRequest, res: Response, next:
     ]);
     const byPaper = new Map(attempts.map((item) => [String(item.paperId), item]));
     const items = papers
-      .filter((paper) => paper.status === 'published' || byPaper.has(String(paper._id)))
+      .filter((paper) => {
+        const assigned = (paper.assignedStudentIds ?? []).map((id: any) => String(id));
+        const forStudent = assigned.length === 0 || assigned.includes(studentId);
+        return forStudent && (paper.status === 'published' || byPaper.has(String(paper._id)));
+      })
       .map((paper) => {
         const attempt = byPaper.get(String(paper._id));
         const status = attempt?.status ?? 'not_started';
@@ -573,6 +579,12 @@ export async function gradeSubmission(req: AuthRequest, res: Response, next: Nex
     attempt.gradeLabel = gradeLabel(score, attempt.maxScore);
     attempt.feedback = req.body.feedback || attempt.feedback || 'Graded by tutor.';
     await attempt.save();
+    await notify(attempt.studentId, {
+      kind: 'grade',
+      title: 'Assessment graded',
+      body: 'Your tutor saved a mark. It appears when grades are released.',
+      refId: String(attempt.paperId),
+    });
     res.json({ attemptId: attempt._id, score: attempt.score, gradeLabel: attempt.gradeLabel, status: attempt.status });
   } catch (err) {
     next(err);
@@ -586,7 +598,45 @@ export async function releaseGrades(req: AuthRequest, res: Response, next: NextF
       res.status(404).json({ message: 'Assessment not found.' });
       return;
     }
+    const attempts = await AssessmentAttempt.find({ paperId: paper._id });
+    await Promise.all(attempts.map((attempt) => notify(attempt.studentId, {
+      kind: 'grade',
+      title: 'Grades released',
+      body: `${paper.title} results are ready.`,
+      refId: String(paper._id),
+    })));
     res.json({ paperId: paper._id, gradesReleased: paper.gradesReleased });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function assignPaper(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const paper = await AssessmentPaper.findOne({ _id: req.params.id, tutorId: req.userId });
+    if (!paper) {
+      res.status(404).json({ message: 'Assessment not found.' });
+      return;
+    }
+    const studentIds = Array.isArray(req.body.studentIds) ? req.body.studentIds.map(String) : [];
+    if (!studentIds.length) {
+      res.status(400).json({ message: 'Choose at least one student.' });
+      return;
+    }
+    paper.assignedStudentIds = studentIds
+      .filter((id: string) => mongoose.isValidObjectId(id))
+      .map((id: string) => new mongoose.Types.ObjectId(id));
+    if (paper.status === 'draft') paper.status = 'pending_review';
+    await paper.save();
+    await Promise.all(studentIds.map((studentId: string) => notify(studentId, {
+      kind: 'grade',
+      title: 'Assessment assigned',
+      body: paper.status === 'published'
+        ? `${paper.title} is on your assessment list.`
+        : `${paper.title} was assigned and will appear after it is published.`,
+      refId: String(paper._id),
+    })));
+    res.json({ paperId: paper._id, assigned: studentIds.length, status: paper.status });
   } catch (err) {
     next(err);
   }

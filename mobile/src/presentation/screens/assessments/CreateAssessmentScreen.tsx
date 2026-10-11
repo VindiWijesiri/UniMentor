@@ -10,7 +10,7 @@ import { blue, card, ink, line, muted, navy, orange, soft } from './theme';
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateAssessment'>;
 
 export default function CreateAssessmentScreen({ navigation, route }: Props) {
-  const kind = route.params.kind;
+  const kind: AssessmentKind = route.params?.kind || 'mcq';
   const save = async (input: CreatePaperInput, preview: boolean) => {
     try {
       const created = await assessmentRepository.createPaper({ ...input, publish: !preview });

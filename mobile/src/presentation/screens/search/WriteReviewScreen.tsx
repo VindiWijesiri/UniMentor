@@ -1,3 +1,22 @@
+/**
+ * ============================================================================
+ * @file WriteReviewScreen.tsx
+ * @module AcademicSupport / Reviews & Ratings
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Interactive review submission and management screen allowing students to rate
+ * tutors, select quick positive praise tags, write detailed academic feedback,
+ * edit previously submitted reviews, and delete reviews.
+ *
+ * Core Features:
+ * - Interactive 5-star rating selector with dynamic sentiment/mood pill indicators
+ * - Quick compliment chips that dynamically append/remove from the review text
+ * - Live character counter (max 500 chars) and strict validation guards
+ * - Seamless create / edit / delete lifecycle with backend API synchronization
+ * - Role-based authorization guards (mentors restricted from student reviews)
+ * ============================================================================
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,6 +26,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +37,7 @@ import {
 import axios from 'axios';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { useReviewStore } from '../../../domain/stores/reviewStore';
@@ -25,73 +46,90 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'WriteReview'>;
 
+
 interface RatingOption {
   label: string;
-  emoji: string;
+  icon: keyof typeof Ionicons.glyphMap;
   badgeBg: string;
   badgeBorder: string;
   textColor: string;
 }
 
+/**
+ * Mapping of star rating values to their human-readable sentiment labels and theme colors
+ */
 const RATING_DETAILS: Record<number, RatingOption> = {
   1: {
     label: '1.0 • Poor Experience',
-    emoji: '⚠️',
+    icon: 'alert-circle',
     badgeBg: '#FEF2F2',
     badgeBorder: '#FECACA',
     textColor: '#DC2626',
   },
   2: {
     label: '2.0 • Needs Improvement',
-    emoji: '😕',
+    icon: 'sad-outline',
     badgeBg: '#FFF7ED',
     badgeBorder: '#FED7AA',
     textColor: '#EA580C',
   },
   3: {
     label: '3.0 • Satisfactory Session',
-    emoji: '🙂',
+    icon: 'happy-outline',
     badgeBg: '#F0FDF4',
     badgeBorder: '#BBF7D0',
     textColor: '#16A34A',
   },
   4: {
     label: '4.0 • Very Good & Helpful',
-    emoji: '😃',
+    icon: 'thumbs-up',
     badgeBg: '#EFF6FF',
     badgeBorder: '#BFDBFE',
     textColor: '#2563EB',
   },
   5: {
     label: '5.0 • Outstanding Session!',
-    emoji: '⭐',
+    icon: 'star',
     badgeBg: '#FFFBEB',
     badgeBorder: '#FDE68A',
     textColor: '#D97706',
   },
 };
 
+/**
+ * Preset positive feedback chips that students can tap to rapidly compose feedback
+ */
 interface QuickPraise {
   id: string;
+  icon: keyof typeof Ionicons.glyphMap;
   text: string;
   sentence: string;
 }
 
+/**
+ * Curated list of quick feedback compliments for teaching quality and professionalism
+ */
 const QUICK_PRAISES: QuickPraise[] = [
-  { id: 'clear', text: '💡 Clear concepts', sentence: 'Explains complex concepts very clearly and simply.' },
-  { id: 'exam', text: '🎯 Great exam prep', sentence: 'Gave targeted exam tips and practice problems.' },
-  { id: 'patient', text: '🤝 Very patient', sentence: 'Extremely patient with questions and never rushed.' },
-  { id: 'punctual', text: '⏱️ Always on time', sentence: 'Well prepared and started promptly on time.' },
-  { id: 'notes', text: '📚 Helpful notes', sentence: 'Provided clear summaries and high quality study notes.' },
-  { id: 'motivating', text: '🔥 Inspiring', sentence: 'Very motivating and boosted my confidence in this subject.' },
-  { id: 'friendly', text: '✨ Friendly atmosphere', sentence: 'Welcoming, approachable, and encouraging teaching style.' },
+  { id: 'clear', icon: 'bulb-outline', text: 'Clear concepts', sentence: 'Explains complex concepts very clearly and simply.' },
+  { id: 'exam', icon: 'flag-outline', text: 'Great exam prep', sentence: 'Gave targeted exam tips and practice problems.' },
+  { id: 'patient', icon: 'heart-outline', text: 'Very patient', sentence: 'Extremely patient with questions and never rushed.' },
+  { id: 'punctual', icon: 'time-outline', text: 'Always on time', sentence: 'Well prepared and started promptly on time.' },
+  { id: 'notes', icon: 'book-outline', text: 'Helpful notes', sentence: 'Provided clear summaries and high quality study notes.' },
+  { id: 'motivating', icon: 'flame-outline', text: 'Inspiring', sentence: 'Very motivating and boosted my confidence in this subject.' },
+  { id: 'friendly', icon: 'sparkles-outline', text: 'Friendly atmosphere', sentence: 'Welcoming, approachable, and encouraging teaching style.' },
 ];
 
+/**
+ * Main review submission and management screen component
+ */
 export default function WriteReviewScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { mentor, existingReview: initialExistingReview } = route.params;
   const { user } = useAuthStore();
 
+  // Local Form & Interaction State
   const [rating, setRating] = useState(initialExistingReview?.rating || 5);
   const [comment, setComment] = useState(initialExistingReview?.comment || '');
   const [editingReviewId, setEditingReviewId] = useState<string | null>(
@@ -106,6 +144,9 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
   const hasLoadedExistingRef = useRef(false);
   const inputRef = useRef<TextInput>(null);
 
+  /**
+   * Transitions an existing review from read-only overview into active edit mode
+   */
   const activateEditMode = () => {
     if (editingReviewId && !isEditingActive) {
       setIsEditingActive(true);
@@ -172,6 +213,10 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
     };
   }, [mentor._id, user?._id, user?.name, initialExistingReview]);
 
+  /**
+   * Toggles inclusion of a preset praise phrase inside the written comment box
+   * @param praise - Selected quick praise object
+   */
   const togglePraise = (praise: QuickPraise) => {
     const isSelected = selectedPraiseIds.includes(praise.id);
     if (isSelected) {
@@ -193,6 +238,11 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
     }
   };
 
+  /**
+   * Handles saving a new review or updating an existing one.
+   * Performs client validation, calls reviewRepository, refreshes the global store,
+   * navigates back, and presents confirmation feedback.
+   */
   const handleSaveOrUpdate = async () => {
     Keyboard.dismiss();
 
@@ -227,7 +277,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
         // 4. Show notification AFTER review has been updated and shown on review page
         setTimeout(() => {
           Alert.alert(
-            'Review Updated! ⭐',
+            'Review Updated',
             `Your review for ${mentor.name} has been updated successfully.`
           );
         }, 350);
@@ -241,7 +291,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
         // 4. Show notification AFTER review is published
         setTimeout(() => {
           Alert.alert(
-            'Review Published! ⭐',
+            'Review Published',
             `Thank you! Your review for ${mentor.name} is now published and visible on their profile.`
           );
         }, 350);
@@ -265,6 +315,10 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
     }
   };
 
+  /**
+   * Prompts user with a destructive confirmation alert and permanently deletes
+   * the active review from both database and local store.
+   */
   const handleDeleteReview = () => {
     if (!editingReviewId) return;
 
@@ -305,6 +359,28 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Write a Review</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -325,7 +401,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                 </View>
               )}
               <View style={styles.verifiedDot}>
-                <Text style={styles.verifiedCheck}>✓</Text>
+                <Ionicons name="checkmark" size={10} color="#FFFFFF" />
               </View>
             </View>
 
@@ -342,8 +418,9 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                   </View>
                 ) : (
                   <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={11} color="#D97706" style={{ marginRight: 3 }} />
                     <Text style={styles.ratingBadgeText}>
-                      ★ {mentor.rating ? mentor.rating.toFixed(1) : '5.0'}
+                      {mentor.rating ? mentor.rating.toFixed(1) : '5.0'}
                     </Text>
                   </View>
                 )}
@@ -369,7 +446,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
 
             {isEditing && !isEditingActive && (
               <View style={styles.previousReviewBanner}>
-                <Text style={styles.previousReviewBannerIcon}>📋</Text>
+                <Ionicons name="document-text-outline" size={22} color="#0D4F9E" style={{ marginRight: 10, marginTop: 1 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.previousReviewBannerTitle}>Previous Review Submitted</Text>
                   <Text style={styles.previousReviewBannerSub}>
@@ -381,7 +458,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
 
             {isEditing && isEditingActive && (
               <View style={styles.editingActiveBanner}>
-                <Text style={styles.editingActiveBannerIcon}>✏️</Text>
+                <Ionicons name="create-outline" size={18} color="#0D4F9E" style={{ marginRight: 8, marginTop: 2 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.editingActiveBannerTitle}>Editing Previous Review</Text>
                   <Text style={styles.editingActiveBannerSub}>
@@ -432,7 +509,11 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                     >
-                      <Text style={[styles.starGlyph, isFilled && styles.starGlyphFilled]}>★</Text>
+                      <Ionicons
+                        name={isFilled ? 'star' : 'star-outline'}
+                        size={36}
+                        color={isFilled ? '#F59E0B' : '#CBD5E1'}
+                      />
                     </TouchableOpacity>
                   );
                 })}
@@ -448,7 +529,12 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                   },
                 ]}
               >
-                <Text style={styles.moodEmoji}>{activeRating.emoji}</Text>
+                <Ionicons
+                  name={activeRating.icon}
+                  size={16}
+                  color={activeRating.textColor}
+                  style={{ marginRight: 6 }}
+                />
                 <Text style={[styles.moodLabel, { color: activeRating.textColor }]}>
                   {activeRating.label}
                 </Text>
@@ -480,11 +566,19 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                       }}
                       activeOpacity={0.75}
                     >
-                      <Text
-                        style={[styles.praiseChipText, isSelected && styles.praiseChipTextSelected]}
-                      >
-                        {isSelected ? `✓ ${praise.text}` : praise.text}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons
+                          name={isSelected ? 'checkmark-circle' : praise.icon}
+                          size={13}
+                          color={isSelected ? '#061E47' : '#64748B'}
+                          style={{ marginRight: 5 }}
+                        />
+                        <Text
+                          style={[styles.praiseChipText, isSelected && styles.praiseChipTextSelected]}
+                        >
+                          {praise.text}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -545,16 +639,16 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                   <View style={styles.btnContentRow}>
                     {isEditing && !isEditingActive ? (
                       <>
-                        <Text style={styles.btnIcon}>✏️</Text>
+                        <Ionicons name="create-outline" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
                         <Text style={styles.primaryBtnText}>Update Review</Text>
-                        <Text style={styles.btnArrow}>★</Text>
+                        <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
                       </>
                     ) : (
                       <>
                         <Text style={styles.primaryBtnText}>
                           {isEditing ? 'Update Review' : 'Submit Review'}
                         </Text>
-                        <Text style={styles.btnArrow}>★</Text>
+                        <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
                       </>
                     )}
                   </View>
@@ -572,7 +666,7 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
                     <ActivityIndicator color="#DC2626" size="small" />
                   ) : (
                     <View style={styles.btnContentRow}>
-                      <Text style={styles.deleteBtnIcon}>🗑️</Text>
+                      <Ionicons name="trash-outline" size={17} color="#DC2626" style={{ marginRight: 6 }} />
                       <Text style={styles.deleteBtnText}>Delete This Review</Text>
                     </View>
                   )}
@@ -586,12 +680,55 @@ export default function WriteReviewScreen({ route, navigation }: Props) {
 }
 
 const navy = '#061E47';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#F4F7FB',
+  },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -907,13 +1044,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryBtnText: {
-    color: '#FFFFFF',
+    color: navy,
     fontSize: 15.5,
     fontWeight: '900',
     letterSpacing: 0.3,
   },
   btnArrow: {
-    color: '#FFFFFF',
+    color: navy,
     fontSize: 16,
     fontWeight: '900',
   },

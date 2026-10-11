@@ -1,5 +1,16 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  Share,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,12 +18,16 @@ import { podRepository } from '../../../data/repositories/podRepository';
 import type { PodPerson } from '../../../domain/entities/Pod';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
+import { SvgBook, SvgCheck, SvgChevronLeft, SvgStar } from '../../components/common/SvgIcons';
 import { ice, ink, muted, navy, pageBg, yellow } from './learningTheme';
+
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateSquad'>;
 
 export default function CreateSquadScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const [step, setStep] = useState<'details' | 'invite'>('details');
   const [title, setTitle] = useState('IT2040 DSA Advanced Squad');
   const [moduleCode, setModuleCode] = useState('IT2040 · Data Structures & Algorithms');
@@ -62,18 +77,21 @@ export default function CreateSquadScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity
-            style={styles.backHit}
-            onPress={() => (step === 'invite' ? setStep('details') : navigation.goBack())}
-            hitSlop={8}
-          >
-            <Text style={styles.back}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroTitle} numberOfLines={1}>
-            {step === 'details' ? 'Create Study Squad' : 'Invite & Study Setup'}
-          </Text>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={() => (step === 'invite' ? setStep('details') : navigation.goBack())}
+              activeOpacity={0.7}
+            >
+              <SvgChevronLeft size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {step === 'details' ? 'Create Study Squad' : 'Invite & Setup'}
+            </Text>
+          </View>
           <View style={styles.brandRow}>
             <Text style={styles.brandUni}>Uni</Text>
             <Text style={styles.brandMentor}>Mentor</Text>
@@ -85,7 +103,7 @@ export default function CreateSquadScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.step} onPress={() => setStep('details')} activeOpacity={0.85}>
             <View style={styles.dotOn}>
               {step === 'invite'
-                ? <Text style={styles.dotCheck}>✓</Text>
+                ? <SvgCheck size={11} color={navy} strokeWidth={3} />
                 : <Text style={styles.dotNum}>1</Text>}
             </View>
             <Text style={styles.stepOn}>
@@ -107,9 +125,10 @@ export default function CreateSquadScreen({ navigation }: Props) {
         {step === 'details' ? (
           <>
             <View style={styles.iconBox}>
-              <Text style={styles.iconGlyph}>📘</Text>
+              <SvgBook size={26} color={navy} />
               <Text style={styles.iconHint}>SQUAD ICON{'\n'}Tap to customize avatar, color, or module badge</Text>
             </View>
+
             <View style={styles.labelRow}>
               <Text style={styles.label}>Group Title</Text>
               <Text style={styles.counter}>{title.length}/50</Text>
@@ -144,7 +163,13 @@ export default function CreateSquadScreen({ navigation }: Props) {
                   <Text style={styles.name}>{person.name}</Text>
                   <Text style={styles.meta}>{person.email}</Text>
                 </View>
-                <Text style={styles.check}>{selected.includes(person._id) ? '✓' : '+'}</Text>
+                {selected.includes(person._id) ? (
+                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#E2FBE8', alignItems: 'center', justifyContent: 'center' }}>
+                    <SvgCheck size={14} color="#15803D" strokeWidth={3} />
+                  </View>
+                ) : (
+                  <Text style={styles.check}>+</Text>
+                )}
               </TouchableOpacity>
             ))}
             <TouchableOpacity
@@ -159,7 +184,11 @@ export default function CreateSquadScreen({ navigation }: Props) {
                 <View style={[styles.avatar, styles.avatarGold]}><Text style={[styles.avatarText, { color: navy }]}>{person.initials}</Text></View>
                 <View style={styles.copy}>
                   <Text style={styles.name}>{person.name}</Text>
-                  <Text style={styles.meta}>Verified tutor · {person.rating || 4.8} ★ · 120+ sessions</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                    <Text style={styles.meta}>Verified tutor · {person.rating || 4.8}</Text>
+                    <SvgStar size={11} color={yellow} fill={yellow} />
+                    <Text style={styles.meta}>· 120+ sessions</Text>
+                  </View>
                 </View>
                 <View>
                   <Text style={styles.rate}>LKR 1,500</Text>
@@ -181,14 +210,51 @@ export default function CreateSquadScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  backHit: { width: 28, alignItems: 'flex-start', justifyContent: 'center', marginRight: 4 },
-  back: { color: '#FFF', fontSize: 32, lineHeight: 32, fontWeight: '300', marginTop: -2 },
-  heroTitle: { flex: 1, color: '#FFF', fontSize: 20, fontWeight: '800' },
-  brandRow: { flexDirection: 'row', marginLeft: 8 },
-  brandUni: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-  brandMentor: { color: '#F5A623', fontSize: 16, fontWeight: '800' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -4,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: yellow,
+    fontSize: 20,
+    fontWeight: '800',
+  },
   stepper: {
     backgroundColor: ice,
     minHeight: 48,

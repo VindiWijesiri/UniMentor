@@ -1,7 +1,25 @@
+/**
+ * ============================================================================
+ * @file CompareTutorsScreen.tsx
+ * @module AcademicSupport / Tutor Discovery & Comparison
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Side-by-side comparative analysis dashboard for evaluated tutors.
+ * Enables students to select up to 3 peer mentors and compare their:
+ * - Verified average ratings and review counts from real students
+ * - Hourly tutoring rates in
+ * - Academic subject specializations
+ * - Average response times and session formats (Individual vs Group)
+ * - Algorithmically computes a "Best Match" tutor score based on rating and volume
+ * ============================================================================
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,6 +28,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
@@ -21,6 +40,13 @@ type ReviewMap = Record<string, Review[]>;
 
 const LABEL_WIDTH = 78;
 
+/**
+ * Computes average rating and review count from fetched student reviews.
+ * Falls back to mentor's baseline ratings if review history is not yet populated.
+ * @param mentor - Target mentor entity
+ * @param reviews - Array of review records
+ * @returns Average rating number and total count
+ */
 function reviewSummary(mentor: Mentor, reviews: Review[]) {
   if (reviews.length > 0) {
     return {
@@ -31,6 +57,9 @@ function reviewSummary(mentor: Mentor, reviews: Review[]) {
   return { rating: mentor.rating ?? 0, count: mentor.reviewCount ?? 0 };
 }
 
+/**
+ * Reusable matrix comparison row rendering an attribute label and columns for each tutor
+ */
 function DetailRow({
   label,
   icon,
@@ -42,7 +71,7 @@ function DetailRow({
   columnWidth,
 }: {
   label: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   values: React.ReactNode[];
   tall?: boolean;
   selectedIndex: number;
@@ -53,7 +82,9 @@ function DetailRow({
   return (
     <View style={[styles.detailRow, tall && styles.detailRowTall, alternate && styles.alternateRow]}>
       <View style={[styles.labelCell, alternate && styles.alternateLabelCell]}>
-        <View style={styles.rowIconBox}><Text style={styles.rowIcon}>{icon}</Text></View>
+        <View style={styles.rowIconBox}>
+          <Ionicons name={icon} size={12} color="#0B2754" />
+        </View>
         <Text style={styles.rowLabel}>{label}</Text>
       </View>
       {values.map((value, index) => (
@@ -73,14 +104,21 @@ function DetailRow({
   );
 }
 
+/**
+ * Main comparative screen component for evaluating selected tutors
+ */
 export default function CompareTutorsScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { width: screenWidth } = useWindowDimensions();
+  // Limit comparison to maximum of 3 tutors for clean mobile viewport density
   const mentors = route.params.mentors.slice(0, 3);
   const [reviews, setReviews] = useState<ReviewMap>({});
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(mentors[0]?._id);
 
+  // Parallel asynchronous fetching of student reviews for each compared mentor
   useEffect(() => {
     let active = true;
     Promise.all(mentors.map(async (mentor) => {
@@ -97,6 +135,11 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
     return () => { active = false; };
   }, [mentors.map(({ _id }) => _id).join('|')]);
 
+  /**
+   * Evaluates and identifies the highest scoring "Best Match" tutor.
+   * Scoring formula factors in verified rating weighted with review volume dampening:
+   * Score = Rating + min(ReviewCount, 50) / 500
+   */
   const bestTutor = useMemo(() => [...mentors].sort((a, b) => {
     const aSummary = reviewSummary(a, reviews[a._id] ?? []);
     const bSummary = reviewSummary(b, reviews[b._id] ?? []);
@@ -117,19 +160,35 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.heroOrb} />
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}><Text style={styles.backText}>‹</Text></TouchableOpacity>
-        <View style={styles.heroCopy}>
-          <Text style={styles.title}>Compare Tutors</Text>
-          <Text style={styles.subtitle}>Student reviews • Up to 3 tutors</Text>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Compare Tutors</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
-        {loading && <ActivityIndicator color="#F59E0B" />}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) + 88 }}>
+        <View style={styles.subHeaderWrap}>
+          <Text style={styles.belowHeaderSubtitle}>Student reviews • Up to 3 tutors</Text>
+          {loading && <ActivityIndicator color="#F59E0B" size="small" />}
+        </View>
         <View style={styles.infoBanner}>
-          <View style={styles.infoIcon}><Text style={styles.infoIconText}>★</Text></View>
+          <View style={styles.infoIcon}>
+            <Ionicons name="sparkles" size={14} color="#D97706" />
+          </View>
           <Text style={styles.infoText}>Best Match is calculated from student ratings and review count.</Text>
         </View>
 
@@ -158,32 +217,50 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
                     onPress={() => setSelectedId(mentor._id)}
                     activeOpacity={0.82}
                   >
-                    {isBest && <View style={styles.bestBadge}><Text style={styles.bestBadgeText}>★ BEST MATCH</Text></View>}
+                    {isBest && (
+                      <View style={styles.bestBadge}>
+                        <Ionicons name="star" size={10} color="#061E47" style={{ marginRight: 2 }} />
+                        <Text style={styles.bestBadgeText}>BEST MATCH</Text>
+                      </View>
+                    )}
                     <View style={[styles.avatar, selected && styles.avatarSelected]}><Text style={styles.avatarText}>{mentor.name.charAt(0)}</Text></View>
                     <Text style={styles.mentorName} numberOfLines={2}>{mentor.name}</Text>
                     <View style={[styles.selectPill, selected && styles.selectPillActive]}>
-                      <Text style={[styles.selectPillText, selected && styles.selectPillTextActive]}>{selected ? '✓ Selected' : 'Select'}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {selected && <Ionicons name="checkmark" size={11} color="#FFFFFF" style={{ marginRight: 2 }} />}
+                        <Text style={[styles.selectPillText, selected && styles.selectPillTextActive]}>
+                          {selected ? 'Selected' : 'Select'}
+                        </Text>
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <DetailRow label="Rating" icon="★" columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
+            <DetailRow label="Rating" icon="star" columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
               const summary = reviewSummary(mentor, reviews[mentor._id] ?? []);
-              return <><Text style={styles.ratingValue}>★ {summary.rating ? summary.rating.toFixed(1) : 'New'}</Text><Text style={styles.muted}>({summary.count} reviews)</Text></>;
+              return (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="star" size={12} color="#F59E0B" style={{ marginRight: 2 }} />
+                    <Text style={styles.ratingValue}>{summary.rating ? summary.rating.toFixed(1) : 'New'}</Text>
+                  </View>
+                  <Text style={styles.muted}>({summary.count} reviews)</Text>
+                </>
+              );
             })} />
-            <DetailRow label="Positive" icon="%" alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
+            <DetailRow label="Positive" icon="thumbs-up" alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
               const tutorReviews = reviews[mentor._id] ?? [];
               const percentage = tutorReviews.length
                 ? Math.round((tutorReviews.filter(({ rating }) => rating >= 4).length / tutorReviews.length) * 100)
                 : 0;
               return <><Text style={styles.positiveValue}>{tutorReviews.length ? `${percentage}%` : '—'}</Text><Text style={styles.muted}>4–5 star reviews</Text></>;
             })} />
-            <DetailRow label="Price" icon="₨" columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.priceValue}>LKR {getMentorRate(mentor).toLocaleString()}<Text style={styles.priceUnit}>{`\n`}/ hour</Text></Text>)} />
-            <DetailRow label="Experience" icon="E" alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.valueText}>{mentor.experience ?? 'Not provided'}</Text>)} />
-            <DetailRow label="Modules" icon="M" tall columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.valueText}>{mentor.subjects.slice(0, 3).join('\n')}</Text>)} />
-            <DetailRow label="Latest Review" icon="R" tall alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
+            <DetailRow label="Price" icon="cash-outline" columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.priceValue}>LKR {getMentorRate(mentor).toLocaleString()}<Text style={styles.priceUnit}>{`\n`}/ hour</Text></Text>)} />
+            <DetailRow label="Experience" icon="briefcase-outline" alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.valueText}>{mentor.experience ?? 'Not provided'}</Text>)} />
+            <DetailRow label="Modules" icon="book-outline" tall columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => <Text style={styles.valueText}>{mentor.subjects.slice(0, 3).join('\n')}</Text>)} />
+            <DetailRow label="Latest Review" icon="chatbubble-ellipses-outline" tall alternate columnWidth={columnWidth} selectedIndex={selectedIndex} bestIndex={bestIndex} values={mentors.map((mentor) => {
               const latest = reviews[mentor._id]?.[0];
               return <Text style={latest ? styles.reviewText : styles.muted}>{latest ? `“${latest.comment}”` : 'No written reviews yet'}</Text>;
             })} />
@@ -207,7 +284,7 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
             <Text style={styles.selectButtonLabel}>SELECTED TUTOR</Text>
             <Text style={styles.selectButtonText}>{selectedTutor?.name ?? 'Select a tutor'}</Text>
           </View>
-          <Text style={styles.selectArrow}>→</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -216,18 +293,67 @@ export default function CompareTutorsScreen({ route, navigation }: Props) {
 
 const navy = '#061E47';
 const navyCard = '#0B2754';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  hero: { minHeight: 112, backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 15, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
-  heroOrb: { position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: navyCard, right: -80, top: -110, opacity: 0.65 },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  backText: { color: '#FFF', fontSize: 34, lineHeight: 35, marginTop: -3 },
-  heroCopy: { flex: 1, marginLeft: 13 },
-  title: { color: '#FFF', fontSize: 24, fontWeight: '900' },
-  subtitle: { color: '#C5D4EB', fontSize: 11.5, marginTop: 3 },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  subHeaderWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  belowHeaderSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   infoBanner: { margin: 14, marginBottom: 6, minHeight: 54, borderRadius: 15, backgroundColor: '#FFFDF0', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
   infoIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: amber, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
   infoIconText: { color: '#FFF', fontSize: 14 },
@@ -275,7 +401,7 @@ const styles = StyleSheet.create({
   muted: { color: '#8B98AD', fontSize: 8.5, textAlign: 'center', marginTop: 3 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#FFF', paddingHorizontal: 15, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
   selectButton: { minHeight: 55, borderRadius: 15, backgroundColor: amber, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: amber, shadowOpacity: 0.24, shadowRadius: 8, elevation: 4 },
-  selectButtonLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
-  selectButtonText: { color: '#FFF', fontSize: 14, fontWeight: '900', marginTop: 2 },
-  selectArrow: { color: '#FFF', fontSize: 24, fontWeight: '900' },
+  selectButtonLabel: { color: 'rgba(6,30,71,0.75)', fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  selectButtonText: { color: navy, fontSize: 14, fontWeight: '900', marginTop: 2 },
+  selectArrow: { color: navy, fontSize: 24, fontWeight: '900' },
 });

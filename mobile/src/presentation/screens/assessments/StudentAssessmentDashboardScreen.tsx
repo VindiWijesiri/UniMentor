@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { SvgClock, SvgPlay, SvgTrendingUp } from '../../components/common/SvgIcons';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
 import type { AssessmentCard, AssessmentCenter } from '../../../domain/entities/AssessmentWork';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -13,6 +14,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Assessments'>;
 type Filter = 'all' | 'dueSoon' | 'inProgress' | 'completed';
 
 export default function StudentAssessmentDashboardScreen({ navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const [data, setData] = useState<AssessmentCenter | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,14 +52,14 @@ export default function StudentAssessmentDashboardScreen({ navigation }: Props) 
   return (
     <AssessmentScreen navigation={navigation}>
       <KuppiyaBar />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.titleRow}>
           <View style={styles.flex}>
             <Text style={styles.title}>My Assessments</Text>
             <Text style={styles.cohort}>{data?.cohort ?? 'Cohort: 2026 Semester 2'}</Text>
           </View>
           <TouchableOpacity style={styles.insight} onPress={() => navigation.navigate('AssessmentHistory')}>
-            <MaterialIcons name="insights" size={22} color={blue} />
+            <SvgTrendingUp size={22} color={blue} />
           </TouchableOpacity>
         </View>
         <SearchField value={query} onChangeText={setQuery} placeholder="Search exams, quizzes, case studies..." />
@@ -90,14 +92,14 @@ export default function StudentAssessmentDashboardScreen({ navigation }: Props) 
               <Stat value={data.health.urgent} label="Urgent" />
             </View>
             <View style={styles.spot}>
-              <MaterialIcons name="alarm" size={16} color={orange} />
+              <SvgClock size={16} color={orange} />
               <View style={styles.flex}>
                 <Text style={styles.spotTitle}>{data.health.spotlightTitle}</Text>
                 <Text style={styles.spotDetail}>{data.health.spotlightDetail}</Text>
               </View>
             </View>
             {data.health.resumePaperId ? (
-              <OrangeButton label="Resume Active Assessment" icon="play-arrow" onPress={() => navigation.navigate('TakeAssessment', { paperId: String(data.health.resumePaperId) })} />
+              <OrangeButton label="Resume Active Assessment" svgIcon={<SvgPlay size={16} color={navy} />} onPress={() => navigation.navigate('TakeAssessment', { paperId: String(data.health.resumePaperId) })} />
             ) : null}
           </View>
         ) : null}

@@ -1,7 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +17,15 @@ import { libraryRepository } from '../../../data/repositories/libraryRepository'
 import type { LibraryKind, LibraryKindFilter, LibraryMaterial, LibrarySource } from '../../../domain/entities/Library';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import StackFooterBar from '../../navigation/StackFooterBar';
+import {
+  SvgChevronLeft,
+  SvgCode,
+  SvgFileText,
+  SvgMusic,
+  SvgSearch,
+  SvgVideocam,
+  SvgZap,
+} from '../../components/common/SvgIcons';
 import MaterialCard from './MaterialCard';
 import { ice, ink, muted, navy, pageBg, secondaryBlue, yellow } from './learningTheme';
 
@@ -22,33 +33,22 @@ type Props = NativeStackScreenProps<AppStackParamList, 'StudyMaterials'>;
 type KindFilter = 'all' | LibraryKind;
 type SourceFilter = 'all' | LibrarySource;
 
-const KIND_ICONS: Record<LibraryKindFilter['icon'], string> = {
-  all: '',
-  video: 'Camcorder',
-  pdf: 'Doc',
-  quiz: '⚡',
-  audio: '♪',
-  code: '</>',
-};
-
 function KindIcon({ name, active }: { name: LibraryKindFilter['icon']; active: boolean }) {
   const color = active ? '#FFF' : navy;
   if (name === 'all') return null;
-  if (name === 'video') {
-    return (
-      <View style={[styles.glyph, { borderColor: color }]}>
-        <View style={[styles.glyphDot, { backgroundColor: color }]} />
-      </View>
-    );
-  }
-  if (name === 'pdf') {
-    return <View style={[styles.docGlyph, { borderColor: color }]} />;
-  }
-  return <Text style={[styles.chipIcon, active && styles.chipIconOn]}>{KIND_ICONS[name]}</Text>;
+  if (name === 'video') return <SvgVideocam size={14} color={color} strokeWidth={2} />;
+  if (name === 'pdf') return <SvgFileText size={14} color={color} strokeWidth={2} />;
+  if (name === 'quiz') return <SvgZap size={14} color={active ? '#FFF' : yellow} strokeWidth={2} />;
+  if (name === 'audio') return <SvgMusic size={14} color={color} strokeWidth={2} />;
+  if (name === 'code') return <SvgCode size={14} color={color} strokeWidth={2} />;
+  return null;
 }
+
 
 export default function StudyMaterialsScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const conversationId = route.params?.conversationId;
   const [kind, setKind] = useState<KindFilter>('all');
   const [source, setSource] = useState<SourceFilter>('all');
@@ -105,16 +105,22 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.page}>
-      <View style={[styles.hero, { paddingTop: insets.top + 6 }]}>
-        <View style={styles.heroTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
-            <Text style={styles.back}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.heroTitle}>Learning Materials</Text>
-          <Text style={styles.brand}>UniMentor</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#061E47" translucent={true} />
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+              <SvgChevronLeft size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Learning Materials</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
         </View>
         <View style={styles.search}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <SvgSearch size={16} color={muted} />
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -126,6 +132,7 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
           />
         </View>
       </View>
+
 
       <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -192,11 +199,51 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: pageBg },
-  hero: { backgroundColor: navy, paddingHorizontal: 16, paddingBottom: 14 },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  back: { color: '#FFF', fontSize: 32, marginRight: 6, marginTop: -4 },
-  heroTitle: { flex: 1, color: '#FFF', fontSize: 20, fontWeight: '900' },
-  brand: { color: yellow, fontSize: 13, fontWeight: '800' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -4,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: yellow,
+    fontSize: 20,
+    fontWeight: '800',
+  },
   search: {
     marginTop: 12,
     backgroundColor: '#FFF',

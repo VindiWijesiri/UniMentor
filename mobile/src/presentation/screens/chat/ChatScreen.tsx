@@ -1,3 +1,21 @@
+/**
+ * ============================================================================
+ * @file ChatScreen.tsx
+ * @module AcademicSupport / Direct Messaging & Inquiries
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Real-time 1-on-1 academic communication portal between students and tutors.
+ *
+ * Core Features:
+ * - Bidirectional messaging with background auto-polling synchronization (3.5s)
+ * - Rich audio voice notes with waveform simulation and playback scrubber
+ * - In-app VoIP voice calling modal with ringing states and live call timers
+ * - In-place message editing, individual deletion, and conversation clearing
+ * - Quick academic icebreakers tailored for students and peer mentors
+ * - Emoji message reactions and document/photo attachment bottom sheet
+ * ============================================================================
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,6 +27,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -26,14 +45,24 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Chat'>;
 
+/**
+ * Formats an ISO date string into a user-friendly 12-hour time format (e.g. "02:45 PM")
+ * @param date - ISO timestamp string
+ * @returns Formatted time string
+ */
 const formatTime = (date: string) =>
   new Date(date).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
 
+/**
+ * Main 1-on-1 student-to-tutor chat interface
+ */
 export default function ChatScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { mentor } = route.params;
   const currentUser = useAuthStore((state) => state.user);
   const userId = currentUser?._id;
@@ -337,19 +366,19 @@ export default function ChatScreen({ route, navigation }: Props) {
   };
 
   // Academic Icebreakers
-  const icebreakers = isMentorLoggedIn
+  const icebreakers: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = isMentorLoggedIn
     ? [
-        '📅 Propose Mentoring Session',
-        '💡 Let me know your doubts on the module',
-        '📝 Send me your code / lab sheet',
-        '👍 Well done on completing the exercises!',
+        { icon: 'calendar-outline', text: 'Propose Mentoring Session' },
+        { icon: 'bulb-outline', text: 'Let me know your doubts on the module' },
+        { icon: 'document-text-outline', text: 'Send me your code / lab sheet' },
+        { icon: 'thumbs-up-outline', text: 'Well done on completing the exercises!' },
       ]
     : [
-        '📅 Can we reschedule our session?',
-        '❓ Question on Data Structures recursion',
-        '💻 Review my code implementation',
-        '📚 Do you have past paper model answers?',
-        '⏰ Are you free for a 30m review today?',
+        { icon: 'calendar-outline', text: 'Can we reschedule our session?' },
+        { icon: 'help-circle-outline', text: 'Question on module concepts' },
+        { icon: 'code-slash-outline', text: 'Review my code implementation' },
+        { icon: 'book-outline', text: 'Do you have past paper model answers?' },
+        { icon: 'time-outline', text: 'Are you free for a 30m review today?' },
       ];
 
   const formatCallDuration = (secs: number) => {
@@ -364,9 +393,9 @@ export default function ChatScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹</Text>
+      <View style={[styles.header, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.avatar}>
@@ -560,7 +589,14 @@ export default function ChatScreen({ route, navigation }: Props) {
                     <Text style={[styles.time, mine && styles.myTime]}>
                       {formatTime(item.createdAt)}
                     </Text>
-                    {mine && <Text style={styles.readMark}>{item.read ? '✓✓' : '✓'}</Text>}
+                    {mine && (
+                      <Ionicons
+                        name={item.read ? 'checkmark-done' : 'checkmark'}
+                        size={14}
+                        color={item.read ? '#60A5FA' : '#94A3B8'}
+                        style={{ marginLeft: 3 }}
+                      />
+                    )}
                   </View>
 
                   {/* Action buttons on my text messages */}
@@ -570,13 +606,13 @@ export default function ChatScreen({ route, navigation }: Props) {
                         onPress={() => handleEditPress(item)}
                         style={styles.bubbleActionBtn}
                       >
-                        <Text style={styles.bubbleActionText}>✏️</Text>
+                        <Ionicons name="create-outline" size={13} color="#CBD5E1" />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleDeleteMessage(item._id)}
                         style={styles.bubbleActionBtn}
                       >
-                        <Text style={styles.bubbleActionText}>🗑️</Text>
+                        <Ionicons name="trash-outline" size={13} color="#FCA5A5" />
                       </TouchableOpacity>
                     </View>
                   )}
@@ -599,10 +635,13 @@ export default function ChatScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 key={idx}
                 style={styles.icebreakerChip}
-                onPress={() => setDraft(chip)}
+                onPress={() => setDraft(chip.text)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.icebreakerText}>{chip}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name={chip.icon} size={13} color="#061E47" style={{ marginRight: 5 }} />
+                  <Text style={styles.icebreakerText}>{chip.text}</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -857,8 +896,10 @@ export default function ChatScreen({ route, navigation }: Props) {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setEditingMessage(null)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>✏️ Edit Message</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Ionicons name="create-outline" size={18} color="#0F172A" />
+              <Text style={styles.sheetTitle}>Edit Message</Text>
+            </View>
             <Text style={styles.sheetSubtitle}>Update your sent message text</Text>
 
             <TextInput
@@ -904,21 +945,20 @@ const whatsappGreen = '#00A884';
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
   header: {
-    minHeight: 88,
     backgroundColor: navy,
-    paddingHorizontal: 13,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
   backButton: {
     width: 36,
-    height: 42,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 4,
+    marginRight: 6,
+    marginLeft: -4,
   },
-  backText: { color: '#FFF', fontSize: 36, lineHeight: 37, marginTop: -3 },
   avatar: {
     width: 44,
     height: 44,

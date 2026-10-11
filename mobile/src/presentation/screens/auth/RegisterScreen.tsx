@@ -19,9 +19,9 @@ export default function RegisterScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'mentor' | 'admin'>('student');
+  const [role, setRole] = useState<'student' | 'mentor'>('student');
   const [loading, setLoading] = useState(false);
-  const { setUser, setToken } = useAuthStore();
+  const { setToken } = useAuthStore();
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -32,7 +32,13 @@ export default function RegisterScreen({ navigation }: Props) {
     try {
       const result = await registerUseCase({ name, email, password, role });
       setToken(result.token);
-      setUser(result.user);
+      navigation.navigate('EmailVerification', {
+        email: result.user.email,
+        role,
+        name: result.user.name,
+        token: result.token,
+        user: result.user,
+      });
     } catch (err: any) {
       Alert.alert('Registration Failed', err.message ?? 'Something went wrong.');
     } finally {
@@ -88,7 +94,6 @@ export default function RegisterScreen({ navigation }: Props) {
           {([
             ['student', 'Student'],
             ['mentor', 'Tutor'],
-            ['admin', 'Admin / LIC'],
           ] as const).map(([r, label]) => (
             <TouchableOpacity
               key={r}
@@ -181,7 +186,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  buttonText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
   link: { textAlign: 'center', color: colors.textLight, fontSize: 14 },
   linkBold: { color: colors.primary, fontWeight: '700' },
   campusSection: {

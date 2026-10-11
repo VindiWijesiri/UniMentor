@@ -1,3 +1,22 @@
+/**
+ * ============================================================================
+ * @file ReviewsScreen.tsx
+ * @module AcademicSupport / Reviews & Feedback
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Main student feedback portal offering a segmented tab interface:
+ * 1. "Browse Tutors": Search, view ratings, and launch WriteReviewScreen for any tutor.
+ * 2. "My Reviews": Review management hub displaying all reviews written by the student,
+ *    supporting inline modal edits, real-time star updates, and review deletions.
+ *
+ * Core Features
+ * - Real-time filtering by tutor name or academic subject
+ * - Dual-tab layout with smooth tab indicator transitions
+ * - In-place editing modal with keyboard avoidance and instant cache refresh
+ * - Focus-aware pull-to-refresh integration
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,6 +29,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +37,8 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { mentorRepository } from '../../../data/repositories/mentorRepository';
@@ -28,7 +50,13 @@ import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNav
 type Props = BottomTabScreenProps<AppTabParamList, 'Reviews'>;
 type ActiveTab = 'tutors' | 'my-reviews';
 
+/**
+ * ReviewsScreen component displaying tutor review discovery and authored student reviews
+ */
 export default function ReviewsScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const [activeTab, setActiveTab] = useState<ActiveTab>('tutors');
   const [tutors, setTutors] = useState<Mentor[]>([]);
   const [query, setQuery] = useState('');
@@ -43,6 +71,9 @@ export default function ReviewsScreen({ navigation }: Props) {
   const [editComment, setEditComment] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
+  /**
+   * Fetches the tutor catalog and student's authored reviews from backend services
+   */
   const loadData = async () => {
     try {
       const results = await mentorRepository.search('');
@@ -75,31 +106,46 @@ export default function ReviewsScreen({ navigation }: Props) {
     }, [])
   );
 
+  /**
+   * Pull-to-refresh handler syncing with backend
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
   };
 
+  /**
+   * Memoized tutor list filtered by query string (name or subject)
+   */
   const visibleTutors = useMemo(() => {
     const value = query.trim().toLowerCase();
     if (!value) return tutors;
     return tutors.filter((tutor) =>
-      [tutor.name, ...tutor.subjects].some((item) => item.toLowerCase().includes(value))
+      [tutor.name || '', ...(tutor.subjects || [])].some((item) => typeof item === 'string' && item.toLowerCase().includes(value))
     );
   }, [query, tutors]);
 
+  /**
+   * Navigates student to the WriteReview screen for the chosen mentor
+   */
   const writeReview = (mentor: Mentor) =>
     navigation
       .getParent<NativeStackNavigationProp<AppStackParamList>>()
       ?.navigate('WriteReview', { mentor });
 
+  /**
+   * Opens the in-place review edit modal prefilled with current rating and text
+   */
   const openEditModal = (rev: Review) => {
     setEditingReview(rev);
     setEditRating(rev.rating);
     setEditComment(rev.comment);
   };
 
+  /**
+   * Submits edited review rating and comment to the repository, updating UI and local store
+   */
   const handleSaveEdit = async () => {
     Keyboard.dismiss();
     if (!editingReview) return;
@@ -126,7 +172,7 @@ export default function ReviewsScreen({ navigation }: Props) {
 
       // 4. Show success notification AFTER review is updated and visible on review page
       setTimeout(() => {
-        Alert.alert('Review Updated! ⭐', 'Your review has been updated successfully.');
+        Alert.alert('Review Updated', 'Your review has been updated successfully.');
       }, 350);
     } catch (err: any) {
       Alert.alert('Update Failed', err?.message || 'Could not update review.');
@@ -135,6 +181,9 @@ export default function ReviewsScreen({ navigation }: Props) {
     }
   };
 
+  /**
+   * Confirms and deletes a student review from the database
+   */
   const handleDeleteReview = (rev: Review) => {
     Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
       { text: 'Keep', style: 'cancel' },
@@ -148,12 +197,32 @@ export default function ReviewsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.page}>
-      {/* Hero Header */}
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>STUDENT FEEDBACK & RATINGS</Text>
-        <Text style={styles.title}>Tutor Reviews</Text>
-        <Text style={styles.subtitle}>
-          Share learning feedback and manage your submitted tutor reviews.
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Tutor Reviews</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Sub Header Section Below Header */}
+      <View style={styles.subHeaderContainer}>
+        <Text style={styles.belowHeaderSubtitle}>
+          Share learning feedback and manage your submitted tutor reviews
         </Text>
 
         {/* Tab Switcher */}
@@ -184,7 +253,7 @@ export default function ReviewsScreen({ navigation }: Props) {
 
         {activeTab === 'tutors' && (
           <View style={styles.searchBox}>
-            <Text style={styles.searchIcon}>🔍</Text>
+            <Ionicons name="search" size={17} color="#8997AF" style={{ marginRight: 8 }} />
             <TextInput
               value={query}
               onChangeText={setQuery}
@@ -253,7 +322,7 @@ export default function ReviewsScreen({ navigation }: Props) {
           }
           ListEmptyComponent={
             <View style={styles.emptyStateWrap}>
-              <Text style={{ fontSize: 40, marginBottom: 8 }}>✍️</Text>
+              <Ionicons name="create-outline" size={38} color="#94A3B8" style={{ marginBottom: 8 }} />
               <Text style={styles.emptyTitle}>No Reviews Submitted Yet</Text>
               <Text style={styles.emptySub}>
                 Select a tutor from the "Review a Tutor" tab to share your feedback!
@@ -293,14 +362,17 @@ export default function ReviewsScreen({ navigation }: Props) {
                       style={styles.editReviewBtn}
                       onPress={() => openEditModal(item)}
                     >
-                      <Text style={styles.editReviewBtnText}>✏️ Edit</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="create-outline" size={13} color="#0D4F9E" />
+                        <Text style={styles.editReviewBtnText}>Edit</Text>
+                      </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       style={styles.deleteReviewBtn}
                       onPress={() => handleDeleteReview(item)}
                     >
-                      <Text style={styles.deleteReviewBtnText}>🗑️</Text>
+                      <Ionicons name="trash-outline" size={14} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -378,62 +450,102 @@ export default function ReviewsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  hero: {
+  headerBar: {
     backgroundColor: '#061E47',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
   },
-  eyebrow: {
-    color: '#FBBF24',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
   },
-  title: {
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
     color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    marginTop: 4,
+    letterSpacing: -0.2,
   },
-  subtitle: {
-    color: '#94A3B8',
-    fontSize: 12,
-    marginTop: 2,
-    marginBottom: 12,
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  subHeaderContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  belowHeaderSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    marginBottom: 10,
+    fontWeight: '500',
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 14,
-    padding: 4,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 3,
     marginBottom: 10,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 7,
+    paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 10,
   },
   tabBtnActive: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   tabBtnText: {
-    color: '#CBD5E1',
+    color: '#64748B',
     fontSize: 12,
     fontWeight: '700',
   },
   tabBtnTextActive: {
-    color: '#FFFFFF',
+    color: '#061E47',
+    fontWeight: '800',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    paddingHorizontal: 10,
-    height: 40,
-    marginTop: 4,
+    paddingHorizontal: 12,
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   searchIcon: {
     fontSize: 14,
@@ -441,12 +553,12 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     color: '#0F172A',
   },
   listContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   emptyText: {
     textAlign: 'center',
@@ -512,13 +624,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   reviewButton: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   reviewButtonText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -679,7 +791,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   submitEditBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#FBBF24',
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
@@ -689,7 +801,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   submitEditBtnText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 14,
     fontWeight: '800',
   },

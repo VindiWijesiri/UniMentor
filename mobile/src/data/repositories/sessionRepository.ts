@@ -35,4 +35,12 @@ export const sessionRepository = {
   async deleteSession(sessionId: string): Promise<void> {
     await apiClient.delete(`/sessions/${sessionId}`);
   },
+  async updateStatus(sessionId: string, status: Session['status'], scheduledAt?: string): Promise<Session> {
+    const response = await apiClient.patch<Session>(`/sessions/${sessionId}/status`, { status, scheduledAt });
+    return response.data;
+  },
+  async setLive(sessionId: string, open: boolean): Promise<Session> {
+    const response = await apiClient.patch<Session>(`/sessions/${sessionId}/live`, { open });
+    return response.data;
+  },
 };

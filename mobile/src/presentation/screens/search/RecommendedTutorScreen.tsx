@@ -1,16 +1,44 @@
+/**
+ * ============================================================================
+ * @file RecommendedTutorScreen.tsx
+ * @module AcademicSupport / Recommendation Engine
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Decision support and recommendation breakdownscreen (Step 3 of tutor discovery).
+ * Highlights the top-matched peer mentor determined from student ratings, feedback
+ * volume, hourly fee compatibility, and subject relevance.
+ *
+ * Core Features:
+ * - Recommendation confidence summary (average star rating, positive review %, volume)
+ * - Detailed rationale cards: "Student-approved support" and "Good academic fit"
+ * - Direct student quote card showcasing genuine peer feedback
+ * - Hourly rate card in LKR
+ * - One-tap direct 1-on-1 chat action button
+ * ============================================================================
+ */
+
 import React, { useMemo } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { getMentorRate } from './SearchScreen';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'RecommendedTutor'>;
 
+/**
+ * RecommendedTutorScreen component displaying decision breakdown and direct chat CTA
+ */
 export default function RecommendedTutorScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const { mentor, reviews, comparedCount, isBestMatch } = route.params;
 
+  /**
+   * Computes aggregate metrics: average rating, total review count, and percentage of positive ratings (>= 4 stars)
+   */
   const summary = useMemo(() => {
     const rating = reviews.length
       ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length
@@ -24,35 +52,53 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
 
   const latestReview = reviews[0];
 
+  /**
+   * Validates tutor registration ID and navigates student into direct 1-on-1 chat
+   */
   const startChat = () => {
-    if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
+    const id = mentor._id || (mentor as any).id;
+    if (!id) {
       Alert.alert(
         'Select a registered tutor',
         'This tutor profile is no longer available. Please return to Find Tutors and select a registered tutor.',
-        [{ text: 'Find Tutors', onPress: () => navigation.navigate('Search') }],
+        [{ text: 'Find Tutors', onPress: () => navigation.navigate('MainTabs', { screen: 'Search' }) }],
       );
       return;
     }
-    navigation.navigate('Chat', { mentor });
+    navigation.navigate('Chat', { mentor: { ...mentor, _id: id } });
   };
 
   return (
     <View style={styles.page}>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Recommendation</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) + 92 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.hero}>
           <View style={styles.heroOrbLarge} />
           <View style={styles.heroOrbSmall} />
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backText}>‹</Text>
-            </TouchableOpacity>
-            <View style={styles.headerCopy}>
-              <Text style={styles.headerTitle}>Recommendation</Text>
-              <Text style={styles.headerSubtitle}>Based on student feedback</Text>
-            </View>
+          <View style={styles.stepRow}>
+            <Text style={styles.headerSubtitle}>Based on verified student feedback</Text>
             <View style={styles.stepBadge}><Text style={styles.stepText}>STEP 3</Text></View>
           </View>
 
@@ -60,7 +106,10 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
             <View style={styles.avatar}><Text style={styles.avatarText}>{mentor.name.charAt(0).toUpperCase()}</Text></View>
             <View style={styles.profileCopy}>
               <View style={styles.matchBadge}>
-                <Text style={styles.matchBadgeText}>{isBestMatch ? '★ BEST MATCH' : 'YOUR CHOICE'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {isBestMatch && <Ionicons name="star" size={10} color="#061E47" style={{ marginRight: 3 }} />}
+                  <Text style={styles.matchBadgeText}>{isBestMatch ? 'BEST MATCH' : 'YOUR CHOICE'}</Text>
+                </View>
               </View>
               <Text style={styles.mentorName} numberOfLines={1}>{mentor.name}</Text>
               <Text style={styles.mentorMeta}>Compared with {Math.max(comparedCount - 1, 1)} other tutor{comparedCount > 2 ? 's' : ''}</Text>
@@ -75,17 +124,23 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
 
           <View style={styles.scoreGrid}>
             <View style={styles.scoreCard}>
-              <View style={styles.scoreIcon}><Text style={styles.scoreIconText}>★</Text></View>
+              <View style={styles.scoreIcon}>
+                <Ionicons name="star" size={14} color="#D97706" />
+              </View>
               <Text style={styles.scoreValue}>{summary.rating ? summary.rating.toFixed(1) : 'New'}</Text>
               <Text style={styles.scoreLabel}>Student rating</Text>
             </View>
             <View style={styles.scoreCard}>
-              <View style={styles.scoreIcon}><Text style={styles.scoreIconText}>%</Text></View>
+              <View style={styles.scoreIcon}>
+                <Ionicons name="thumbs-up" size={13} color="#D97706" />
+              </View>
               <Text style={styles.scoreValue}>{summary.reviewCount ? `${summary.positive}%` : '—'}</Text>
               <Text style={styles.scoreLabel}>Positive reviews</Text>
             </View>
             <View style={styles.scoreCard}>
-              <View style={styles.scoreIcon}><Text style={styles.scoreIconText}>R</Text></View>
+              <View style={styles.scoreIcon}>
+                <Ionicons name="chatbubbles-outline" size={14} color="#D97706" />
+              </View>
               <Text style={styles.scoreValue}>{summary.reviewCount}</Text>
               <Text style={styles.scoreLabel}>Reviews</Text>
             </View>
@@ -153,7 +208,7 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
             <Text style={styles.confirmLabel}>START CHAT WITH</Text>
             <Text style={styles.confirmText}>{mentor.name}</Text>
           </View>
-          <Text style={styles.confirmArrow}>→</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -162,23 +217,62 @@ export default function RecommendedTutorScreen({ route, navigation }: Props) {
 
 const navy = '#061E47';
 const navyCard = '#0B2754';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 const gold = '#FBBF24';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
-  hero: { minHeight: 244, backgroundColor: navy, paddingHorizontal: 17, paddingBottom: 28, overflow: 'hidden' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  hero: { minHeight: 180, backgroundColor: navy, paddingHorizontal: 17, paddingTop: 16, paddingBottom: 24, overflow: 'hidden' },
   heroOrbLarge: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: navyCard, right: -90, top: -110, opacity: 0.65 },
   heroOrbSmall: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#0D3875', left: -48, bottom: 8, opacity: 0.4 },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(255,255,255,0.23)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  backText: { color: '#FFF', fontSize: 34, lineHeight: 35, marginTop: -3 },
-  headerCopy: { flex: 1, marginLeft: 12 },
-  headerTitle: { color: '#FFF', fontSize: 21, fontWeight: '900' },
-  headerSubtitle: { color: '#BFCFE7', fontSize: 10.5, marginTop: 2 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerSubtitle: { color: '#BFCFE7', fontSize: 12, fontWeight: '500' },
   stepBadge: { borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.2)', paddingHorizontal: 10, paddingVertical: 6 },
   stepText: { color: gold, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.8 },
-  profileCard: { minHeight: 106, borderRadius: 20, backgroundColor: '#FFF', padding: 13, marginTop: 21, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: '#E2E8F0' },
+  profileCard: { minHeight: 106, borderRadius: 20, backgroundColor: '#FFF', padding: 13, marginTop: 14, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: '#E2E8F0' },
   avatar: { width: 72, height: 72, borderRadius: 23, backgroundColor: '#EEF2F8', borderWidth: 2, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center', marginRight: 13 },
   avatarText: { color: navy, fontSize: 29, fontWeight: '900' },
   profileCopy: { flex: 1, minWidth: 0 },
@@ -219,7 +313,7 @@ const styles = StyleSheet.create({
   quoteAuthor: { color: '#BFCFE7', fontSize: 9.5, fontWeight: '700', marginTop: 9 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#FFF', paddingHorizontal: 15, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
   confirmButton: { minHeight: 56, borderRadius: 15, backgroundColor: amber, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: amber, shadowOpacity: 0.24, shadowRadius: 8, elevation: 4 },
-  confirmLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  confirmText: { color: '#FFF', fontSize: 14, fontWeight: '900', marginTop: 2 },
-  confirmArrow: { color: '#FFF', fontSize: 24, fontWeight: '900' },
+  confirmLabel: { color: 'rgba(6,30,71,0.75)', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  confirmText: { color: navy, fontSize: 14, fontWeight: '900', marginTop: 2 },
+  confirmArrow: { color: navy, fontSize: 24, fontWeight: '900' },
 });

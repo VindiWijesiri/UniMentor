@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { assessmentRepository } from '../../../data/repositories/assessmentRepository';
 import type { AssessmentResult } from '../../../domain/entities/AssessmentWork';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { SvgTrendingUp } from '../../components/common/SvgIcons';
 import { AssessmentScreen, KuppiyaBar, OrangeButton } from './Chrome';
 import { card, danger, good, ink, line, muted, navy, soft } from './theme';
 
@@ -15,14 +16,17 @@ export default function AssessmentResultScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const paperId = route.params?.paperId || '';
+
   const load = useCallback(() => {
+    if (!paperId) return;
     let active = true;
-    assessmentRepository.result(route.params.paperId)
+    assessmentRepository.result(paperId)
       .then((result) => { if (active) { setData(result); setError(''); } })
       .catch(() => { if (active) setError('This result is not available yet.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [route.params.paperId]);
+  }, [paperId]);
 
   useFocusEffect(useCallback(() => load(), [load]));
 
@@ -53,7 +57,7 @@ export default function AssessmentResultScreen({ navigation, route }: Props) {
               {row.expected && !data.pendingReview ? <Text style={styles.meta}>Expected: {row.expected}</Text> : null}
             </View>
           ))}
-          <OrangeButton label="View improvement history" icon="insights" onPress={() => navigation.navigate('AssessmentHistory')} />
+          <OrangeButton label="View improvement history" svgIcon={<SvgTrendingUp size={16} color={navy} />} onPress={() => navigation.navigate('AssessmentHistory')} />
         </ScrollView>
       )}
     </AssessmentScreen>

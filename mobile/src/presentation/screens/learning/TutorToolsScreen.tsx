@@ -17,7 +17,7 @@ const copy = {
 };
 
 export default function TutorToolsScreen({ route, navigation }: Props) {
-  const tool = route.params.tool;
+  const tool = (route.params?.tool as keyof typeof copy) || 'bank';
   const [data, setData] = useState<TutorLearningDashboard | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +40,7 @@ export default function TutorToolsScreen({ route, navigation }: Props) {
       .finally(() => setLoading(false));
   }, [tool]));
 
-  const info = copy[tool];
+  const info = copy[tool] || copy.bank;
 
   return (
     <LearningSubpage

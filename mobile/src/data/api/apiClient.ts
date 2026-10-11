@@ -1,65 +1,37 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
-import { NativeModules, Platform } from 'react-native';
 import { useAuthStore } from '../../domain/stores/authStore';
 
-function isPrivateHost(hostname: string): boolean {
-  return (
-    hostname === 'localhost'
-    || hostname === '127.0.0.1'
-    || hostname === '10.0.2.2'
-    || hostname.startsWith('10.')
-    || hostname.startsWith('192.168.')
-    || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
-  );
-}
+// Automatically detect host machine IP from Expo bundler (LAN / Wi-Fi) or fallback to current IP
+const getDetectedHostIp = (): string => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any).manifest?.debuggerHost;
 
-function hostFromUri(value?: string | null): string | null {
-  if (!value) return null;
-  try {
-    const normalized = value.includes('://') ? value : `http://${value}`;
-    const hostname = new URL(normalized).hostname;
-    return isPrivateHost(hostname) ? hostname : null;
-  } catch {
-    return null;
-  }
-}
-
-function packagerHost(): string | null {
-  const extras = Constants.expoConfig?.hostUri
-    ?? Constants.linkingUri
-    ?? (Constants as { debuggerHost?: string }).debuggerHost;
-  const fromExpo = hostFromUri(extras);
-  if (fromExpo) return fromExpo;
-
-  const sourceCode = NativeModules.SourceCode as
-    | { scriptURL?: string; getConstants?: () => { scriptURL?: string | null } }
-    | undefined;
-  const scriptURL = sourceCode?.scriptURL ?? sourceCode?.getConstants?.()?.scriptURL ?? undefined;
-  return hostFromUri(scriptURL);
-}
-
-function resolveBaseUrl(): string {
-  const configured = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api';
-  try {
-    const url = new URL(configured);
-    const host = packagerHost();
-    if (host && isPrivateHost(url.hostname)) {
-      url.hostname = Platform.OS === 'android' && host === 'localhost' ? '10.0.2.2' : host;
+  if (hostUri && typeof hostUri === 'string') {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return ip;
     }
-    return url.toString().replace(/\/$/, '');
-  } catch {
-    return configured.replace(/\/$/, '');
   }
-}
+  return '172.28.13.76';
+};
+
+const DETECTED_IP = getDetectedHostIp();
+const LAN_API_URL = `http://${DETECTED_IP}:5000/api`;
+const LOCALHOST_API_URL = 'http://localhost:5000/api';
+
+// Prefer LAN API URL so physical phone reaches backend over Wi-Fi & USB without ADB routing issues
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || LAN_API_URL;
 
 const apiClient = axios.create({
+  baseURL: BASE_URL,
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });
 
 apiClient.interceptors.request.use((config) => {
-  config.baseURL = resolveBaseUrl();
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -81,24 +53,42 @@ apiClient.interceptors.response.use(
     console.log(`[MOBILE CLIENT RES] ✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url} -> ${dataSummary}`);
     return response;
   },
-  (error) => {
-    const baseURL = error.config?.baseURL ?? resolveBaseUrl();
-    console.error(`[MOBILE CLIENT ERR] ❌ Call failed: ${error.config?.method?.toUpperCase()} ${baseURL}${error.config?.url}`, {
+  async (error) => {
+    // If request failed with network error, attempt fallback between LAN IP and localhost
+    if ((error.code === 'ERR_NETWORK' || error.message === 'Network Error') && error.config && !error.config._retriedWithFallback) {
+      const currentBase = error.config.baseURL || BASE_URL;
+      const fallbackBase = currentBase.includes('localhost') || currentBase.includes('127.0.0.1')
+        ? LAN_API_URL
+        : LOCALHOST_API_URL;
+
+      console.log(`[MOBILE CLIENT] 🔄 Network error on ${currentBase}. Retrying with fallback: ${fallbackBase}`);
+      error.config.baseURL = fallbackBase;
+      error.config._retriedWithFallback = true;
+      try {
+        return await axios.request(error.config);
+      } catch (fallbackError: any) {
+        error = fallbackError;
+      }
+    }
+
+    console.error(`[MOBILE CLIENT ERR] ❌ Call failed: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url}`, {
       status: error.response?.status,
       errorData: error.response?.data,
       message: error.message,
       code: error.code,
     });
 
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
       console.warn('[MOBILE CLIENT] ⚠️ 401 Unauthorized received — clearing session');
       useAuthStore.getState().logout();
     }
 
-    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      error.message = `Cannot reach backend server at ${baseURL}.\nEnsure your phone and PC are connected to the same Wi-Fi.`;
+    if (error.response?.data?.message) {
+      error.message = error.response.data.message;
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      error.message = `Cannot reach backend server.\nEnsure backend is running and phone is connected via USB or same Wi-Fi.`;
     } else if (error.message === 'Network Error' && !error.response) {
-      error.message = `Network Error: Cannot connect to ${baseURL}.\nVerify your PC's IP address.`;
+      error.message = `Network Error: Cannot connect to backend server.\nEnsure backend is running and phone is connected via USB or same Wi-Fi.`;
     }
 
     return Promise.reject(error);

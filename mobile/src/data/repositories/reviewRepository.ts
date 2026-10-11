@@ -115,4 +115,14 @@ export const reviewRepository = {
       localReviewsCache[tutorId] = localReviewsCache[tutorId].filter((r) => r._id !== reviewId);
     }
   },
+
+  async inbox(): Promise<Review[]> {
+    const response = await apiClient.get<Review[]>('/reviews/inbox');
+    return response.data;
+  },
+
+  async reply(reviewId: string, reply: string): Promise<Review> {
+    const response = await apiClient.post<Review>(`/reviews/${reviewId}/reply`, { reply });
+    return response.data;
+  },
 };

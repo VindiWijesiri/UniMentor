@@ -1,12 +1,23 @@
 import React from 'react';
 import { Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { LibraryKind, LibraryMaterial } from '../../../domain/entities/Library';
+import {
+  SvgCheck,
+  SvgClipboard,
+  SvgCode,
+  SvgFileText,
+  SvgMusic,
+  SvgPlay,
+  SvgShare,
+  SvgStar,
+} from '../../components/common/SvgIcons';
 import { ink, muted, navy, yellow } from './learningTheme';
 
 type Props = {
   item: LibraryMaterial;
   onOpen: () => void;
 };
+
 
 type KindSkin = {
   badge: string;
@@ -105,6 +116,15 @@ const TONE = {
   purple: { bg: '#F3E8FF', text: '#6B21A8' },
 };
 
+function RenderKindIcon({ kind }: { kind: LibraryKind }) {
+  if (kind === 'video') return <SvgPlay size={14} color={navy} />;
+  if (kind === 'pdf') return <SvgFileText size={14} color={navy} />;
+  if (kind === 'quiz') return <SvgClipboard size={14} color={navy} />;
+  if (kind === 'audio') return <SvgMusic size={14} color={navy} />;
+  if (kind === 'code') return <SvgCode size={14} color={navy} />;
+  return <SvgFileText size={14} color={navy} />;
+}
+
 export default function MaterialCard({ item, onOpen }: Props) {
   const look = skin(item);
   const tone = TONE[look.qualityTone];
@@ -120,7 +140,7 @@ export default function MaterialCard({ item, onOpen }: Props) {
   return (
     <TouchableOpacity style={styles.card} onPress={onOpen} activeOpacity={0.92}>
       <View style={styles.ribbon}>
-        <Text style={styles.star}>★</Text>
+        <SvgStar size={12} color="#EAA023" fill="#EAA023" />
         <Text style={styles.from} numberOfLines={2}>FROM: {headline(item)}</Text>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{look.badge}</Text>
@@ -142,7 +162,7 @@ export default function MaterialCard({ item, onOpen }: Props) {
           </View>
           <View style={styles.media}>
             <View style={styles.iconCircle}>
-              <Text style={styles.icon}>{look.icon}</Text>
+              <RenderKindIcon kind={item.kind} />
             </View>
             <Text style={styles.metric}>{look.metric}</Text>
           </View>
@@ -156,13 +176,14 @@ export default function MaterialCard({ item, onOpen }: Props) {
         <View style={styles.foot}>
           <Text style={styles.locale}>{look.locale}</Text>
           <View style={styles.status}>
-            <Text style={styles.check}>✓</Text>
+            <SvgCheck size={12} color="#15803D" strokeWidth={3} />
             <Text style={styles.downloaded}>{look.downloaded}</Text>
           </View>
           <TouchableOpacity style={styles.share} onPress={share} hitSlop={8}>
-            <Text style={styles.shareIcon}>↗</Text>
+            <SvgShare size={14} color={navy} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.cta} onPress={onOpen} activeOpacity={0.85}>
+
             <View style={styles.ctaDot} />
             <Text style={styles.ctaText}>{look.action}</Text>
           </TouchableOpacity>

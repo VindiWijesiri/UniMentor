@@ -13,18 +13,22 @@ export default function AssessmentDetailScreen({ route, navigation }: Props) {
   const [item, setItem] = useState<LearningAssessment | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const assessmentId = route.params?.id || route.params?.paperId || '';
+
   const load = useCallback(() => {
-    learningRepository.getAssessment(route.params.id)
+    if (!assessmentId) return;
+    learningRepository.getAssessment(assessmentId)
       .then(setItem)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [route.params.id]);
+  }, [assessmentId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const submit = async () => {
+    if (!assessmentId) return;
     try {
-      const updated = await learningRepository.submitAssessment(route.params.id);
+      const updated = await learningRepository.submitAssessment(assessmentId);
       setItem(updated);
       Alert.alert('Submitted', 'Your work is marked as submitted.');
     } catch {

@@ -13,12 +13,15 @@ export default function TutorStudentScreen({ route, navigation }: Props) {
   const [student, setStudent] = useState<TutorQueueStudent | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const studentId = route.params?.id || route.params?.studentId || '';
+
   const load = useCallback(() => {
-    learningRepository.getTutorStudent(route.params.id)
+    if (!studentId) return;
+    learningRepository.getTutorStudent(studentId)
       .then(setStudent)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [route.params.id]);
+  }, [studentId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -56,7 +59,7 @@ export default function TutorStudentScreen({ route, navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity
             style={subpageStyles.navyBtn}
-            onPress={() => navigation.navigate('GradeSubmission', { id: route.params.id })}
+            onPress={() => navigation.navigate('GradeSubmission', { id: studentId })}
           >
             <Text style={subpageStyles.navyText}>Open grading</Text>
           </TouchableOpacity>

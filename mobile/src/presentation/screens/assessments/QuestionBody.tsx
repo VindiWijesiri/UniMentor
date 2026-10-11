@@ -1,6 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import {
+  SvgCheckCircle,
+  SvgChevronDown,
+  SvgChevronUp,
+  SvgClose,
+  SvgCode,
+  SvgLightbulb,
+  SvgPlay,
+  SvgUpload,
+} from '../../components/common/SvgIcons';
 import type { WorkAnswer, WorkQuestion } from '../../../domain/entities/AssessmentWork';
 import { blue, card, danger, good, ink, line, muted, navy, orange, page, soft } from './theme';
 
@@ -41,7 +50,7 @@ function ChoiceQuestion({ question, answer, onChange }: Props) {
     <View>
       {question.kind === 'scenario' ? <ScenarioBrief question={question} /> : null}
       <View style={styles.metaRow}>
-        {question.topic ? <View style={styles.topic}><MaterialIcons name="account-tree" size={14} color={blue} /><Text style={styles.topicText}>{question.topic}</Text></View> : null}
+        {question.topic ? <View style={styles.topic}><SvgCode size={14} color={blue} /><Text style={styles.topicText}>{question.topic}</Text></View> : null}
         <View style={styles.marks}><Text style={styles.marksText}>+{question.marks} Marks</Text></View>
       </View>
       <Text style={styles.prompt}>{question.prompt}</Text>
@@ -137,14 +146,14 @@ function TrueFalse({ question, answer, onChange }: Props) {
         </View>
       ) : null}
       <TouchableOpacity style={[styles.tf, answer.boolean === true && styles.optionOn]} onPress={() => onChange({ ...answer, boolean: true })}>
-        <MaterialIcons name="check-circle" size={22} color={answer.boolean === true ? navy : good} />
+        <SvgCheckCircle size={22} color={answer.boolean === true ? navy : good} />
         <View style={styles.flex}>
           <Text style={styles.optionTitle}>TRUE / CORRECT</Text>
           <Text style={styles.optionDetail}>{question.trueDetail}</Text>
         </View>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.tf, answer.boolean === false && styles.optionOn]} onPress={() => onChange({ ...answer, boolean: false })}>
-        <MaterialIcons name="cancel" size={22} color={answer.boolean === false ? navy : danger} />
+        <SvgClose size={22} color={answer.boolean === false ? navy : danger} />
         <View style={styles.flex}>
           <Text style={styles.optionTitle}>FALSE / INCORRECT</Text>
           <Text style={styles.optionDetail}>{question.falseDetail}</Text>
@@ -311,8 +320,8 @@ function Ordering({ question, answer, onChange }: Props) {
               <Text style={styles.optionDetail}>{step.body}</Text>
             </View>
             <View>
-              <TouchableOpacity onPress={() => move(index, -1)}><MaterialIcons name="keyboard-arrow-up" size={22} color={navy} /></TouchableOpacity>
-              <TouchableOpacity onPress={() => move(index, 1)}><MaterialIcons name="keyboard-arrow-down" size={22} color={navy} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => move(index, -1)}><SvgChevronUp size={22} color={navy} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => move(index, 1)}><SvgChevronDown size={22} color={navy} /></TouchableOpacity>
             </View>
           </View>
         );
@@ -440,7 +449,7 @@ function Coding({ question, answer, onChange }: Props) {
       <Text style={styles.choose}>{question.filename}</Text>
       <TextInput value={code} onChangeText={(text) => onChange({ ...answer, text })} multiline style={styles.editor} autoCapitalize="none" autoCorrect={false} />
       <TouchableOpacity style={styles.run} onPress={run}>
-        <MaterialIcons name="play-arrow" size={18} color={navy} />
+        <SvgPlay size={18} color={navy} />
         <Text style={styles.runText}>Run tests</Text>
       </TouchableOpacity>
       {report ? report.map((item) => (
@@ -466,7 +475,7 @@ function FileProject({ question, answer, onChange }: Props) {
         <Text key={item.label} style={styles.check}>{item.done ? '✓' : '○'}  {item.label}</Text>
       ))}
       <TouchableOpacity style={styles.drop} onPress={add}>
-        <MaterialIcons name="cloud-upload" size={28} color={blue} />
+        <SvgUpload size={28} color={blue} />
         <Text style={styles.optionTitle}>Browse device files</Text>
         <Text style={styles.optionDetail}>{question.accept}</Text>
       </TouchableOpacity>
@@ -478,7 +487,7 @@ function FileProject({ question, answer, onChange }: Props) {
             <Text style={styles.optionDetail}>{file.sizeMb} MB · attached</Text>
           </View>
           <TouchableOpacity onPress={() => onChange({ ...answer, files: files.filter((item) => item.name !== file.name) })}>
-            <MaterialIcons name="close" size={18} color={danger} />
+            <SvgClose size={18} color={danger} />
           </TouchableOpacity>
         </View>
       ))}
@@ -498,7 +507,7 @@ function FileProject({ question, answer, onChange }: Props) {
 function Hint({ text }: { text: string }) {
   return (
     <View style={styles.hint}>
-      <MaterialIcons name="lightbulb" size={16} color={orange} />
+      <SvgLightbulb size={16} color={orange} />
       <Text style={styles.hintText}>{text}</Text>
     </View>
   );

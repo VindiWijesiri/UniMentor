@@ -1,15 +1,40 @@
+/**
+ * ============================================================================
+ * @file TutorProfileScreen.tsx
+ * @module AcademicSupport / Tutor Profiles & Inquiries
+ * @author Nethmi Weherawatta (UniMentor Academic Module)
+ * @description
+ * Comprehensive tutor profile screen presenting tutor credentials, academic
+ * subject specialties, real-time student reviews and ratings, pricing breakdown,
+ * and direct 1-on-1 student-to-tutor chat navigation.
+ *
+ * Core Features::
+ * - Peer tutor hero banner with avatar, verification status, and ratings summary
+ * - Dynamic subject chips display with academic guidance bio
+ * - Live student review listing with rating aggregation and delete capabilities
+ * - Direct messaging entry point connecting student to tutor
+ * - Dual perspective support (renders for visiting student or authenticated tutor owner)
+ * ============================================================================
+ */
+
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { Mentor } from '../../../domain/entities/Mentor';
 import type { Review } from '../../../domain/entities/Review';
 import { reviewRepository } from '../../../data/repositories/reviewRepository';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { useScrollToTopOnFocus } from '../../hooks/useScrollToTopOnFocus';
 
 type Props = any;
+
+/**
+ * Extended mentor entities incorporating profile presentation metadata 
+ */
 type ProfileMentor = Mentor & {
   experience?: string;
   sessionCount?: number;
@@ -17,17 +42,28 @@ type ProfileMentor = Mentor & {
   guidance?: string;
 };
 
-function SectionHeading({ icon, title }: { icon: string; title: string }) {
+/**
+ * Reusable section title component styled with themed icon container
+ */
+function SectionHeading({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
   return (
     <View style={styles.sectionHeading}>
-      <View style={styles.sectionIcon}><Text style={styles.sectionIconText}>{icon}</Text></View>
+      <View style={styles.sectionIcon}>
+        <Ionicons name={icon} size={15} color="#061E47" />
+      </View>
       <Text style={styles.sectionTitle}>{title}</Text>
     </View>
   );
 }
 
+/**
+ * TutorProfileScreen component rendering full profile details, ratings, and contact CTAs
+ */
 export default function TutorProfileScreen({ route, navigation }: Props) {
+  const scrollRef = useScrollToTopOnFocus<ScrollView>();
   const insets = useSafeAreaInsets();
+  const statusBarHeight =
+    Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, insets.top) : insets.top;
   const currentUser = useAuthStore((state) => state.user);
   const currentRole = currentUser?.role;
 
@@ -60,6 +96,9 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
 
+  /**
+   * Loads all student reviews submitted for this specific mentor from the repository
+   */
   const loadReviews = useCallback(async () => {
     try {
       const data = await reviewRepository.listForTutor(mentor._id);
@@ -71,6 +110,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
     }
   }, [mentor._id]);
 
+  /**
+   * Validates permissions and executes deletion of a student's review
+   * @param reviewId - Unique identifier of the review record
+   */
   const handleDeleteReview = (reviewId: string) => {
     if (currentRole === 'mentor') {
       Alert.alert('Permission Denied', 'Mentors cannot delete student reviews.');
@@ -109,17 +152,44 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
     ? (reviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews).toFixed(1)
     : (mentor.rating ? mentor.rating.toFixed(1) : 'New');
 
+  /**
+   * Validates tutor identifier and opens 1-on-1 direct conversation with the tutor
+   */
   const openChat = () => {
-    if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
+    const id = mentor._id || (mentor as any).id;
+    if (!id) {
       Alert.alert('Chat unavailable', 'Please select a registered tutor from the updated tutor list.');
       return;
     }
-    navigation.navigate('Chat', { mentor });
+    navigation.navigate('Chat', { mentor: { ...mentor, _id: id } });
   };
 
   return (
     <View style={styles.page}>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeftRow}>
+            {navigation.canGoBack?.() ? (
+              <TouchableOpacity
+                style={styles.headerBackButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Tutor Profile</Text>
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandUni}>Uni</Text>
+            <Text style={styles.brandMentor}>Mentor</Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 82 }]}
         showsVerticalScrollIndicator={false}
       >
@@ -134,7 +204,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               <View style={styles.onlineDot} />
             </View>
             <View style={styles.profileCopy}>
-              <View style={styles.verifiedBadge}><Text style={styles.verifiedText}>✓ VERIFIED TUTOR</Text></View>
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={13} color="#D97706" style={{ marginRight: 3 }} />
+                <Text style={styles.verifiedText}>VERIFIED TUTOR</Text>
+              </View>
               <Text style={styles.name} numberOfLines={1}>{mentor.name}</Text>
               <Text style={styles.experience} numberOfLines={1}>{mentor.experience ?? 'Senior student tutor'}</Text>
             </View>
@@ -144,7 +217,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                 onPress={() => useAuthStore.getState().logout()}
                 activeOpacity={0.8}
               >
-                <Text style={styles.heroSignOutText}>Sign Out 🚪</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="log-out-outline" size={14} color="#FFFFFF" />
+                  <Text style={styles.heroSignOutText}>Sign Out</Text>
+                </View>
               </TouchableOpacity>
             )}
           </View>
@@ -155,7 +231,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               onPress={() => currentRole === 'student' && navigation.navigate('WriteReview', { mentor })}
               activeOpacity={currentRole === 'student' ? 0.75 : 1}
             >
-              <Text style={styles.heroStatValue}><Text style={styles.star}>★</Text> {avgRating}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="star" size={14} color="#F59E0B" style={{ marginRight: 3 }} />
+                <Text style={styles.heroStatValue}>{avgRating}</Text>
+              </View>
               <Text style={styles.heroStatLabel}>
                 {totalReviews} {totalReviews === 1 ? 'Review' : 'Reviews'} {currentRole === 'student' ? '• +Rate' : ''}
               </Text>
@@ -175,7 +254,9 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
 
         <View style={styles.bodyWrap}>
           <View style={styles.availabilityCard}>
-            <View style={styles.calendarBox}><Text style={styles.calendarIcon}>✓</Text></View>
+            <View style={styles.calendarBox}>
+              <Ionicons name="calendar-outline" size={18} color="#061E47" />
+            </View>
             <View style={styles.availabilityCopy}>
               <Text style={styles.availabilityLabel}>NEXT AVAILABLE</Text>
               <Text style={styles.availabilityValue}>{mentor.availability ?? 'Schedule available'}</Text>
@@ -184,12 +265,12 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
           </View>
 
           <View style={styles.card}>
-            <SectionHeading icon="i" title="About tutor" />
+            <SectionHeading icon="information-circle-outline" title="About tutor" />
             <Text style={styles.bodyText}>{mentor.bio || 'Friendly academic support with clear, step-by-step explanations.'}</Text>
           </View>
 
           <View style={styles.card}>
-            <SectionHeading icon="M" title="Modules" />
+            <SectionHeading icon="book-outline" title="Modules" />
             <View style={styles.tags}>
               {mentor.subjects.map((subject, index) => (
                 <View key={subject} style={[styles.tag, index === 0 && styles.primaryTag]}>
@@ -201,11 +282,13 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
           </View>
 
           <View style={styles.supportCard}>
-            <SectionHeading icon="✓" title="Tutor support" />
+            <SectionHeading icon="checkmark-done-outline" title="Tutor support" />
             <View style={styles.supportRow}>
               {['Concepts', 'Assignments', 'Exams'].map((item) => (
                 <View key={item} style={styles.supportItem}>
-                  <View style={styles.supportCheck}><Text style={styles.supportCheckText}>✓</Text></View>
+                  <View style={styles.supportCheck}>
+                    <Ionicons name="checkmark" size={12} color="#16A34A" />
+                  </View>
                   <Text style={styles.supportText}>{item}</Text>
                 </View>
               ))}
@@ -217,7 +300,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             <View style={styles.reviewsHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={[styles.sectionIcon, { backgroundColor: '#FEF3C7' }]}>
-                  <Text style={[styles.sectionIconText, { color: '#D97706' }]}>★</Text>
+                  <Ionicons name="star" size={15} color="#D97706" />
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>Student Reviews</Text>
@@ -244,15 +327,13 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                 <Text style={styles.ratingBigNumber}>{avgRating}</Text>
                 <View style={styles.starsRow}>
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Text
+                    <Ionicons
                       key={s}
-                      style={[
-                        styles.starIcon,
-                        s <= Math.round(Number(avgRating) || 0) ? styles.starFilled : styles.starEmpty,
-                      ]}
-                    >
-                      ★
-                    </Text>
+                      name="star"
+                      size={15}
+                      color={s <= Math.round(Number(avgRating) || 0) ? '#F59E0B' : '#E2E8F0'}
+                      style={{ marginRight: 2 }}
+                    />
                   ))}
                 </View>
                 <Text style={styles.ratingTotalText}>Based on {totalReviews} reviews</Text>
@@ -283,7 +364,7 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
               </View>
             ) : reviews.length === 0 ? (
               <View style={styles.emptyReviewsBox}>
-                <Text style={styles.emptyReviewsEmoji}>💬</Text>
+                <Ionicons name="chatbubbles-outline" size={44} color="#94A3B8" style={{ marginBottom: 8 }} />
                 <Text style={styles.emptyReviewsTitle}>No reviews yet</Text>
                 <Text style={styles.emptyReviewsSubtitle}>
                   Be the first student to share your learning experience with {mentor.name}!
@@ -341,15 +422,13 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                         </View>
                         <View style={styles.reviewStarsRow}>
                           {[1, 2, 3, 4, 5].map((s) => (
-                            <Text
+                            <Ionicons
                               key={s}
-                              style={[
-                                styles.reviewStar,
-                                s <= rev.rating ? styles.starFilled : styles.starEmpty,
-                              ]}
-                            >
-                              ★
-                            </Text>
+                              name="star"
+                              size={13}
+                              color={s <= rev.rating ? '#F59E0B' : '#E2E8F0'}
+                              style={{ marginHorizontal: 0.5 }}
+                            />
                           ))}
                         </View>
                       </View>
@@ -365,7 +444,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                             }
                             activeOpacity={0.75}
                           >
-                            <Text style={styles.reviewEditBtnText}>✏️ Edit</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="create-outline" size={13} color="#0D4F9E" />
+                              <Text style={styles.reviewEditBtnText}>Edit</Text>
+                            </View>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -373,7 +455,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
                             onPress={() => handleDeleteReview(rev._id)}
                             activeOpacity={0.75}
                           >
-                            <Text style={styles.reviewDeleteBtnText}>🗑️ Delete</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                              <Text style={styles.reviewDeleteBtnText}>Delete</Text>
+                            </View>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -394,14 +479,17 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             onPress={() => navigation.navigate('Messages')}
             activeOpacity={0.84}
           >
-            <Text style={styles.mentorTabActionText}>💬 Student Messages</Text>
+            <Text style={styles.mentorTabActionText}>Student Messages</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.mentorTabLogoutBtn}
             onPress={() => useAuthStore.getState().logout()}
             activeOpacity={0.84}
           >
-            <Text style={styles.mentorTabLogoutText}>Sign Out 🚪</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="log-out-outline" size={17} color="#DC2626" />
+              <Text style={styles.mentorTabLogoutText}>Sign Out</Text>
+            </View>
           </TouchableOpacity>
         </View>
       ) : (
@@ -415,16 +503,18 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             }}
             activeOpacity={0.82}
           >
-            <Text style={styles.backArrow}>←</Text>
+            <Ionicons name="chevron-back" size={18} color="#061E47" />
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.chatButton} onPress={openChat} activeOpacity={0.84}>
-            <View style={styles.chatIcon}><Text style={styles.chatIconText}>•••</Text></View>
+            <View style={styles.chatIcon}>
+              <Ionicons name="chatbubble-ellipses" size={16} color="#061E47" />
+            </View>
             <View>
               <Text style={styles.chatButtonLabel}>DIRECT MESSAGE</Text>
               <Text style={styles.chatButtonText}>{chatLabel}</Text>
             </View>
-            <Text style={styles.chatArrow}>→</Text>
+            <Ionicons name="arrow-forward" size={16} color="#061E47" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
       )}
@@ -434,12 +524,55 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
 
 const navy = '#061E47';
 const navyCard = '#0B2754';
-const amber = '#F59E0B';
+const amber = '#FBBF24';
 const gold = '#FBBF24';
 const onlineGreen = '#22C55E';
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F4F7FB' },
+  headerBar: {
+    backgroundColor: navy,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandUni: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  brandMentor: {
+    color: '#F59E0B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
   content: { backgroundColor: '#F4F7FB' },
   hero: { backgroundColor: navy, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, overflow: 'hidden' },
   heroOrbLarge: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: navyCard, right: -92, top: -104, opacity: 0.65 },
@@ -508,12 +641,12 @@ const styles = StyleSheet.create({
   backButton: { width: 91, height: 52, borderRadius: 15, backgroundColor: '#EEF2F8', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 2 },
   backArrow: { color: navy, fontSize: 19, fontWeight: '900', marginRight: 6, marginTop: -2 },
   backButtonText: { color: navy, fontSize: 12.5, fontWeight: '900' },
-  chatButton: { flex: 1, height: 52, borderRadius: 15, backgroundColor: navy, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', shadowColor: navy, shadowOpacity: 0.18, shadowRadius: 7, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  chatIcon: { width: 31, height: 31, borderRadius: 10, backgroundColor: 'rgba(245,158,11,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  chatIconText: { color: amber, fontSize: 12, lineHeight: 12, fontWeight: '900', marginTop: -5 },
-  chatButtonLabel: { color: '#AFC2DF', fontSize: 7.5, fontWeight: '900', letterSpacing: 0.6 },
-  chatButtonText: { color: '#FFF', fontSize: 12, fontWeight: '900', marginTop: 2 },
-  chatArrow: { color: gold, fontSize: 19, fontWeight: '900', marginLeft: 'auto' },
+  chatButton: { flex: 1, height: 52, borderRadius: 15, backgroundColor: amber, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', shadowColor: amber, shadowOpacity: 0.25, shadowRadius: 7, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  chatIcon: { width: 31, height: 31, borderRadius: 10, backgroundColor: 'rgba(6,30,71,0.12)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  chatIconText: { color: navy, fontSize: 12, lineHeight: 12, fontWeight: '900', marginTop: -5 },
+  chatButtonLabel: { color: '#78350F', fontSize: 7.5, fontWeight: '900', letterSpacing: 0.6 },
+  chatButtonText: { color: navy, fontSize: 12, fontWeight: '900', marginTop: 2 },
+  chatArrow: { color: navy, fontSize: 19, fontWeight: '900', marginLeft: 'auto' },
 
   /* Reviews Card & Styles */
   reviewsCard: {
@@ -706,7 +839,7 @@ const styles = StyleSheet.create({
   },
   emptyWriteBtn: {
     marginTop: 14,
-    backgroundColor: '#0D4F9E',
+    backgroundColor: amber,
     borderRadius: 12,
     paddingHorizontal: 18,
     paddingVertical: 10,
@@ -769,17 +902,17 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 14,
-    backgroundColor: navy,
+    backgroundColor: amber,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-    shadowColor: navy,
+    shadowColor: amber,
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
   },
   mentorTabActionText: {
-    color: '#FFFFFF',
+    color: '#061E47',
     fontSize: 13.5,
     fontWeight: '800',
   },

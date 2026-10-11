@@ -14,24 +14,28 @@ export default function GradeSubmissionScreen({ route, navigation }: Props) {
   const [score, setScore] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const submissionId = route.params?.id || route.params?.submissionId || '';
+
   useEffect(() => {
-    learningRepository.getTutorStudent(route.params.id)
+    if (!submissionId) return;
+    learningRepository.getTutorStudent(submissionId)
       .then((data) => {
         setStudent(data);
         if (data.score != null) setScore(String(data.score));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [route.params.id]);
+  }, [submissionId]);
 
   const save = async () => {
+    if (!submissionId) return;
     const value = Number(score);
     if (Number.isNaN(value) || value < 0 || value > 100) {
       Alert.alert('Invalid score', 'Enter a mark between 0 and 100.');
       return;
     }
     try {
-      await learningRepository.gradeTutorStudent(route.params.id, value);
+      await learningRepository.gradeTutorStudent(submissionId, value);
       Alert.alert('Graded', 'Score and feedback were saved to the queue.');
       navigation.goBack();
     } catch {
