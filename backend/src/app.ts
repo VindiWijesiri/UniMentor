@@ -14,6 +14,7 @@ import libraryRoutes from './routes/libraryRoutes';
 import campusRoutes from './routes/campusRoutes';
 import faceVerificationRoutes from './routes/faceVerificationRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import planRoutes from './routes/planRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -81,6 +82,7 @@ app.use('/api/pod', podRoutes);
 app.use('/api/campuses', campusRoutes);
 app.use('/api/face-verification', faceVerificationRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/plans', planRoutes);
 app.use('/api/payments', paymentRoutes);
 
 // Global error handler — must be last

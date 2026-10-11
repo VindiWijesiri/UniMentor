@@ -79,7 +79,9 @@ export async function getGoalBoard(req: AuthRequest, res: Response, next: NextFu
       GoalPlan.find({ studentId }).sort({ createdAt: 1 }),
       weekSummary(studentId),
     ]);
-    const ordered = [...goals].sort((a, b) => Number(b.seedKey === 'goal-weekly') - Number(a.seedKey === 'goal-weekly'));
+    const ordered = [...goals]
+      .filter((goal) => !String(goal.seedKey).endsWith('-dismissed'))
+      .sort((a, b) => Number(b.seedKey === 'goal-weekly') - Number(a.seedKey === 'goal-weekly'));
     const primary = ordered.find((goal) => goal.seedKey !== 'goal-weekly') ?? ordered[0];
     const tasks = ordered.flatMap((goal) => asList<GoalTask>(goal.tasks).map((task) => ({ ...task, goalId: String(goal._id) })));
     res.json({
@@ -105,10 +107,138 @@ export async function getGoalBoard(req: AuthRequest, res: Response, next: NextFu
   }
 }
 
+export async function createGoal(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const studentId = String(req.userId);
+    await seedLearningData(studentId);
+    await ensureGoalPlans(studentId);
+    const title = String(req.body.title ?? '').trim();
+    if (!title) {
+      res.status(400).json({ message: 'Goal title is required.' });
+      return;
+    }
+    const moduleCode = String(req.body.moduleCode ?? '').trim().slice(0, 20);
+    const dueLabel = String(req.body.dueLabel ?? 'This week').trim().slice(0, 80) || 'This week';
+    const priority = String(req.body.priority ?? 'Medium').trim().slice(0, 40) || 'Medium';
+    const area = String(req.body.area ?? '').trim().slice(0, 80);
+    const goal = await GoalPlan.create({
+      studentId,
+      seedKey: `custom-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      moduleCode,
+      moduleName: moduleCode || 'Study goal',
+      title: title.slice(0, 120),
+      summary: String(req.body.summary ?? '').trim().slice(0, 280),
+      priority,
+      progress: 0,
+      gradeLabel: 'New',
+      targetPercent: 100,
+      targetGrade: 'Done',
+      delta: '',
+      daysLeft: 7,
+      dueLabel,
+      hoursLogged: 0,
+      supportLabel: 'Your goal',
+      tutorName: '',
+      tutorRole: '',
+      tutorSlot: '',
+      credentialId: '',
+      completed: false,
+      topics: area ? [{ title: area, score: 0, note: '' }] : [],
+      analytics: {},
+      milestones: [{
+        id: `m-${Date.now()}`,
+        title: 'Start this goal',
+        detail: area || 'Open the goal and study',
+        status: 'active',
+        dueLabel,
+      }],
+      assessments: [],
+      tasks: [],
+      tutors: [],
+      sessions: [],
+    });
+    res.status(201).json(present(goal));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateGoalDetails(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const goal = await owned(req, req.params.id);
+    if (!goal || String(goal.seedKey).endsWith('-dismissed')) {
+      res.status(404).json({ message: 'Goal not found.' });
+      return;
+    }
+    if (req.body.title != null) {
+      const title = String(req.body.title).trim();
+      if (!title) {
+        res.status(400).json({ message: 'Goal title is required.' });
+        return;
+      }
+      goal.title = title.slice(0, 120);
+    }
+    if (req.body.moduleCode != null) goal.moduleCode = String(req.body.moduleCode).trim().slice(0, 20);
+    if (req.body.dueLabel != null) {
+      const dueLabel = String(req.body.dueLabel).trim().slice(0, 80);
+      if (dueLabel) goal.dueLabel = dueLabel;
+    }
+    if (req.body.priority != null) {
+      const priority = String(req.body.priority).trim().slice(0, 40);
+      if (priority) goal.priority = priority;
+    }
+    if (req.body.summary != null) goal.summary = String(req.body.summary).trim().slice(0, 280);
+    if (req.body.area != null) {
+      const area = String(req.body.area).trim().slice(0, 80);
+      const topics = asList<{ title?: string; score?: number; note?: string }>(goal.topics);
+      if (area) {
+        if (topics[0]) topics[0].title = area;
+        else topics.unshift({ title: area, score: 0, note: '' });
+        goal.topics = topics;
+      }
+    }
+    await goal.save();
+    res.json(present(goal));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteGoal(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const goal = await owned(req, req.params.id);
+    if (!goal || String(goal.seedKey).endsWith('-dismissed')) {
+      res.status(404).json({ message: 'Goal not found.' });
+      return;
+    }
+    if (goal.seedKey === 'goal-weekly') {
+      res.status(400).json({ message: 'The weekly study goal stays on your dashboard. You can edit it.' });
+      return;
+    }
+    if (goal.seedKey === 'goal-graph') {
+      const marker = await GoalPlan.findOne({ studentId: goal.studentId, seedKey: 'goal-graph-dismissed' });
+      if (!marker) {
+        await GoalPlan.create({
+          studentId: goal.studentId,
+          seedKey: 'goal-graph-dismissed',
+          title: 'Removed starter goals',
+          moduleCode: 'HIDE',
+          dueLabel: '',
+          completed: true,
+        });
+      }
+    }
+    await goal.deleteOne();
+    res.json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getGoal(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const goal = await owned(req, req.params.id);
-    if (!goal) {
+    if (!goal || String(goal.seedKey).endsWith('-dismissed')) {
       res.status(404).json({ message: 'Goal not found.' });
       return;
     }
@@ -302,11 +432,63 @@ export async function completeGoalTask(req: AuthRequest, res: Response, next: Ne
       res.status(404).json({ message: 'Goal not found.' });
       return;
     }
-    goal.tasks = asList<GoalTask>(goal.tasks).map((task) => (
-      task.id === req.params.taskId ? { ...task, status: task.status === 'done' ? 'open' as const : 'done' as const } : task
-    ));
+    const tasks = asList<GoalTask>(goal.tasks);
+    const index = tasks.findIndex((task) => task.id === req.params.taskId);
+    if (index < 0) {
+      res.status(404).json({ message: 'Task not found.' });
+      return;
+    }
+    const task = { ...tasks[index] };
+    if (req.body.title != null) {
+      const title = String(req.body.title).trim();
+      if (!title) {
+        res.status(400).json({ message: 'Task title is required.' });
+        return;
+      }
+      task.title = title.slice(0, 120);
+    }
+    if (req.body.kind != null) task.kind = String(req.body.kind).trim().slice(0, 40) || task.kind;
+    if (req.body.minutes != null && Number.isFinite(Number(req.body.minutes))) {
+      task.minutes = Math.max(5, Math.min(240, Math.round(Number(req.body.minutes))));
+    }
+    if (req.body.dueLabel != null) {
+      const dueLabel = String(req.body.dueLabel).trim().slice(0, 40);
+      if (dueLabel) task.dueLabel = dueLabel;
+    }
+    if (req.body.status != null) {
+      const status = String(req.body.status);
+      if (!['open', 'active', 'done'].includes(status)) {
+        res.status(400).json({ message: 'Task status must be open, active, or done.' });
+        return;
+      }
+      task.status = status as GoalTask['status'];
+    } else if (req.body.title == null && req.body.kind == null && req.body.minutes == null && req.body.dueLabel == null) {
+      task.status = task.status === 'done' ? 'open' : 'done';
+    }
+    tasks[index] = task;
+    goal.tasks = tasks;
     await goal.save();
     res.json(present(goal));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteGoalTask(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const goal = await owned(req, req.params.id);
+    if (!goal) {
+      res.status(404).json({ message: 'Goal not found.' });
+      return;
+    }
+    const tasks = asList<GoalTask>(goal.tasks);
+    if (!tasks.some((task) => task.id === req.params.taskId)) {
+      res.status(404).json({ message: 'Task not found.' });
+      return;
+    }
+    goal.tasks = tasks.filter((task) => task.id !== req.params.taskId);
+    await goal.save();
+    res.json({ deleted: true });
   } catch (err) {
     next(err);
   }
@@ -356,7 +538,9 @@ export async function goalSummaries(studentId: string) {
     GoalPlan.find({ studentId }).sort({ createdAt: 1 }),
     weekSummary(studentId),
   ]);
-  const ordered = [...goals].sort((a, b) => Number(b.seedKey === 'goal-weekly') - Number(a.seedKey === 'goal-weekly'));
+  const ordered = [...goals]
+    .filter((goal) => !String(goal.seedKey).endsWith('-dismissed'))
+    .sort((a, b) => Number(b.seedKey === 'goal-weekly') - Number(a.seedKey === 'goal-weekly'));
   return ordered.map((goal) => {
     const weekly = goal.seedKey === 'goal-weekly';
     const milestones = asList<GoalMilestone>(goal.milestones);
@@ -372,6 +556,7 @@ export async function goalSummaries(studentId: string) {
       progress: weekly ? Math.min(100, Math.round(week.percent)) : goal.progress,
       priority: goal.priority,
       kind: weekly ? 'weekly' : 'module',
+      canDelete: !weekly,
       areas: (() => {
         const topics = asList<{ title?: string }>(goal.topics).map((item) => item.title).filter((title): title is string => Boolean(title));
         if (topics.length) return topics;

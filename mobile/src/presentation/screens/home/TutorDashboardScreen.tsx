@@ -487,6 +487,18 @@ export default function TutorDashboardScreen({ navigation }: any) {
     Alert.alert('Schedule Updated', `Your booking availability has been set to: ${scheduleDays} (${scheduleHours}).`);
   };
 
+  const openStudentChats = () => {
+    let nav: any = navigation;
+    while (nav) {
+      const names: string[] = nav.getState?.()?.routeNames ?? [];
+      if (names.includes('TutorStudentChats')) {
+        nav.navigate('TutorStudentChats');
+        return;
+      }
+      nav = nav.getParent?.();
+    }
+  };
+
   const handleCreateAssessment = () => {
     if (!assessmentTitle.trim()) {
       Alert.alert('Missing Field', 'Please enter an assessment title.');
@@ -509,9 +521,19 @@ export default function TutorDashboardScreen({ navigation }: any) {
             <View>
               <Text style={styles.headerTitle}>Tutor Dashboard</Text>
             </View>
-            <View style={styles.brandRow}>
-              <Text style={styles.brandUni}>Uni</Text>
-              <Text style={styles.brandMentor}>Mentor</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.headerChatBtn}
+                onPress={openStudentChats}
+                activeOpacity={0.85}
+                accessibilityLabel="Student chats"
+              >
+                <Ionicons name="chatbubble-ellipses" size={18} color="#061E47" />
+              </TouchableOpacity>
+              <View style={styles.brandRow}>
+                <Text style={styles.brandUni}>Uni</Text>
+                <Text style={styles.brandMentor}>Mentor</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -1896,6 +1918,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerChatBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   brandRow: {
     flexDirection: 'row',

@@ -19,6 +19,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.unimentor.app",
+      "usesCleartextTraffic": true,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
@@ -47,6 +48,17 @@
         {
           "photosPermission": "UniMentor needs access to your photos to upload profile and verification photos.",
           "cameraPermission": "UniMentor needs access to your camera to scan and verify your face for session bookings."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "buildArchs": ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"],
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
         }
       ]
     ],

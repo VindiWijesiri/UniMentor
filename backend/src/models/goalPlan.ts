@@ -30,7 +30,7 @@ export type GoalTask = {
   kind: string;
   minutes: number;
   dueLabel: string;
-  status: 'open' | 'done';
+  status: 'open' | 'active' | 'done';
 };
 
 export type GoalTutor = {

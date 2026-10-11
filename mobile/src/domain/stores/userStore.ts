@@ -22,6 +22,10 @@ export const useUserStore = create<UserState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const user = await userRepository.getProfile();
+      if (!useAuthStore.getState().isAuthenticated) {
+        set({ profile: null, loading: false });
+        return;
+      }
       set({ profile: user, loading: false });
       useAuthStore.getState().setUser(user);
     } catch (err: any) {

@@ -226,7 +226,23 @@ export default function TutorOwnerProfileScreen() {
     ]);
   };
 
+  const openStudentChats = () => {
+    let nav: any = navigation;
+    while (nav) {
+      const names: string[] = nav.getState?.()?.routeNames ?? [];
+      if (names.includes('TutorStudentChats')) {
+        nav.navigate('TutorStudentChats');
+        return;
+      }
+      nav = nav.getParent?.();
+    }
+  };
+
   const handleLogoutPrompt = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to log out of UniMentor?')) logout();
+      return;
+    }
     Alert.alert('Log Out', 'Are you sure you want to log out of UniMentor?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log Out', style: 'destructive', onPress: logout },
@@ -247,9 +263,19 @@ export default function TutorOwnerProfileScreen() {
       <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Tutor Profile</Text>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandUni}>Uni</Text>
-            <Text style={styles.brandMentor}>Mentor</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerChatBtn}
+              onPress={openStudentChats}
+              activeOpacity={0.85}
+              accessibilityLabel="Student chats"
+            >
+              <Ionicons name="chatbubble-ellipses" size={18} color="#061E47" />
+            </TouchableOpacity>
+            <View style={styles.brandRow}>
+              <Text style={styles.brandUni}>Uni</Text>
+              <Text style={styles.brandMentor}>Mentor</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -293,6 +319,10 @@ export default function TutorOwnerProfileScreen() {
           <TouchableOpacity style={styles.editProfileLowerBtn} onPress={openEditModal} activeOpacity={0.85}>
             <Ionicons name="create-outline" size={14} color="#061E47" />
             <Text style={styles.editProfileLowerBtnText}>Edit Tutor Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.studentChatBtn} onPress={openStudentChats} activeOpacity={0.85}>
+            <Ionicons name="chatbubble-ellipses" size={16} color="#061E47" />
+            <Text style={styles.studentChatBtnText}>Chat with students</Text>
           </TouchableOpacity>
         </View>
 
@@ -630,6 +660,34 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -0.2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerChatBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studentChatBtn: {
+    marginTop: 10,
+    backgroundColor: '#FBBF24',
+    borderRadius: 12,
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  studentChatBtnText: {
+    color: '#061E47',
+    fontSize: 14,
+    fontWeight: '800',
+  },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -768,6 +826,21 @@ const styles = StyleSheet.create({
   editProfileLowerBtnText: {
     fontSize: 12,
     fontWeight: '700',
+    color: '#061E47',
+  },
+  studentChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FBBF24',
+    paddingVertical: 11,
+    borderRadius: 10,
+    marginTop: 8,
+    gap: 6,
+  },
+  studentChatBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
     color: '#061E47',
   },
 

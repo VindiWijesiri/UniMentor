@@ -26,10 +26,8 @@ import {
   SvgClock,
 } from '../../components/common/SvgIcons';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const isSmallHeight = SCREEN_HEIGHT < 720;
-const isMediumHeight = SCREEN_HEIGHT >= 720 && SCREEN_HEIGHT < 840;
-const imageCardHeight = isSmallHeight ? 160 : isMediumHeight ? 190 : 230;
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Onboarding'>;
@@ -93,11 +91,14 @@ const ONBOARDING_SLIDES: SlideData[] = [
 export default function OnboardingScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [pageWidth, setPageWidth] = useState(0);
+  const [pageHeight, setPageHeight] = useState(0);
   const flatListRef = useRef<FlatList<SlideData>>(null);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / SCREEN_WIDTH);
+    if (!pageWidth) return;
+    const index = Math.round(offsetX / pageWidth);
     if (index !== activeIndex && index >= 0 && index < ONBOARDING_SLIDES.length) {
       setActiveIndex(index);
     }
@@ -129,6 +130,10 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   return (
     <View
+      onLayout={(event) => {
+        const nextWidth = event.nativeEvent.layout.width;
+        if (nextWidth > 0 && Math.abs(nextWidth - pageWidth) > 1) setPageWidth(nextWidth);
+      }}
       style={[
         styles.safeArea,
         {
@@ -142,7 +147,20 @@ export default function OnboardingScreen({ navigation }: Props) {
       {/* Header with App Logo, Screen Counter & Skip Option */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Logo size="small" showText={false} />
+          {activeIndex > 0 ? (
+            <TouchableOpacity
+              style={styles.headerBack}
+              onPress={handleBack}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <SvgChevronLeft size={22} color={colors.navy} />
+            </TouchableOpacity>
+          ) : (
+            <Logo size="small" showText={false} />
+          )}
         </View>
 
         {/* Prominently Displays Number of Onboarding Screens */}
@@ -172,13 +190,17 @@ export default function OnboardingScreen({ navigation }: Props) {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScroll}
+        getItemLayout={(_, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
         bounces={false}
         style={styles.flatList}
-        contentContainerStyle={styles.flatListContent}
+        onLayout={(event) => {
+          const nextHeight = event.nativeEvent.layout.height;
+          if (nextHeight > 0 && Math.abs(nextHeight - pageHeight) > 1) setPageHeight(nextHeight);
+        }}
         renderItem={({ item }) => (
-          <View style={styles.slideContainer}>
+          <View style={[styles.slideContainer, { width: pageWidth, height: pageHeight || undefined }]}>
             {/* Real Photography Image Container */}
-            <View style={styles.imageCard}>
+            <View style={[styles.imageCard, { width: pageWidth - 40 }]}>
               <Image source={item.image} style={styles.realImage} resizeMode="cover" />
 
               {/* Dynamic Floating Badge on Real Image */}
@@ -243,24 +265,8 @@ export default function OnboardingScreen({ navigation }: Props) {
 
         {/* Action Buttons */}
         <View style={styles.buttonRow}>
-          {activeIndex > 0 ? (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={handleBack}
-              activeOpacity={0.7}
-            >
-              <SvgChevronLeft size={20} color={colors.navy} />
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={{ width: 80 }} />
-          )}
-
           <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              activeIndex === ONBOARDING_SLIDES.length - 1 && styles.primaryButtonExpanded,
-            ]}
+            style={styles.primaryButton}
             onPress={handleNext}
             activeOpacity={0.85}
           >
@@ -297,12 +303,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   headerLeft: {
     width: 60,
     alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerBack: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -8,
   },
   counterBadge: {
     paddingHorizontal: 14,
@@ -331,24 +345,18 @@ const styles = StyleSheet.create({
   flatList: {
     flex: 1,
   },
-  flatListContent: {
-    flexGrow: 1,
-  },
   slideContainer: {
-    width: SCREEN_WIDTH,
     paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flex: 1,
+    paddingTop: 8,
+    alignItems: 'stretch',
   },
   imageCard: {
-    width: SCREEN_WIDTH - 40,
-    height: imageCardHeight,
+    flex: 1,
+    minHeight: isSmallHeight ? 120 : 160,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
-    marginTop: 4,
-    marginBottom: 8,
+    marginBottom: 12,
     shadowColor: '#061E47',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
@@ -389,9 +397,8 @@ const styles = StyleSheet.create({
   contentWrap: {
     alignItems: 'center',
     width: '100%',
-    paddingHorizontal: 4,
-    flexShrink: 1,
-    paddingBottom: 4,
+    flexShrink: 0,
+    paddingTop: 2,
   },
   tagWrap: {
     paddingHorizontal: 12,
@@ -453,14 +460,14 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 20,
-    paddingTop: 6,
+    paddingTop: 8,
   },
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   dot: {
     height: 7,
@@ -477,20 +484,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-  },
-  backButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.navy,
+    justifyContent: 'center',
   },
   primaryButton: {
     flex: 1,
@@ -507,10 +501,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  primaryButtonExpanded: {
-    backgroundColor: colors.secondary,
-    shadowColor: colors.secondary,
-  },
   primaryButtonText: {
     fontSize: 15.5,
     fontWeight: '800',
@@ -519,8 +509,8 @@ const styles = StyleSheet.create({
   loginLink: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
-    paddingVertical: 8,
+    marginTop: 8,
+    paddingVertical: 4,
   },
   loginLinkText: {
     fontSize: 13.5,

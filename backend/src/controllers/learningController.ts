@@ -64,7 +64,7 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
         seedKey: { $exists: false },
         $or: [{ owner: studentId }, { savedBy: studentId }],
       })
-        .select('title kind moduleName moduleCode source createdAt')
+        .select('title kind moduleName moduleCode source createdAt owner')
         .sort({ createdAt: -1 })
         .limit(6)
         .lean(),
@@ -180,6 +180,8 @@ export async function getDashboard(req: AuthRequest, res: Response, next: NextFu
         sourceLabel: item.moduleName || item.moduleCode || 'Library',
         sourceType: item.source === 'group' ? 'group' : 'session',
         uploadedAt: item.createdAt,
+        isOwner: String(item.owner) === studentId,
+        libraryKind: item.kind,
       })),
       podFeed: {
         total: podConversations.length,

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 
@@ -367,14 +368,20 @@ export async function sendVerificationOtp(req: Request, res: Response, next: Nex
       return;
     }
 
+    const normalizedEmail = String(email).toLowerCase().trim();
     const code = crypto.randomInt(100000, 999999).toString();
-    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    registrationOtpStore.set(email.toLowerCase(), { code, expires });
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+    registrationOtpStore.set(normalizedEmail, { code, expires });
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      existing.loginCode = code;
+      existing.loginCodeExpires = expires;
+      await existing.save();
+    }
 
-    const emailSent = await sendResetCodeEmail(email, code);
-
+    const emailSent = await sendResetCodeEmail(normalizedEmail, code);
     if (!emailSent) {
-      console.log(`[OTP Notice] Real email to ${email} failed to deliver. Server-side generated code for reference: ${code}`);
+      console.log(`[OTP Notice] Verification email was not sent to ${normalizedEmail}. Set GMAIL_USER and GMAIL_APP_PASS in backend/.env.`);
     }
 
     res.json({
@@ -398,13 +405,22 @@ export async function verifyEmailOtp(req: Request, res: Response, next: NextFunc
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
+    const cleanCode = String(code).trim();
     const record = registrationOtpStore.get(normalizedEmail);
     const now = new Date();
+    const user = await User.findOne({ email: normalizedEmail });
+    const savedCodeMatches = Boolean(
+      user?.loginCode
+      && user.loginCode === cleanCode
+      && user.loginCodeExpires
+      && now <= user.loginCodeExpires,
+    );
 
-    if (record && record.code === String(code).trim() && now <= record.expires) {
+    if ((record && record.code === cleanCode && now <= record.expires) || savedCodeMatches) {
       registrationOtpStore.delete(normalizedEmail);
-      const user = await User.findOne({ email: normalizedEmail });
       if (user) {
+        user.loginCode = undefined;
+        user.loginCodeExpires = undefined;
         user.isVerified = true;
         if (user.role === 'mentor') {
           user.verificationStatus = 'pending';

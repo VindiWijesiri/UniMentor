@@ -3,6 +3,16 @@ import type { Review } from '../../domain/entities/Review';
 
 const localReviewsCache: Record<string, Review[]> = {};
 
+function isDatabaseId(id: string) {
+  return /^[a-f\d]{24}$/i.test(id);
+}
+
+function rememberLocal(tutorId: string, review: Review) {
+  if (!tutorId) return;
+  const current = localReviewsCache[tutorId] || [];
+  localReviewsCache[tutorId] = [review, ...current.filter((item) => item._id !== review._id)];
+}
+
 export const reviewRepository = {
   async listForTutor(tutorId: string): Promise<Review[]> {
     let remoteReviews: Review[] = [];
@@ -34,8 +44,8 @@ export const reviewRepository = {
     try {
       const response = await apiClient.post<Review>(`/reviews/tutors/${tutorId}`, { rating, comment });
       savedReview = response.data;
-    } catch {
-      // Fallback for offline/demo tutors
+    } catch (error: any) {
+      if (error?.response) throw error;
       savedReview = {
         _id: `rev-${Date.now()}`,
         tutor: tutorId,
@@ -48,22 +58,25 @@ export const reviewRepository = {
       };
     }
 
-    if (!localReviewsCache[tutorId]) {
-      localReviewsCache[tutorId] = [];
-    }
-    localReviewsCache[tutorId] = [
-      savedReview,
-      ...localReviewsCache[tutorId].filter((r) => r._id !== savedReview._id),
-    ];
+    rememberLocal(tutorId, savedReview);
     return savedReview;
   },
 
   async update(reviewId: string, rating: number, comment: string, tutorId?: string): Promise<Review> {
+    if (!isDatabaseId(reviewId)) {
+      const saved = await this.save(tutorId || '', rating, comment);
+      Object.keys(localReviewsCache).forEach((key) => {
+        localReviewsCache[key] = localReviewsCache[key].filter((item) => item._id !== reviewId);
+      });
+      return saved;
+    }
+
     let updatedReview: Review;
     try {
       const response = await apiClient.put<Review>(`/reviews/${reviewId}`, { rating, comment });
       updatedReview = response.data;
-    } catch {
+    } catch (error: any) {
+      if (error?.response) throw error;
       updatedReview = {
         _id: reviewId,
         tutor: tutorId || '',
@@ -106,10 +119,8 @@ export const reviewRepository = {
   },
 
   async delete(reviewId: string, tutorId?: string): Promise<void> {
-    try {
+    if (isDatabaseId(reviewId)) {
       await apiClient.delete(`/reviews/${reviewId}`);
-    } catch {
-      // offline fallback
     }
     if (tutorId && localReviewsCache[tutorId]) {
       localReviewsCache[tutorId] = localReviewsCache[tutorId].filter((r) => r._id !== reviewId);

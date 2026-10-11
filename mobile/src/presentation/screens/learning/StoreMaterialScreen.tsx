@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,7 @@ const kinds: { key: LibraryKind; label: string }[] = [
 
 export default function StoreMaterialScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const materialId = route.params?.materialId;
   const [kind, setKind] = useState<LibraryKind>('pdf');
   const [title, setTitle] = useState('');
   const [moduleCode, setModuleCode] = useState('IT2040');
@@ -34,13 +35,14 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
   const [fileName, setFileName] = useState('');
   const [fileContent, setFileContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const upload = async () => {
     try {
       const picker = await import('expo-image-picker');
       const permission = await picker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Photo access is needed to upload an image or video.');
+        setError('Photo access is needed to upload an image or video.');
         return;
       }
       const result = await picker.launchImageLibraryAsync({
@@ -61,20 +63,30 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
         setKind('video');
       }
     } catch {
-      Alert.alert('Could not open the photo library.');
+      setError('Could not open the photo library.');
     }
   };
 
   useFocusEffect(useCallback(() => {
     podRepository.list('all').then(setConversations).catch(() => {});
-  }, []));
+    if (!materialId) return;
+    libraryRepository.get(materialId).then((item) => {
+      setKind(item.kind);
+      setTitle(item.title);
+      setModuleCode(item.moduleCode || '');
+      setModuleName(item.moduleName || '');
+      setBody(item.body || '');
+      if (item.conversation) setConversationId(item.conversation);
+    }).catch(() => setError('Could not open this material for editing.'));
+  }, [materialId]));
 
   const save = async () => {
-    if (!title.trim() || (!body.trim() && !fileContent)) {
-      Alert.alert('Add a title and either upload a file or paste the content.');
+    if (!title.trim() || (!materialId && !body.trim() && !fileContent)) {
+      setError('Add a title and either upload a file or paste the content.');
       return;
     }
     setSaving(true);
+    setError('');
     try {
       const storedBody = body.trim() || (kind === 'image' ? 'Image' : fileName || 'Uploaded file');
       const payload: Record<string, unknown> = {
@@ -83,11 +95,15 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
         source: conversationId ? 'group' : 'library',
         moduleCode,
         moduleName,
-        body: kind === 'image' ? storedBody : storedBody,
-        subtitle: fileName ? `Uploaded ${fileName}` : `Stored ${kind} resource`,
-        conversationId: conversationId || undefined,
-        files: fileContent ? [{ name: fileName || `${kind}-file`, language: kind, content: fileContent }] : undefined,
+        body: materialId && !body.trim() ? undefined : storedBody,
+        conversationId: conversationId || null,
       };
+      if (!materialId || fileName || body.trim()) {
+        payload.subtitle = fileName ? `Uploaded ${fileName}` : `Stored ${kind} resource`;
+      }
+      if (fileContent) {
+        payload.files = [{ name: fileName || `${kind}-file`, language: kind, content: fileContent }];
+      }
       if (kind === 'quiz') {
         payload.questions = [
           { prompt: body.trim() || title.trim(), options: ['True', 'False', 'Depends on the graph', 'Not enough data'], answer: 0 },
@@ -96,7 +112,9 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
       if (kind === 'code' && body.trim()) {
         payload.files = [{ name: fileName || 'notes.txt', language: 'text', content: body.trim() }];
       }
-      const item = await libraryRepository.create(payload);
+      const item = materialId
+        ? await libraryRepository.update(materialId, payload)
+        : await libraryRepository.create(payload);
       if (conversationId) {
         try {
           await podRepository.send(conversationId, title.trim(), { kind: 'file', materialId: item._id });
@@ -105,8 +123,9 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
         }
       }
       navigation.replace('StudyMaterialDetail', { id: item._id });
-    } catch {
-      Alert.alert('Could not store this material.');
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(message || 'Could not save this material.');
     } finally {
       setSaving(false);
     }
@@ -119,7 +138,7 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
           <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>‹</Text></TouchableOpacity>
           <View style={{ flex: 1 }}>
             <View style={styles.titleRow}>
-              <Text style={styles.heroTitle}>Store Material</Text>
+              <Text style={styles.heroTitle}>{materialId ? 'Edit Material' : 'Store Material'}</Text>
               <View style={styles.libraryPill}><Text style={styles.libraryText}>LIBRARY</Text></View>
             </View>
             <Text style={styles.sub}>Saved to MongoDB and visible in Chat Pod + dashboards</Text>
@@ -168,8 +187,9 @@ export default function StoreMaterialScreen({ navigation, route }: Props) {
           placeholder="Paste notes, transcript, code, or a quiz prompt..."
           placeholderTextColor="#8B98AE"
         />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
         <TouchableOpacity style={[styles.primary, saving && { opacity: 0.6 }]} onPress={() => void save()} disabled={saving}>
-          <Text style={styles.primaryText}>{saving ? 'Storing...' : 'Store in library'}</Text>
+          <Text style={styles.primaryText}>{saving ? 'Saving...' : materialId ? 'Save changes' : 'Store in library'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -198,6 +218,7 @@ const styles = StyleSheet.create({
   upload: { borderWidth: 1, borderColor: navy, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 8, backgroundColor: '#FFF' },
   uploadText: { color: navy, fontWeight: '800' },
   hint: { color: muted, fontSize: 12, marginTop: 8, lineHeight: 18 },
+  error: { color: '#A63838', fontWeight: '700', marginTop: 12 },
   primary: { backgroundColor: yellow, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   primaryText: { color: navy, fontWeight: '900', fontSize: 15 },
 });

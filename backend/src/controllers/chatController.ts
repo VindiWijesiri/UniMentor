@@ -1,6 +1,8 @@
 import { Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import ChatMessage from '../models/ChatMessage';
+import Session from '../models/Session';
+import Slot from '../models/Slot';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 
@@ -173,6 +175,163 @@ export async function getChatInbox(req: AuthRequest, res: Response, next: NextFu
     }).filter(({ participant }) => Boolean(participant));
 
     res.json(conversations);
+  } catch (error) {
+    next(error);
+  }
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export async function getTutorStudentChats(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tutor = await User.findById(req.userId)
+      .select('name email role profilePicture subjects bio rating reviewCount');
+    if (!tutor || tutor.role !== 'mentor') {
+      res.status(403).json({ message: 'Only a tutor can open student chats.' });
+      return;
+    }
+
+    const tutorId = String(tutor._id);
+    const name = String(tutor.name || 'Tutor').trim() || 'Tutor';
+    const namePattern = new RegExp(`^${escapeRegex(name)}$`, 'i');
+
+    const [selectedStudents, slots, sessions, messages] = await Promise.all([
+      User.find({
+        role: 'student',
+        $or: [
+          { 'shortlistedMentors.mentorId': tutorId },
+          { 'shortlistedMentors.mentorId': tutor.email },
+          { 'shortlistedMentors.name': namePattern },
+          { 'enrolledModules.mentor.id': tutorId },
+          { 'enrolledModules.mentor.name': namePattern },
+        ],
+      }).select('name email profilePicture degreeProgramme academicYear'),
+      Slot.find({
+        $or: [{ mentorId: tutorId }, { mentorId: tutor._id }, { mentorName: namePattern }],
+      }).select('registeredAttendees'),
+      Session.find({ mentorId: tutor._id }).select('studentId'),
+      ChatMessage.find({
+        $or: [{ sender: tutorId }, { receiver: tutorId }],
+      }).sort({ createdAt: -1 }),
+    ]);
+
+    const attendeeEmails = new Set<string>();
+    slots.forEach((slot) => {
+      const attendees = Array.isArray(slot.registeredAttendees) ? slot.registeredAttendees : [];
+      attendees.forEach((attendee) => {
+        if (attendee.status === 'cancelled') return;
+        const email = String(attendee.studentEmail || '').toLowerCase().trim();
+        if (email) attendeeEmails.add(email);
+      });
+    });
+
+    const sessionStudentIds = sessions
+      .map((session) => String(session.studentId || ''))
+      .filter((id) => mongoose.isValidObjectId(id));
+    const bookedStudents = attendeeEmails.size || sessionStudentIds.length
+      ? await User.find({
+        role: 'student',
+        $or: [
+          ...(attendeeEmails.size ? [{ email: { $in: [...attendeeEmails] } }] : []),
+          ...(sessionStudentIds.length ? [{ _id: { $in: sessionStudentIds } }] : []),
+        ],
+      }).select('name email profilePicture degreeProgramme academicYear')
+      : [];
+
+    const chatPartnerIds = new Set<string>();
+    messages.forEach((message) => {
+      const partnerId = String(message.sender) === tutorId ? String(message.receiver) : String(message.sender);
+      if (mongoose.isValidObjectId(partnerId)) chatPartnerIds.add(partnerId);
+    });
+    const knownIds = new Set([
+      ...selectedStudents.map((student) => String(student._id)),
+      ...bookedStudents.map((student) => String(student._id)),
+    ]);
+    const missingChatIds = [...chatPartnerIds].filter((id) => !knownIds.has(id));
+    const chatStudents = missingChatIds.length
+      ? await User.find({ _id: { $in: missingChatIds }, role: 'student' })
+        .select('name email profilePicture degreeProgramme academicYear')
+      : [];
+
+    const selectedIds = new Set(selectedStudents.map((student) => String(student._id)));
+    const bookedIds = new Set(bookedStudents.map((student) => String(student._id)));
+    const students = [...selectedStudents, ...bookedStudents, ...chatStudents];
+    const seen = new Set<string>();
+
+    const rows = students.flatMap((student) => {
+      const studentId = String(student._id);
+      if (seen.has(studentId)) return [];
+      seen.add(studentId);
+      const thread = messages.filter((message) =>
+        String(message.sender) === studentId || String(message.receiver) === studentId);
+      const lastMessage = thread[0];
+      const unreadCount = thread.filter((message) => String(message.receiver) === tutorId && !message.read).length;
+      const source = bookedIds.has(studentId)
+        ? 'booking'
+        : selectedIds.has(studentId)
+          ? 'shortlist'
+          : 'chat';
+      return [{
+        student: {
+          _id: studentId,
+          name: student.name,
+          email: student.email,
+          role: 'student' as const,
+          profilePicture: student.profilePicture,
+          degreeProgramme: student.degreeProgramme,
+          academicYear: student.academicYear,
+        },
+        source,
+        lastMessage: lastMessage || null,
+        unreadCount,
+      }];
+    }).sort((left, right) => {
+      if (right.unreadCount !== left.unreadCount) return right.unreadCount - left.unreadCount;
+      const rightTime = right.lastMessage ? new Date(right.lastMessage.createdAt).getTime() : 0;
+      const leftTime = left.lastMessage ? new Date(left.lastMessage.createdAt).getTime() : 0;
+      return rightTime - leftTime;
+    });
+
+    const extraStudents = await User.find({
+      role: 'student',
+      _id: { $nin: [...seen].filter((id) => mongoose.isValidObjectId(id)) },
+    })
+      .select('name email profilePicture degreeProgramme academicYear')
+      .sort({ name: 1 })
+      .limit(40);
+    extraStudents.forEach((student) => {
+      rows.push({
+        student: {
+          _id: String(student._id),
+          name: student.name,
+          email: student.email,
+          role: 'student' as const,
+          profilePicture: student.profilePicture,
+          degreeProgramme: student.degreeProgramme,
+          academicYear: student.academicYear,
+        },
+        source: 'student' as const,
+        lastMessage: null,
+        unreadCount: 0,
+      });
+    });
+
+    res.json({
+      tutor: {
+        _id: tutorId,
+        name: tutor.name,
+        email: tutor.email,
+        role: 'mentor',
+        profilePicture: tutor.profilePicture,
+        subjects: tutor.subjects || [],
+        bio: tutor.bio || '',
+        rating: tutor.rating || 0,
+        reviewCount: tutor.reviewCount || 0,
+      },
+      students: rows,
+    });
   } catch (error) {
     next(error);
   }

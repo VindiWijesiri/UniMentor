@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Platform,
   Pressable,
@@ -8,6 +9,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,6 +18,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { learningRepository } from '../../../data/repositories/learningRepository';
+import { libraryRepository } from '../../../data/repositories/libraryRepository';
 import type { LearningDashboard } from '../../../domain/entities/Learning';
 import type { AppStackParamList, AppTabParamList } from '../../navigation/AppNavigator';
 import {
@@ -96,6 +99,16 @@ export default function LearningDashboardScreen({ navigation }: Props) {
   const [focusHours, setFocusHours] = useState(0);
   const [focusMins, setFocusMins] = useState(25);
   const [focusOn, setFocusOn] = useState(false);
+  const [editor, setEditor] = useState<'goal' | 'material' | null>(null);
+  const [editingId, setEditingId] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftCode, setDraftCode] = useState('');
+  const [draftDue, setDraftDue] = useState('This week');
+  const [draftPriority, setDraftPriority] = useState('Medium');
+  const [draftKind, setDraftKind] = useState('pdf');
+  const [draftNotes, setDraftNotes] = useState('');
+  const [savingItem, setSavingItem] = useState(false);
+  const [editorError, setEditorError] = useState('');
   const lastLoad = useRef(0);
   const dataRef = useRef<LearningDashboard | null>(null);
   dataRef.current = data;
@@ -146,6 +159,104 @@ export default function LearningDashboardScreen({ navigation }: Props) {
   useEffect(() => {
     if (!areaOptions.includes(studyArea)) setStudyArea(areaOptions[0]);
   }, [areaOptions, studyArea]);
+
+  const refresh = () => {
+    lastLoad.current = 0;
+    load();
+  };
+
+  const askDelete = (message: string) => new Promise<boolean>((resolve) => {
+    if (Platform.OS === 'web') {
+      resolve(window.confirm(message));
+      return;
+    }
+    Alert.alert('Delete', message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+
+  const openGoalEditor = (goal?: NonNullable<LearningDashboard['todayGoals']>[number]) => {
+    setEditor('goal');
+    setEditingId(goal?._id ?? '');
+    setDraftTitle(goal?.title ?? '');
+    setDraftCode(goal?.moduleCode ?? '');
+    setDraftDue(goal?.kind === 'weekly' ? 'This week' : (goal?.dueLabel?.split('·').pop()?.trim() || 'This week'));
+    setDraftPriority(goal?.priority || 'Medium');
+    setDraftNotes(goal?.areas?.[0] && goal.areas[0] !== 'Whole goal' ? goal.areas[0] : '');
+    setEditorError('');
+  };
+
+  const openMaterialEditor = (item?: NonNullable<LearningDashboard['materials']>[number]) => {
+    setEditor('material');
+    setEditingId(item?._id ?? '');
+    setDraftTitle(item?.title ?? '');
+    setDraftCode(item?.sourceLabel ?? '');
+    setDraftKind(item?.libraryKind || (item?.kind === 'set' ? 'code' : item?.kind === 'notes' ? 'text' : 'pdf'));
+    setDraftNotes('');
+    setEditorError('');
+  };
+
+  const saveEditor = async () => {
+    if (!draftTitle.trim()) {
+      setEditorError(editor === 'goal' ? 'Add a goal title.' : 'Add a material title.');
+      return;
+    }
+    setSavingItem(true);
+    setEditorError('');
+    try {
+      if (editor === 'goal') {
+        const body = {
+          title: draftTitle.trim(),
+          moduleCode: draftCode.trim(),
+          dueLabel: draftDue.trim() || 'This week',
+          priority: draftPriority,
+          area: draftNotes.trim(),
+        };
+        if (editingId) await learningRepository.updateGoal(editingId, body);
+        else await learningRepository.createGoal(body);
+      } else if (editor === 'material') {
+        const body = {
+          title: draftTitle.trim(),
+          kind: draftKind,
+          moduleName: draftCode.trim(),
+          moduleCode: draftCode.trim(),
+          body: draftNotes.trim() || draftTitle.trim(),
+          subtitle: draftCode.trim() || 'Study material',
+          source: 'library',
+        };
+        if (editingId) await libraryRepository.update(editingId, body);
+        else await libraryRepository.create(body);
+      }
+      setEditor(null);
+      refresh();
+    } catch (err: any) {
+      setEditorError(err?.response?.data?.message ?? 'Could not save. Check your connection.');
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const removeGoal = async (id: string) => {
+    if (!(await askDelete('Remove this goal from your learning dashboard?'))) return;
+    try {
+      await learningRepository.deleteGoal(id);
+      if (goalId === id) setGoalId('');
+      refresh();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Could not delete this goal.');
+    }
+  };
+
+  const removeMaterial = async (id: string) => {
+    if (!(await askDelete('Remove this study material?'))) return;
+    try {
+      await libraryRepository.remove(id);
+      refresh();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Could not delete this material.');
+    }
+  };
 
   return (
     <View style={styles.page}>
@@ -271,12 +382,21 @@ export default function LearningDashboardScreen({ navigation }: Props) {
             <View style={styles.card}>
               <View style={styles.cardHead}>
                 <Text style={styles.cardTitle}>Today's Goals</Text>
-                <TouchableOpacity onPress={() => stack?.navigate('StudyTaskTracker')}>
-                  <Text style={styles.viewAll}>Open tracker</Text>
-                </TouchableOpacity>
+                <View style={styles.headActions}>
+                  <TouchableOpacity style={styles.addPill} onPress={() => openGoalEditor()}>
+                    <Text style={styles.addPillText}>Add</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => stack?.navigate('StudyTaskTracker')}>
+                    <Text style={styles.viewAll}>Open tracker</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
+              {(data?.todayGoals ?? []).length === 0 ? (
+                <Text style={styles.goalMeta}>No goals yet. Add one to track it here.</Text>
+              ) : null}
               {(data?.todayGoals ?? []).map((goal) => (
-                <View key={goal._id} style={styles.goalRow}>
+                <View key={goal._id} style={styles.goalBlock}>
+                <View style={styles.goalRow}>
                   <TouchableOpacity
                     style={[styles.goalCheck, goal.completed && styles.goalCheckOn]}
                     onPress={async () => {
@@ -319,6 +439,17 @@ export default function LearningDashboardScreen({ navigation }: Props) {
                   >
                     <Text style={styles.focusMiniText}>Focus</Text>
                   </TouchableOpacity>
+                </View>
+                <View style={styles.rowActions}>
+                  <TouchableOpacity onPress={() => openGoalEditor(goal)}>
+                    <Text style={styles.actionText}>Edit</Text>
+                  </TouchableOpacity>
+                  {goal.canDelete !== false && goal.kind !== 'weekly' ? (
+                    <TouchableOpacity onPress={() => removeGoal(goal._id)}>
+                      <Text style={styles.actionDanger}>Delete</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
                 </View>
               ))}
             </View>
@@ -425,35 +556,122 @@ export default function LearningDashboardScreen({ navigation }: Props) {
             <View style={styles.card}>
               <View style={styles.cardHead}>
                 <Text style={styles.cardTitle}>Recent Study Materials</Text>
-                <TouchableOpacity onPress={() => stack?.navigate('StudyMaterials')}>
-                  <Text style={styles.viewAll}>All Docs</Text>
-                </TouchableOpacity>
+                <View style={styles.headActions}>
+                  <TouchableOpacity style={styles.addPill} onPress={() => openMaterialEditor()}>
+                    <Text style={styles.addPillText}>Add</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => stack?.navigate('StudyMaterials')}>
+                    <Text style={styles.viewAll}>All Docs</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
+              {(data?.materials ?? []).length === 0 ? (
+                <Text style={styles.goalMeta}>No study materials yet. Add notes, a PDF, or a quiz.</Text>
+              ) : null}
               {(data?.materials ?? []).map((item) => (
-                <TouchableOpacity
-                  key={item._id}
-                  style={styles.materialRow}
-                  onPress={() => stack?.navigate('StudyMaterialDetail', { id: item._id })}
-                >
-                  <View style={styles.fileIcon}>
-                    {item.kind === 'pdf' ? (
-                      <SvgFileText size={18} color={navy} />
-                    ) : (
-                      <SvgClipboard size={18} color={navy} />
-                    )}
-                  </View>
-                  <View style={styles.goalCopy}>
-                    <Text style={styles.goalTitle}>{item.title}</Text>
-                    <Text style={styles.goalMeta}>
-                      {item.sourceType === 'group' ? 'Group' : 'Session'}: {item.sourceLabel}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                <View key={item._id} style={styles.goalBlock}>
+                  <TouchableOpacity
+                    style={styles.materialRow}
+                    onPress={() => stack?.navigate('StudyMaterialDetail', { id: item._id })}
+                  >
+                    <View style={styles.fileIcon}>
+                      {item.kind === 'pdf' || item.libraryKind === 'pdf' ? (
+                        <SvgFileText size={18} color={navy} />
+                      ) : (
+                        <SvgClipboard size={18} color={navy} />
+                      )}
+                    </View>
+                    <View style={styles.goalCopy}>
+                      <Text style={styles.goalTitle}>{item.title}</Text>
+                      <Text style={styles.goalMeta}>
+                        {item.sourceType === 'group' ? 'Group' : 'Session'}: {item.sourceLabel}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  {item.isOwner ? (
+                    <View style={styles.rowActions}>
+                      <TouchableOpacity onPress={() => openMaterialEditor(item)}>
+                        <Text style={styles.actionText}>Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => removeMaterial(item._id)}>
+                        <Text style={styles.actionDanger}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                </View>
               ))}
             </View>
           </View>
         )}
       </ScrollView>
+      <Modal visible={editor !== null} transparent animationType="fade" onRequestClose={() => setEditor(null)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => !savingItem && setEditor(null)}>
+          <Pressable style={styles.editorSheet} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.menuSheetTitle}>
+              {editor === 'goal' ? (editingId ? 'Edit goal' : 'New goal') : (editingId ? 'Edit material' : 'New study material')}
+            </Text>
+            <Text style={styles.menuLabel}>Title</Text>
+            <TextInput
+              value={draftTitle}
+              onChangeText={setDraftTitle}
+              placeholder={editor === 'goal' ? 'Revise graph traversals' : 'Lecture notes'}
+              placeholderTextColor="#8A97AB"
+              style={styles.editorInput}
+            />
+            <Text style={styles.menuLabel}>{editor === 'goal' ? 'Module code' : 'Module'}</Text>
+            <TextInput
+              value={draftCode}
+              onChangeText={setDraftCode}
+              placeholder={editor === 'goal' ? 'IT2040' : 'Data Structures'}
+              placeholderTextColor="#8A97AB"
+              style={styles.editorInput}
+            />
+            {editor === 'goal' ? (
+              <>
+                <Text style={styles.menuLabel}>Due</Text>
+                <TextInput value={draftDue} onChangeText={setDraftDue} placeholder="This week" placeholderTextColor="#8A97AB" style={styles.editorInput} />
+                <Text style={styles.menuLabel}>Priority</Text>
+                <View style={styles.chipRow}>
+                  {['High Priority', 'Medium', 'Low'].map((priority) => (
+                    <TouchableOpacity key={priority} style={[styles.choice, draftPriority === priority && styles.choiceOn]} onPress={() => setDraftPriority(priority)}>
+                      <Text style={[styles.choiceText, draftPriority === priority && styles.choiceTextOn]}>{priority}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.menuLabel}>Study area</Text>
+                <TextInput value={draftNotes} onChangeText={setDraftNotes} placeholder="Whole goal" placeholderTextColor="#8A97AB" style={styles.editorInput} />
+              </>
+            ) : (
+              <>
+                <Text style={styles.menuLabel}>Type</Text>
+                <View style={styles.chipRow}>
+                  {['pdf', 'text', 'quiz', 'code', 'video', 'image'].map((kind) => (
+                    <TouchableOpacity key={kind} style={[styles.choice, draftKind === kind && styles.choiceOn]} onPress={() => setDraftKind(kind)}>
+                      <Text style={[styles.choiceText, draftKind === kind && styles.choiceTextOn]}>{kind}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.menuLabel}>Notes</Text>
+                <TextInput
+                  value={draftNotes}
+                  onChangeText={setDraftNotes}
+                  placeholder="Paste a short note or description"
+                  placeholderTextColor="#8A97AB"
+                  style={[styles.editorInput, styles.editorNotes]}
+                  multiline
+                />
+              </>
+            )}
+            {editorError ? <Text style={styles.editorError}>{editorError}</Text> : null}
+            <TouchableOpacity style={[styles.focusStart, savingItem && styles.focusStartOff]} disabled={savingItem} onPress={saveEditor}>
+              <Text style={styles.focusStartText}>{savingItem ? 'Saving...' : 'Save'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditor(null)} disabled={savingItem}>
+              <Text style={styles.editorCancel}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
       <FocusSession
         visible={focusOn}
         areas={selectedGoal ? [{ id: selectedGoal.id, title: selectedGoal.title, code: selectedGoal.code }] : []}
@@ -575,7 +793,41 @@ const styles = StyleSheet.create({
   barLabel: { color: muted, fontSize: 10, fontWeight: '700', marginTop: 4 },
   barLabelToday: { color: ink, fontWeight: '900' },
   weekPercent: { color: ink, fontSize: 12, fontWeight: '700', marginTop: 8 },
-  goalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
+  headActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  addPill: { backgroundColor: yellow, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  addPillText: { color: navy, fontSize: 12, fontWeight: '900' },
+  goalBlock: { borderTopWidth: 1, borderTopColor: '#F0F3F8', paddingBottom: 4 },
+  goalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  rowActions: { flexDirection: 'row', gap: 14, paddingLeft: 32, paddingBottom: 6 },
+  actionText: { color: navy, fontSize: 12, fontWeight: '800' },
+  actionDanger: { color: '#B45309', fontSize: 12, fontWeight: '800' },
+  editorSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 16,
+    paddingBottom: 28,
+    maxHeight: '88%',
+  },
+  editorInput: {
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E6EAF2',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    color: ink,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  editorNotes: { minHeight: 84, textAlignVertical: 'top', paddingTop: 10 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  choice: { borderRadius: 12, borderWidth: 1, borderColor: '#E6EAF2', paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#F8FAFC' },
+  choiceOn: { backgroundColor: navy, borderColor: navy },
+  choiceText: { color: navy, fontSize: 12, fontWeight: '800' },
+  choiceTextOn: { color: '#FFFFFF' },
+  editorError: { color: '#B45309', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  editorCancel: { textAlign: 'center', color: muted, fontWeight: '800', paddingVertical: 10 },
   goalCheck: {
     width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#D5DCE8',
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
@@ -611,7 +863,7 @@ const styles = StyleSheet.create({
   upcomingRow: { paddingTop: 12, marginTop: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
   upcomingLabel: { color: muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.6, marginBottom: 4 },
   assessmentBlock: { paddingTop: 12, marginTop: 8, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
-  materialRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F0F3F8' },
+  materialRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
   fileIcon: {
     width: 40, height: 40, borderRadius: 12, backgroundColor: '#EEF3FB',
     alignItems: 'center', justifyContent: 'center', marginRight: 10,

@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StatusBar,
@@ -106,6 +107,29 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
     return fallback;
   }, [kinds, items]);
 
+  const confirmDelete = (message: string) => new Promise<boolean>((resolve) => {
+    if (Platform.OS === 'web') {
+      resolve(window.confirm(message));
+      return;
+    }
+    Alert.alert('Delete', message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+
+  const removeItem = async (id: string) => {
+    if (!(await confirmDelete('Remove this study material from your library?'))) return;
+    try {
+      await libraryRepository.remove(id);
+      setItems((current) => current.filter((item) => item._id !== id));
+      setError('');
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(message || 'Could not delete this material.');
+    }
+  };
+
   const visible = useMemo(() => items.filter((item) => {
     if (kind !== 'all' && item.kind !== kind) return false;
     return true;
@@ -200,6 +224,8 @@ export default function StudyMaterialsScreen({ navigation, route }: Props) {
             key={item._id}
             item={item}
             onOpen={() => navigation.navigate('StudyMaterialDetail', { id: item._id })}
+            onEdit={item.isOwner ? () => navigation.navigate('StoreMaterial', { materialId: item._id, conversationId }) : undefined}
+            onDelete={item.isOwner ? () => { void removeItem(item._id); } : undefined}
           />
         ))}
       </ScrollView>

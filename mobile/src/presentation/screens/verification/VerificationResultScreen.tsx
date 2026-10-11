@@ -30,26 +30,38 @@ export default function VerificationResultScreen({ navigation, route }: Props) {
   const handleGoToNext = () => {
     const account = route?.params?.user;
     const token = route?.params?.token;
+    const wasAuthenticated = useAuthStore.getState().isAuthenticated;
+    const routeNames = navigation.getState()?.routeNames ?? [];
+
     if (account && token) {
       setToken(token);
       setUser(account);
-      return;
-    }
-    if (initialRole === 'mentor') {
+      if (!String(token).startsWith('demo_')) {
+        useAuthStore.getState().rememberToken(token).catch(() => undefined);
+      }
+    } else if (initialRole === 'mentor') {
       setUser({
         ...mockTutorUser,
         verificationStatus: 'under_review',
         accountStatus: 'pending',
       });
       setToken('demo_tutor_token');
-      navigation.navigate('TutorVerificationStatus');
     } else {
+      const current = useAuthStore.getState().user;
       setUser({
-        ...mockStudentUser,
+        ...(current || mockStudentUser),
         verificationStatus: 'approved',
         accountStatus: 'active',
       });
-      setToken('demo_student_token');
+      if (!useAuthStore.getState().token) setToken('demo_student_token');
+    }
+
+    if (wasAuthenticated && routeNames.includes('MainTabs')) {
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      return;
+    }
+    if (initialRole === 'mentor' && routeNames.includes('TutorVerificationStatus')) {
+      navigation.navigate('TutorVerificationStatus');
     }
   };
 

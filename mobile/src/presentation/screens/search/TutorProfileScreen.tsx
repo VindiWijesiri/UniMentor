@@ -117,6 +117,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
     : (mentor.rating ? mentor.rating.toFixed(1) : 'New');
 
   const openChat = () => {
+    if (isMentorOwnProfile) {
+      navigation.navigate('TutorStudentChats');
+      return;
+    }
     if (!/^[a-f\d]{24}$/i.test(mentor._id)) {
       Alert.alert('Chat unavailable', 'Please select a registered tutor from the updated tutor list.');
       return;
@@ -141,9 +145,21 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
             ) : null}
             <Text style={styles.headerTitle}>Tutor Profile</Text>
           </View>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandUni}>Uni</Text>
-            <Text style={styles.brandMentor}>Mentor</Text>
+          <View style={styles.headerRight}>
+            {isMentorOwnProfile ? (
+              <TouchableOpacity
+                style={styles.headerChatBtn}
+                onPress={() => navigation.navigate('TutorStudentChats')}
+                activeOpacity={0.85}
+                accessibilityLabel="Student chats"
+              >
+                <Ionicons name="chatbubble-ellipses" size={18} color="#061E47" />
+              </TouchableOpacity>
+            ) : null}
+            <View style={styles.brandRow}>
+              <Text style={styles.brandUni}>Uni</Text>
+              <Text style={styles.brandMentor}>Mentor</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -436,10 +452,10 @@ export default function TutorProfileScreen({ route, navigation }: Props) {
         <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <TouchableOpacity
             style={styles.mentorTabActionBtn}
-            onPress={() => navigation.navigate('Messages')}
+            onPress={() => navigation.navigate('TutorStudentChats')}
             activeOpacity={0.84}
           >
-            <Text style={styles.mentorTabActionText}>Student Messages</Text>
+            <Text style={styles.mentorTabActionText}>Student Chats</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.mentorTabLogoutBtn}
@@ -504,6 +520,19 @@ const styles = StyleSheet.create({
   headerLeftRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerChatBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerBackButton: {
     width: 36,

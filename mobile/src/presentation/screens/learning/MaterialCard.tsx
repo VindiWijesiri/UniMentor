@@ -16,6 +16,8 @@ import { ink, muted, navy, yellow } from './learningTheme';
 type Props = {
   item: LibraryMaterial;
   onOpen: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 };
 
 
@@ -96,6 +98,30 @@ function skin(item: LibraryMaterial): KindSkin {
       action: 'Play Now',
     };
   }
+  if (item.kind === 'image') {
+    return {
+      badge: 'Image',
+      icon: '▣',
+      quality: size ?? 'Stored image',
+      qualityTone: 'blue',
+      metric: 'image',
+      locale: item.moduleName || 'Image\nresource',
+      downloaded: item.saved ? 'OFFLINE ready' : 'Saved in library',
+      action: 'View Image',
+    };
+  }
+  if (item.kind === 'text') {
+    return {
+      badge: 'Notes',
+      icon: '▤',
+      quality: 'Text notes',
+      qualityTone: 'blue',
+      metric: 'notes',
+      locale: item.moduleName || 'Written\nnotes',
+      downloaded: item.saved ? 'OFFLINE ready' : 'Saved in library',
+      action: 'Read',
+    };
+  }
   return {
     badge: 'Code Pack',
     icon: '</>',
@@ -125,7 +151,7 @@ function RenderKindIcon({ kind }: { kind: LibraryKind }) {
   return <SvgFileText size={14} color={navy} />;
 }
 
-export default function MaterialCard({ item, onOpen }: Props) {
+export default function MaterialCard({ item, onOpen, onEdit, onDelete }: Props) {
   const look = skin(item);
   const tone = TONE[look.qualityTone];
   const moduleLabel = [item.moduleCode, item.moduleName].filter(Boolean).join(' ');
@@ -138,7 +164,8 @@ export default function MaterialCard({ item, onOpen }: Props) {
   };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onOpen} activeOpacity={0.92}>
+    <View style={styles.card}>
+      <TouchableOpacity onPress={onOpen} activeOpacity={0.92}>
       <View style={styles.ribbon}>
         <SvgStar size={12} color="#EAA023" fill="#EAA023" />
         <Text style={styles.from} numberOfLines={2}>FROM: {headline(item)}</Text>
@@ -189,7 +216,22 @@ export default function MaterialCard({ item, onOpen }: Props) {
           </TouchableOpacity>
         </View>
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+      {onEdit || onDelete ? (
+        <View style={styles.ownerRow}>
+          {onEdit ? (
+            <TouchableOpacity style={styles.editBtn} onPress={onEdit} hitSlop={6}>
+              <Text style={styles.editBtnText}>Edit</Text>
+            </TouchableOpacity>
+          ) : null}
+          {onDelete ? (
+            <TouchableOpacity style={styles.deleteBtn} onPress={onDelete} hitSlop={6}>
+              <Text style={styles.deleteBtnText}>Delete</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -282,4 +324,32 @@ const styles = StyleSheet.create({
   },
   ctaDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: navy },
   ctaText: { color: navy, fontSize: 12, fontWeight: '900' },
+  ownerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 14,
+    marginBottom: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E6EAF2',
+  },
+  editBtn: {
+    backgroundColor: '#EEF3FB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 34,
+    justifyContent: 'center',
+  },
+  editBtnText: { color: navy, fontWeight: '800', fontSize: 13 },
+  deleteBtn: {
+    backgroundColor: '#FFF7ED',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 34,
+    justifyContent: 'center',
+  },
+  deleteBtnText: { color: '#B45309', fontWeight: '800', fontSize: 13 },
 });

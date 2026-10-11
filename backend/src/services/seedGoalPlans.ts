@@ -52,7 +52,10 @@ export async function ensureWeeklyGoal(studentId: string) {
 
 export async function ensureGoalPlans(studentId: string): Promise<void> {
   await ensureWeeklyGoal(studentId);
-  const existing = await GoalPlan.exists({ studentId, seedKey: 'goal-graph' });
+  const existing = await GoalPlan.exists({
+    studentId,
+    seedKey: { $in: ['goal-graph', 'goal-graph-dismissed'] },
+  });
   if (existing) return;
 
   await GoalPlan.insertMany([

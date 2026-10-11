@@ -213,25 +213,34 @@ export default function StudyMaterialDetailScreen({ route, navigation }: Props) 
             <Text style={styles.secondaryText}>{item.saved ? 'Saved to device' : saving ? 'Saving...' : 'Save / Store in library'}</Text>
           </TouchableOpacity>
           {item.isOwner ? (
-            <TouchableOpacity
-              style={styles.remove}
-              onPress={() => {
-                Alert.alert('Remove material', 'Delete this from the library?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                      void libraryRepository.remove(item._id)
-                        .then(() => navigation.goBack())
-                        .catch(() => Alert.alert('Could not delete this material.'));
-                    },
-                  },
-                ]);
-              }}
-            >
-              <Text style={styles.removeText}>Delete from library</Text>
-            </TouchableOpacity>
+            <View style={styles.ownerActions}>
+              <TouchableOpacity
+                style={styles.primary}
+                onPress={() => navigation.navigate('StoreMaterial', { materialId: item._id })}
+              >
+                <Text style={styles.primaryText}>Edit material</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.remove}
+                onPress={() => {
+                  const remove = () => {
+                    void libraryRepository.remove(item._id)
+                      .then(() => navigation.goBack())
+                      .catch(() => Alert.alert('Could not delete this material.'));
+                  };
+                  if (Platform.OS === 'web') {
+                    if (window.confirm('Delete this study material from the library?')) remove();
+                    return;
+                  }
+                  Alert.alert('Remove material', 'Delete this from the library?', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Delete', style: 'destructive', onPress: remove },
+                  ]);
+                }}
+              >
+                <Text style={styles.removeText}>Delete from library</Text>
+              </TouchableOpacity>
+            </View>
           ) : null}
         </ScrollView>
       )}
@@ -313,6 +322,7 @@ const styles = StyleSheet.create({
   primaryText: { color: navy, fontWeight: '900' },
   secondary: { borderWidth: 1, borderColor: '#D7DEEA', borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 16, backgroundColor: '#FFF' },
   secondaryText: { color: navy, fontWeight: '800' },
+  ownerActions: { marginTop: 8 },
   remove: { borderWidth: 1, borderColor: '#FECACA', borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 10, backgroundColor: '#FFF' },
   removeText: { color: '#B42318', fontWeight: '800' },
   note: { backgroundColor: '#FFF', borderRadius: 18, padding: 14, marginTop: 14, borderWidth: 1, borderColor: '#E6EAF2' },

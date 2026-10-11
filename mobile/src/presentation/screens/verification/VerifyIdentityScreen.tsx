@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -29,6 +31,18 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
   const [idBack, setIdBack] = useState<UploadedDoc | null>(null);
   const [transcript, setTranscript] = useState<UploadedDoc | null>(null);
   const [saving, setSaving] = useState<DocumentKind | null>(null);
+  const [pickerKind, setPickerKind] = useState<DocumentKind | null>(null);
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    documentRepository.mine()
+      .then((docs) => {
+        docs.forEach((doc) => {
+          storeUpload(doc.kind, { fileName: doc.fileName || `${doc.kind}.jpg`, previewUri: doc.image });
+        });
+      })
+      .catch(() => undefined);
+  }, []);
 
   const storeUpload = (kind: DocumentKind, uploaded: UploadedDoc | null) => {
     if (kind === 'front') setIdFront(uploaded);
@@ -37,14 +51,12 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
   };
 
   const pickPhoto = (kind: DocumentKind) => {
-    Alert.alert('Add a photo', 'Choose a clear photo of this document.', [
-      { text: 'Camera', onPress: () => capture(kind, 'camera') },
-      { text: 'Photo library', onPress: () => capture(kind, 'library') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setFormError('');
+    setPickerKind(kind);
   };
 
   const capture = async (kind: DocumentKind, source: 'camera' | 'library') => {
+    setPickerKind(null);
     const picker = await import('expo-image-picker');
     const permission = source === 'camera'
       ? await picker.requestCameraPermissionsAsync()
@@ -56,10 +68,26 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
     const result = source === 'camera'
       ? await picker.launchCameraAsync({ base64: true, quality: 0.4, allowsEditing: true })
       : await picker.launchImageLibraryAsync({ base64: true, quality: 0.4, mediaTypes: ['images'] });
-    if (result.canceled || !result.assets?.[0]?.base64) return;
+    if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
-    const mime = asset.mimeType && asset.mimeType.startsWith('image/') ? asset.mimeType : 'image/jpeg';
-    const image = `data:${mime};base64,${asset.base64}`;
+    let image = '';
+    if (asset.base64) {
+      const mime = asset.mimeType && asset.mimeType.startsWith('image/') ? asset.mimeType : 'image/jpeg';
+      image = `data:${mime};base64,${asset.base64}`;
+    } else if (asset.uri) {
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      image = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Could not read the selected photo.'));
+        reader.readAsDataURL(blob);
+      });
+    }
+    if (!image.startsWith('data:image/')) {
+      setFormError('Choose a photo file for this document.');
+      return;
+    }
     if (image.length > 8_000_000) {
       Alert.alert('Photo too large', 'Choose a smaller photo and try again.');
       return;
@@ -68,9 +96,11 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
     setSaving(kind);
     try {
       const saved = await documentRepository.save(kind, image, fileName);
-      storeUpload(kind, { fileName: saved.fileName || fileName, previewUri: asset.uri });
+      storeUpload(kind, { fileName: saved.fileName || fileName, previewUri: image });
     } catch (err: any) {
-      Alert.alert('Upload failed', err?.response?.data?.message ?? err?.message ?? 'The photo could not be stored.');
+      const message = err?.response?.data?.message ?? err?.message ?? 'The photo could not be stored.';
+      setFormError(message);
+      Alert.alert('Upload failed', message);
     } finally {
       setSaving(null);
     }
@@ -78,11 +108,11 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
 
   const handleProceed = () => {
     if (!idFront || !idBack) {
-      Alert.alert('Required', 'Please upload both front and back of your University ID card.');
+      setFormError('Upload both the front and back of your university ID.');
       return;
     }
     if (role === 'mentor' && !transcript) {
-      Alert.alert('Required', 'Please upload a photo of your academic transcript.');
+      setFormError('Upload a photo of your academic transcript.');
       return;
     }
     navigation.navigate('FaceVerification', {
@@ -109,7 +139,7 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
             <Text style={styles.checkIcon}>✓</Text>
             <Text style={styles.uploadedFileName} numberOfLines={1}>{uploaded.fileName}</Text>
           </View>
-          <TouchableOpacity onPress={() => storeUpload(kind, null)}>
+          <TouchableOpacity onPress={() => pickPhoto(kind)}>
             <Text style={styles.replaceText}>Replace</Text>
           </TouchableOpacity>
         </View>
@@ -143,6 +173,7 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
           <Text style={styles.stepText}>Step 3 of 4: Document Verification</Text>
         </View>
 
+        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
         <Text style={styles.heading}>University Identity Verification</Text>
         <Text style={styles.subheading}>
           To maintain high academic trust and student safety, we verify all university credentials against official university records.
@@ -221,6 +252,24 @@ export default function VerifyIdentityScreen({ navigation, route }: Props) {
           <Text style={styles.continueButtonText}>Continue to Face Verification  →</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={pickerKind !== null} transparent animationType="fade" onRequestClose={() => setPickerKind(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setPickerKind(null)}>
+          <Pressable style={styles.modalCard} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.modalTitle}>Add a document photo</Text>
+            <Text style={styles.modalCopy}>Use a clear photo. It is stored with your tutor application for admin review.</Text>
+            <TouchableOpacity style={styles.modalPrimary} onPress={() => pickerKind && capture(pickerKind, 'library')}>
+              <Text style={styles.modalPrimaryText}>Choose from photos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalSecondary} onPress={() => pickerKind && capture(pickerKind, 'camera')}>
+              <Text style={styles.modalSecondaryText}>Take a photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setPickerKind(null)}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -284,6 +333,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.primary,
+  },
+  formError: {
+    color: colors.error,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 10,
   },
   heading: {
     fontSize: 22,
@@ -454,5 +509,59 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 30, 71, 0.45)',
+    justifyContent: 'flex-end',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    color: colors.navy,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.textLight,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  modalPrimary: {
+    backgroundColor: colors.secondary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalPrimaryText: {
+    color: '#061E47',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  modalSecondary: {
+    backgroundColor: '#061E47',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalSecondaryText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  modalCancel: {
+    textAlign: 'center',
+    color: colors.textLight,
+    fontWeight: '700',
+    paddingVertical: 8,
   },
 });

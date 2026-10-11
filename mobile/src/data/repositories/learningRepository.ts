@@ -27,6 +27,13 @@ export const learningRepository = {
   getChatPod: async () => (await apiClient.get<ChatPodMessage[]>('/learning/chat-pod')).data,
   sendChatPod: async (text: string) => (await apiClient.post<ChatPodMessage>('/learning/chat-pod/messages', { text })).data,
   toggleGoal: async (id: string) => apiClient.patch(`/learning/goals/${id}`),
+  createGoal: async (body: { title: string; moduleCode?: string; dueLabel?: string; priority?: string; area?: string }) => (
+    await apiClient.post('/learning/goals', body)
+  ).data,
+  updateGoal: async (id: string, body: { title: string; moduleCode?: string; dueLabel?: string; priority?: string; area?: string; summary?: string }) => (
+    await apiClient.put(`/learning/goals/${id}`, body)
+  ).data,
+  deleteGoal: async (id: string) => (await apiClient.delete(`/learning/goals/${id}`)).data,
   logPresence: async (seconds: number, date: string) => apiClient.post('/learning/presence', { seconds, date }),
   logFocus: async (goalId: string, seconds: number, date: string, area?: string) => (
     await apiClient.post<{ minutes: number; goalTitle: string; progress: number; hoursDone: number }>(
@@ -57,6 +64,12 @@ export const learningRepository = {
   ).data,
   completeGoalTask: async (goalId: string, taskId: string) => (
     await apiClient.patch<GoalPlanView>(`/learning/goals/${goalId}/tasks/${taskId}`)
+  ).data,
+  updateGoalTask: async (goalId: string, taskId: string, body: { title?: string; kind?: string; minutes?: number; dueLabel?: string; status?: 'open' | 'active' | 'done' }) => (
+    await apiClient.patch<GoalPlanView>(`/learning/goals/${goalId}/tasks/${taskId}`, body)
+  ).data,
+  deleteGoalTask: async (goalId: string, taskId: string) => (
+    await apiClient.delete(`/learning/goals/${goalId}/tasks/${taskId}`)
   ).data,
   bookGoalTutor: async (id: string, tutorKey: string) => (
     await apiClient.post<{ sessionId: string; tutorName: string; slot: string }>(`/learning/goals/${id}/book`, { tutorKey })

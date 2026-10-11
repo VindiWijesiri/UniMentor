@@ -19,6 +19,7 @@ import ReviewsScreen from '../screens/search/ReviewsScreen';
 import CompareTutorsScreen from '../screens/search/CompareTutorsScreen';
 import RecommendedTutorScreen from '../screens/search/RecommendedTutorScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
+import TutorStudentChatsScreen from '../screens/chat/TutorStudentChatsScreen';
 import ChatInboxScreen from '../screens/chat/ChatInboxScreen';
 import StudentDashboardScreen from '../screens/home/StudentDashboardScreen';
 import TutorDashboardScreen from '../screens/home/TutorDashboardScreen';
@@ -83,6 +84,7 @@ import AccountStatusScreen from '../screens/settings/AccountStatusScreen';
 
 // Integrated Learning & Assessments screens from Charuka
 import StudyTaskTrackerScreen from '../screens/goals/StudyTaskTrackerScreen';
+import ChoosePlanScreen from '../screens/plans/ChoosePlanScreen';
 import GoalDetailScreen from '../screens/goals/GoalDetailScreen';
 import GoalMilestonesScreen from '../screens/goals/GoalMilestonesScreen';
 import GoalAnalyticsScreen from '../screens/goals/GoalAnalyticsScreen';
@@ -173,6 +175,7 @@ export type AppStackParamList = {
   CompareTutors: { mentors: Mentor[] };
   RecommendedTutor: { mentor: Mentor; reviews: Review[]; comparedCount: number; isBestMatch: boolean };
   Chat: { mentor: Mentor };
+  TutorStudentChats: undefined;
   GuidanceWizard: { fromTab?: string } | undefined;
   TutorDashboard: undefined;
   StudentDashboard: undefined;
@@ -209,7 +212,7 @@ export type AppStackParamList = {
   FindFriend: undefined;
   StudyMaterials: { conversationId?: string } | undefined;
   StudyMaterialDetail: { id?: string; materialId?: string } | undefined;
-  StoreMaterial: { conversationId?: string } | undefined;
+  StoreMaterial: { conversationId?: string; materialId?: string } | undefined;
   TutorProfileManage: undefined;
   EditProfile: undefined;
   TutorVerificationStatus: undefined;
@@ -244,6 +247,7 @@ export type AppStackParamList = {
 
   // Integrated screens from Charuka
   StudyTaskTracker: { id?: string; goalId?: string } | undefined;
+  ChoosePlan: undefined;
   GoalDetail: { id?: string; goalId?: string } | undefined;
   GoalMilestones: { id?: string; goalId?: string } | undefined;
   GoalAnalytics: { id?: string; goalId?: string } | undefined;
@@ -527,6 +531,7 @@ export default function AppNavigator() {
       <Stack.Screen name="CompareTutors" component={CompareTutorsScreen} />
       <Stack.Screen name="RecommendedTutor" component={RecommendedTutorScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
+      <Stack.Screen name="TutorStudentChats" component={TutorStudentChatsScreen} />
       <Stack.Screen name="GuidanceWizard" component={HomeScreen} />
       <Stack.Screen name="TutorDashboard" component={TutorDashboardScreen} />
       <Stack.Screen name="StudentDashboard" component={StudentDashboardScreen as any} />
@@ -584,6 +589,7 @@ export default function AppNavigator() {
 
       {/* Integrated screens from Charuka */}
       <Stack.Screen name="StudyTaskTracker" component={StudyTaskTrackerScreen as any} />
+      <Stack.Screen name="ChoosePlan" component={ChoosePlanScreen} />
       <Stack.Screen name="GoalDetail" component={GoalDetailScreen as any} />
       <Stack.Screen name="GoalMilestones" component={GoalMilestonesScreen as any} />
       <Stack.Screen name="GoalAnalytics" component={GoalAnalyticsScreen as any} />

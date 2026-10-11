@@ -32,8 +32,8 @@ export async function saveTutorReview(req: AuthRequest, res: Response, next: Nex
     const rating = Number(req.body.rating);
     const comment = String(req.body.comment ?? '').trim();
 
-    const isDatabaseTutor = mongoose.isValidObjectId(tutorId);
-    if (!isDatabaseTutor) {
+    const tutorKey = String(tutorId || '').trim();
+    if (!tutorKey || tutorKey.length > 80) {
       res.status(400).json({ message: 'Invalid tutor profile.' });
       return;
     }
@@ -46,17 +46,21 @@ export async function saveTutorReview(req: AuthRequest, res: Response, next: Nex
       return;
     }
 
-    const [student, tutor] = await Promise.all([
-      User.findById(req.userId),
-      User.findOne({ _id: tutorId, role: 'mentor' }),
-    ]);
-    if (!student || !tutor) {
+    const student = await User.findById(req.userId);
+    if (!student) {
       res.status(404).json({ message: 'Student or tutor was not found.' });
       return;
     }
+    if (mongoose.isValidObjectId(tutorKey)) {
+      const tutor = await User.findOne({ _id: tutorKey, role: 'mentor' });
+      if (!tutor) {
+        res.status(404).json({ message: 'Student or tutor was not found.' });
+        return;
+      }
+    }
 
     const review = await Review.findOneAndUpdate(
-      { tutor: tutorId, student: req.userId },
+      { tutor: tutorKey, student: req.userId },
       { $set: { rating, comment, studentName: student.name } },
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
     );
@@ -64,7 +68,7 @@ export async function saveTutorReview(req: AuthRequest, res: Response, next: Nex
     // A saved review should not be reported as failed if summary refresh has a
     // temporary issue. The next review will refresh the aggregate again.
     try {
-      await refreshTutorRating(tutorId);
+      await refreshTutorRating(tutorKey);
     } catch (ratingError) {
       console.error('Review saved, but tutor rating refresh failed:', ratingError);
     }
@@ -77,10 +81,18 @@ export async function saveTutorReview(req: AuthRequest, res: Response, next: Nex
 
 export async function getMyReviews(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const reviews = await Review.find({ student: req.userId })
-      .populate('tutor', 'name subjects profilePicture')
-      .sort({ updatedAt: -1 });
-    res.json(reviews);
+    const reviews = await Review.find({ student: req.userId }).sort({ updatedAt: -1 }).lean();
+    const tutorIds = reviews
+      .map((review) => String(review.tutor))
+      .filter((id) => mongoose.isValidObjectId(id));
+    const tutors = tutorIds.length
+      ? await User.find({ _id: { $in: tutorIds } }).select('name subjects profilePicture').lean()
+      : [];
+    const tutorsById = new Map(tutors.map((tutor) => [String(tutor._id), tutor]));
+    res.json(reviews.map((review) => {
+      const tutor = tutorsById.get(String(review.tutor));
+      return tutor ? { ...review, tutor } : review;
+    }));
   } catch (error) {
     next(error);
   }
@@ -89,6 +101,10 @@ export async function getMyReviews(req: AuthRequest, res: Response, next: NextFu
 export async function updateReview(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { rating, comment } = req.body;
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      res.status(404).json({ message: 'Review not found.' });
+      return;
+    }
     const review = await Review.findById(req.params.id);
     if (!review) {
       res.status(404).json({ message: 'Review not found.' });
@@ -126,6 +142,10 @@ export async function updateReview(req: AuthRequest, res: Response, next: NextFu
 
 export async function deleteReview(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      res.status(404).json({ message: 'Review not found.' });
+      return;
+    }
     const review = await Review.findById(req.params.id);
     if (!review) {
       res.status(404).json({ message: 'Review not found.' });

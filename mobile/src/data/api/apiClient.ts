@@ -18,11 +18,17 @@ function packagerHost(): string {
 }
 
 function resolveBaseUrl(): string {
-  const host = packagerHost();
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
-  if (Platform.OS !== 'web' && host) return `http://${host}:5000/api`;
-  if (fromEnv && (Platform.OS === 'web' || !/localhost|127\.0\.0\.1/.test(fromEnv))) return fromEnv;
+  if (Platform.OS === 'web') {
+    const pageHost = typeof window !== 'undefined' ? window.location.hostname : '';
+    if (!pageHost || pageHost === 'localhost' || pageHost === '127.0.0.1') {
+      return 'http://127.0.0.1:5000/api';
+    }
+    return `http://${pageHost}:5000/api`;
+  }
+  const host = packagerHost();
   if (host) return `http://${host}:5000/api`;
+  if (fromEnv && !/localhost|127\.0\.0\.1/.test(fromEnv)) return fromEnv;
   return fromEnv || 'http://127.0.0.1:5000/api';
 }
 
@@ -35,8 +41,7 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const resolved = resolveBaseUrl();
-  if (Platform.OS !== 'web') config.baseURL = resolved;
+  config.baseURL = resolveBaseUrl();
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -59,9 +64,25 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
+    const method = String(error.config?.method || 'get').toLowerCase();
+    if (
+      (error.code === 'ERR_NETWORK' || error.message === 'Network Error')
+      && error.config
+      && !error.config._retriedOnce
+      && method === 'get'
+    ) {
+      error.config._retriedOnce = true;
+      try {
+        return await axios.request(error.config);
+      } catch (retryError: any) {
+        error = retryError;
+      }
+    }
+
     if ((error.code === 'ERR_NETWORK' || error.message === 'Network Error') && error.config && !error.config._retriedWithFallback) {
       const currentBase = error.config.baseURL || BASE_URL;
-      const fallbackBase = resolveBaseUrl();
+      const localBase = 'http://127.0.0.1:5000/api';
+      const fallbackBase = Platform.OS === 'web' && currentBase !== localBase ? localBase : resolveBaseUrl();
       if (fallbackBase && fallbackBase !== currentBase && (Platform.OS === 'web' || !/localhost|127\.0\.0\.1/.test(fallbackBase))) {
         console.log(`[MOBILE CLIENT] 🔄 Network error on ${currentBase}. Retrying with ${fallbackBase}`);
         error.config.baseURL = fallbackBase;

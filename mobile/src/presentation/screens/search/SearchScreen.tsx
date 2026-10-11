@@ -562,7 +562,7 @@ export default function SearchScreen({ route, navigation }: Props) {
     try {
       const results = await searchMentorsUseCase(value === 'All' ? '' : value);
       if (results && results.length > 0) {
-        setApiMentors(results);
+      setApiMentors(results);
       }
     } catch (err: any) {
       console.warn(`[SearchScreen] ⚠️ Search notice:`, err?.message || err);
@@ -625,6 +625,10 @@ export default function SearchScreen({ route, navigation }: Props) {
     try {
       if (isEditingShortlist) {
         const updated = await shortlistRepository.update(mentorId, {
+          name: mentorName,
+          hourlyRate: rate,
+          rating,
+          subjects: subjectsList,
           priority: selectedPriority,
           notes: shortlistNotes.trim(),
         });
@@ -763,12 +767,12 @@ export default function SearchScreen({ route, navigation }: Props) {
 
         <View style={styles.tutorCardFooter}>
           <View style={styles.priceRow}>
-            <View style={styles.priceBlock}>
-              <Text style={styles.priceLabel}>HOURLY RATE</Text>
+          <View style={styles.priceBlock}>
+            <Text style={styles.priceLabel}>HOURLY RATE</Text>
               <Text style={styles.priceText}>
                 LKR {rate.toLocaleString()} <Text style={styles.priceUnit}>/ hour</Text>
               </Text>
-            </View>
+          </View>
             <View style={styles.availabilityBadge}>
               <Text style={styles.availableText}>● {item.availability ?? 'Schedule available'}</Text>
             </View>
@@ -778,16 +782,16 @@ export default function SearchScreen({ route, navigation }: Props) {
           <View style={styles.buttonGrid2x2}>
             {/* Row 1: Book & Profile */}
             <View style={styles.gridRow}>
-              <TouchableOpacity
+            <TouchableOpacity
                 style={styles.gridBookBtn}
                 onPress={() => handleOpenBookingModal(item)}
                 activeOpacity={0.82}
               >
                 <Ionicons name="calendar" size={14} color="#061E47" style={{ marginRight: 5 }} />
                 <Text style={styles.gridBookBtnText}>Book</Text>
-              </TouchableOpacity>
+            </TouchableOpacity>
 
-              <TouchableOpacity
+            <TouchableOpacity
                 style={styles.gridProfileBtn}
                 activeOpacity={0.82}
                 onPress={() => ((navigation.getParent?.() as any) || (navigation as any))
@@ -805,9 +809,9 @@ export default function SearchScreen({ route, navigation }: Props) {
                   styles.gridCompareBtn,
                   comparisonIds.includes(item._id) && styles.gridCompareBtnSelected,
                 ]}
-                onPress={() => toggleComparison(item._id)}
-                activeOpacity={0.8}
-              >
+              onPress={() => toggleComparison(item._id)}
+              activeOpacity={0.8}
+            >
                 <Ionicons
                   name={comparisonIds.includes(item._id) ? 'checkmark-circle' : 'git-compare-outline'}
                   size={14}
@@ -821,10 +825,10 @@ export default function SearchScreen({ route, navigation }: Props) {
                   ]}
                 >
                   {comparisonIds.includes(item._id) ? 'Comparing' : 'Compare'}
-                </Text>
-              </TouchableOpacity>
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
+            <TouchableOpacity
                 style={[
                   styles.gridSaveBtn,
                   isShortlisted && styles.gridSaveBtnActive,
@@ -846,7 +850,7 @@ export default function SearchScreen({ route, navigation }: Props) {
                 >
                   {isShortlisted ? 'Saved' : 'Save'}
                 </Text>
-              </TouchableOpacity>
+            </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -972,13 +976,13 @@ export default function SearchScreen({ route, navigation }: Props) {
       <View style={[styles.headerBar, { paddingTop: Math.max(statusBarHeight, 16) + 4 }]}>
         <View style={styles.headerContent}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity
+          <TouchableOpacity
               style={styles.headerBackBtn}
-              onPress={handleGoBack}
-              activeOpacity={0.7}
+            onPress={handleGoBack}
+            activeOpacity={0.7}
             >
               <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
+          </TouchableOpacity>
             <Text style={styles.headerTitle} numberOfLines={1}>Find Your Mentor</Text>
           </View>
           <View style={styles.brandRow}>
@@ -986,7 +990,7 @@ export default function SearchScreen({ route, navigation }: Props) {
             <Text style={styles.brandMentor}>Mentor</Text>
           </View>
         </View>
-      </View>
+        </View>
 
       <FlatList
         ref={listRef}
@@ -1002,49 +1006,49 @@ export default function SearchScreen({ route, navigation }: Props) {
                 Choose a verified peer tutor for your university module
               </Text>
 
-              <View style={styles.searchBox}>
+        <View style={styles.searchBox}>
                 <Ionicons name="search" size={17} color="#8492AD" style={{ marginRight: 8 }} />
-                <TextInput
-                  style={styles.input}
+          <TextInput
+            style={styles.input}
                   placeholder="Search module, tutor name, or topic..."
-                  placeholderTextColor="#8492AD"
-                  value={query}
-                  onChangeText={setQuery}
-                  onSubmitEditing={() => void handleSearch()}
-                  returnKeyType="search"
-                />
-                <TouchableOpacity style={styles.searchButton} onPress={() => void handleSearch()}>
-                  <Text style={styles.searchButtonText}>Search</Text>
-                </TouchableOpacity>
-              </View>
+            placeholderTextColor="#8492AD"
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={() => void handleSearch()}
+            returnKeyType="search"
+          />
+          <TouchableOpacity style={styles.searchButton} onPress={() => void handleSearch()}>
+            <Text style={styles.searchButtonText}>Search</Text>
+          </TouchableOpacity>
+        </View>
 
-              {/* Tab Switcher: All Tutors vs My Shortlist */}
-              <View style={styles.tabSwitchRow}>
-                <TouchableOpacity
-                  style={[styles.tabSwitchBtn, searchTab === 'browse' && styles.tabSwitchBtnActive]}
-                  onPress={() => setSearchTab('browse')}
-                >
-                  <Text style={[styles.tabSwitchText, searchTab === 'browse' && styles.tabSwitchTextActive]}>
-                    All Tutors ({visibleMentors.length})
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.tabSwitchBtn, searchTab === 'shortlist' && styles.tabSwitchBtnActive]}
-                  onPress={() => setSearchTab('shortlist')}
-                >
+        {/* Tab Switcher: All Tutors vs My Shortlist */}
+        <View style={styles.tabSwitchRow}>
+          <TouchableOpacity
+            style={[styles.tabSwitchBtn, searchTab === 'browse' && styles.tabSwitchBtnActive]}
+            onPress={() => setSearchTab('browse')}
+          >
+            <Text style={[styles.tabSwitchText, searchTab === 'browse' && styles.tabSwitchTextActive]}>
+              All Tutors ({visibleMentors.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabSwitchBtn, searchTab === 'shortlist' && styles.tabSwitchBtnActive]}
+            onPress={() => setSearchTab('shortlist')}
+          >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Ionicons
                       name="star"
                       size={13}
                       color={searchTab === 'shortlist' ? '#FFFFFF' : '#F59E0B'}
                     />
-                    <Text style={[styles.tabSwitchText, searchTab === 'shortlist' && styles.tabSwitchTextActive]}>
+            <Text style={[styles.tabSwitchText, searchTab === 'shortlist' && styles.tabSwitchTextActive]}>
                       My Shortlist ({shortlist.length})
-                    </Text>
+            </Text>
                   </View>
-                </TouchableOpacity>
-              </View>
-            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
 
             {searchTab === 'browse' ? (
           <>
@@ -1168,7 +1172,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               <View style={styles.comparePanel}>
                 <View style={styles.compareCountWrap}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={styles.compareCount}>{comparisonIds.length}/3</Text>
+                  <Text style={styles.compareCount}>{comparisonIds.length}/3</Text>
                     <TouchableOpacity
                       style={styles.headerClearBtn}
                       onPress={() => setComparisonIds([])}
@@ -1201,7 +1205,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         )}
       </>
     }
-    ListEmptyComponent={(
+        ListEmptyComponent={(
           <View style={styles.emptyCard}>
             <Ionicons
               name={
@@ -1325,7 +1329,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         <View style={styles.floatingCompareBar}>
           <View style={styles.floatingCompareInfo}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={styles.floatingCompareCount}>{comparisonIds.length}/3 selected</Text>
+            <Text style={styles.floatingCompareCount}>{comparisonIds.length}/3 selected</Text>
               <TouchableOpacity
                 style={styles.floatingClearBtn}
                 onPress={() => setComparisonIds([])}
@@ -1334,7 +1338,7 @@ export default function SearchScreen({ route, navigation }: Props) {
                 <Ionicons name="close-circle" size={14} color="#FCA5A5" />
                 <Text style={styles.floatingClearText}>Clear</Text>
               </TouchableOpacity>
-            </View>
+          </View>
             <Text style={styles.floatingCompareHint}>
               {comparisonIds.length < 2 ? 'Select 1 more tutor or tap Clear' : 'Ready to compare'}
             </Text>
@@ -1391,7 +1395,7 @@ export default function SearchScreen({ route, navigation }: Props) {
                   <Text style={styles.avatarText}>
                     {bookingTargetMentor.name.charAt(0).toUpperCase()}
                   </Text>
-                </View>
+    </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.bookingMentorName}>{bookingTargetMentor.name}</Text>
                   <Text style={styles.bookingMentorRate}>

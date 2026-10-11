@@ -55,6 +55,31 @@ function conversationTitleOf(item: LibraryView) {
   return typeof conversation === 'object' && conversation?.title ? conversation.title : undefined;
 }
 
+function cleanFiles(raw: unknown) {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.slice(0, 12).map((file) => {
+    const row = file as { name?: unknown; language?: unknown; content?: unknown };
+    return {
+      name: String(row?.name ?? 'file').slice(0, 120),
+      language: String(row?.language ?? 'text').slice(0, 40),
+      content: String(row?.content ?? '').slice(0, 6_000_000),
+    };
+  }).filter((file) => file.name || file.content);
+}
+
+function cleanQuestions(raw: unknown) {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.slice(0, 40).map((question) => {
+    const row = question as { prompt?: unknown; options?: unknown; answer?: unknown; explanation?: unknown };
+    return {
+      prompt: String(row?.prompt ?? '').slice(0, 500),
+      options: Array.isArray(row?.options) ? row.options.map((option) => String(option).slice(0, 200)).slice(0, 6) : [],
+      answer: Number(row?.answer ?? 0),
+      explanation: row?.explanation ? String(row.explanation).slice(0, 500) : undefined,
+    };
+  }).filter((question) => question.prompt && question.options.length >= 2);
+}
+
 function buildFromLabel(item: LibraryView) {
   if (item.fromLabel) return item.fromLabel;
   const owner = ownerNameOf(item) ?? 'Library';
@@ -303,6 +328,73 @@ export async function progressLibraryItem(req: AuthRequest, res: Response, next:
     if (!item.savedBy.some((id) => String(id) === userId)) item.savedBy.push(new mongoose.Types.ObjectId(userId));
     await item.save();
     res.json(serialize(item, userId, true));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateLibraryItem(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = await ready(req);
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      res.status(404).json({ message: 'Material not found.' });
+      return;
+    }
+    const item = await LibraryMaterial.findById(req.params.id);
+    if (!item || item.seedKey) {
+      res.status(404).json({ message: 'Material not found.' });
+      return;
+    }
+    if (String(item.owner) !== userId) {
+      res.status(403).json({ message: 'Only the person who stored this material can edit it.' });
+      return;
+    }
+    if (req.body.title != null) {
+      const title = String(req.body.title).trim();
+      if (!title) {
+        res.status(400).json({ message: 'Title is required.' });
+        return;
+      }
+      item.title = title.slice(0, 160);
+    }
+    const kind = String(req.body.kind ?? '');
+    if (kind && ['video', 'pdf', 'quiz', 'audio', 'code', 'image', 'text'].includes(kind)) item.kind = kind as typeof item.kind;
+    if (req.body.moduleCode != null) item.moduleCode = String(req.body.moduleCode).trim().slice(0, 20);
+    if (req.body.moduleName != null) item.moduleName = String(req.body.moduleName).trim().slice(0, 80);
+    if (req.body.subtitle != null) item.subtitle = String(req.body.subtitle).trim().slice(0, 160);
+    if (req.body.description != null) item.description = String(req.body.description).trim().slice(0, 500);
+    if (req.body.body != null) item.body = String(req.body.body).slice(0, 20000);
+    if (req.body.fromLabel != null) item.fromLabel = String(req.body.fromLabel).trim().slice(0, 160);
+    if (req.body.sizeLabel != null) item.sizeLabel = String(req.body.sizeLabel).trim().slice(0, 40);
+    if (req.body.durationLabel != null) item.durationLabel = String(req.body.durationLabel).trim().slice(0, 40);
+    if (req.body.pageCount != null && Number.isFinite(Number(req.body.pageCount))) {
+      item.pageCount = Math.max(0, Math.min(5000, Number(req.body.pageCount)));
+    }
+    const source = String(req.body.source ?? '');
+    if (['group', 'session', 'live', 'library'].includes(source)) item.source = source as typeof item.source;
+    if (Array.isArray(req.body.tags)) item.tags = req.body.tags.map((tag: unknown) => String(tag).slice(0, 40)).slice(0, 12);
+    const files = cleanFiles(req.body.files);
+    if (files) {
+      item.files = files;
+      item.fileCount = files.length;
+    }
+    const questions = cleanQuestions(req.body.questions);
+    if (questions) {
+      item.questions = questions;
+      item.questionCount = questions.length;
+    }
+    if ('conversationId' in req.body) {
+      const conversationId = req.body.conversationId ? String(req.body.conversationId) : '';
+      if (!conversationId) {
+        item.conversation = undefined;
+      } else if (mongoose.isValidObjectId(conversationId)) {
+        const owned = await PodConversation.findOne({ _id: conversationId, participants: userId });
+        if (owned) item.conversation = owned._id;
+      }
+    }
+    await item.save();
+    const stored = await LibraryMaterial.findById(item._id).populate('owner', 'name');
+    res.json(serialize(stored ?? item, userId, true));
   } catch (error) {
     next(error);
   }
