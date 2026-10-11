@@ -121,10 +121,6 @@ export default function TutorDashboardScreen({ navigation }: any) {
   const [assessmentModalVisible, setAssessmentModalVisible] = useState(false);
   const [livePodModalVisible, setLivePodModalVisible] = useState(false);
 
-  // Verified student photo modal state
-  const [selectedVerifiedAttendee, setSelectedVerifiedAttendee] = useState<RegisteredAttendee | null>(null);
-  const [verifiedPhotoModalVisible, setVerifiedPhotoModalVisible] = useState(false);
-
   // Dynamic state for editable schedule
   const [scheduleDays, setScheduleDays] = useState('Monday to Friday');
   const [scheduleHours, setScheduleHours] = useState('3:00 PM - 6:00 PM');
@@ -1006,9 +1002,6 @@ export default function TutorDashboardScreen({ navigation }: any) {
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={styles.dedicatedSlotHeroTitle}>Allocated Slots & Registrations</Text>
-                  <View style={styles.dedicatedSlotNewPill}>
-                    <Text style={styles.dedicatedSlotNewPillText}>DEDICATED PAGE</Text>
-                  </View>
                 </View>
                 <Text style={styles.dedicatedSlotHeroSubtitle}>
                   Fill allocated slots with custom fees, durations & see registered students/groups
@@ -1260,17 +1253,6 @@ export default function TutorDashboardScreen({ navigation }: any) {
                                     activeOpacity={0.75}
                                   >
                                     <Text style={styles.dashMessageBtnText}>Message</Text>
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    style={styles.dashViewImgLink}
-                                    onPress={() => {
-                                      setSelectedVerifiedAttendee(att);
-                                      setVerifiedPhotoModalVisible(true);
-                                    }}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Ionicons name="eye-outline" size={11} color="#0D4F9E" />
-                                    <Text style={styles.dashViewImgLinkText}>View Verified Photo</Text>
                                   </TouchableOpacity>
                                 </View>
                               </View>
@@ -1831,106 +1813,6 @@ export default function TutorDashboardScreen({ navigation }: any) {
                 <Text style={[styles.modalConfirmText, { color: '#FFFFFF' }]}>Save Photo</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* VERIFIED STUDENT PHOTO MODAL */}
-      <Modal visible={verifiedPhotoModalVisible} transparent animationType="fade">
-        <View style={styles.photoModalOverlay}>
-          <View style={styles.photoModalCard}>
-            <View style={styles.photoModalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={styles.photoShieldIcon}>
-                  <Ionicons name="shield-checkmark" size={18} color="#059669" />
-                </View>
-                <View>
-                  <Text style={styles.photoModalTitle}>Verified Student Identity</Text>
-                  <Text style={styles.photoModalSubtitle}>Biometric verification completed for session</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => setVerifiedPhotoModalVisible(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.photoModalBody}>
-              {selectedVerifiedAttendee?.faceVerificationPhoto || selectedVerifiedAttendee?.studentAvatar ? (
-                <View style={styles.photoModalImageWrapper}>
-                  <Image
-                    source={{
-                      uri:
-                        selectedVerifiedAttendee.faceVerificationPhoto ||
-                        selectedVerifiedAttendee.studentAvatar,
-                    }}
-                    style={styles.photoModalImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.verifiedStampPill}>
-                    <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
-                    <Text style={styles.verifiedStampText}>BIOMETRIC VERIFIED ✓</Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.photoModalPlaceholder}>
-                  <Ionicons name="person-circle-outline" size={72} color="#0D4F9E" />
-                  <Text style={styles.photoModalPlaceholderText}>Initials Verified Identity</Text>
-                </View>
-              )}
-
-              <View style={styles.photoModalDetailsBox}>
-                <View style={styles.photoDetailRow}>
-                  <Text style={styles.photoDetailLabel}>Student Name:</Text>
-                  <Text style={styles.photoDetailVal}>{selectedVerifiedAttendee?.studentName}</Text>
-                </View>
-                <View style={styles.photoDetailRow}>
-                  <Text style={styles.photoDetailLabel}>Email Address:</Text>
-                  <Text style={styles.photoDetailVal}>{selectedVerifiedAttendee?.studentEmail}</Text>
-                </View>
-                <View style={styles.photoDetailRow}>
-                  <Text style={styles.photoDetailLabel}>Verification Status:</Text>
-                  <View style={styles.verifiedLiveBadge}>
-                    <Ionicons name="checkmark-circle" size={12} color="#059669" />
-                    <Text style={styles.verifiedLiveBadgeText}>Verified Identity ✓</Text>
-                  </View>
-                </View>
-                <View style={styles.photoDetailRow}>
-                  <Text style={styles.photoDetailLabel}>Booking Mode:</Text>
-                  <Text style={styles.photoDetailVal}>
-                    {selectedVerifiedAttendee?.bookingType === 'group'
-                      ? `Group (${selectedVerifiedAttendee.groupSize || 1} Students)`
-                      : '1-on-1 Individual'}
-                  </Text>
-                </View>
-                {selectedVerifiedAttendee?.feePaid !== undefined && (
-                  <View style={styles.photoDetailRow}>
-                    <Text style={styles.photoDetailLabel}>Payment Amount:</Text>
-                    <Text style={[styles.photoDetailVal, { color: '#059669', fontWeight: '800' }]}>
-                      LKR {selectedVerifiedAttendee.feePaid.toLocaleString()} (Paid)
-                    </Text>
-                  </View>
-                )}
-                {!!selectedVerifiedAttendee?.notes && (
-                  <View style={[styles.photoDetailRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 2 }]}>
-                    <Text style={styles.photoDetailLabel}>Session Topic / Notes:</Text>
-                    <Text style={[styles.photoDetailVal, { fontSize: 11, color: '#334155' }]}>
-                      {selectedVerifiedAttendee.notes}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.photoModalCloseBtn}
-              onPress={() => setVerifiedPhotoModalVisible(false)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.photoModalCloseBtnText}>Close Verification Preview</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>

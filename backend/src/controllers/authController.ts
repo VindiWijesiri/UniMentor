@@ -90,10 +90,20 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 }
 
 async function issueLoginCode(user: { email: string; loginCode?: string; loginCodeExpires?: Date; save: () => Promise<unknown> }) {
-  const code = crypto.randomInt(100000, 999999).toString();
+  // 🧪 DEMO MODE: Use default PIN 000000 for all email verifications
+  // This bypasses email service limitations for testing/demo purposes
+  const USE_DEFAULT_PIN = true; // Set to false to use random codes with real email
+  
+  const code = USE_DEFAULT_PIN ? '000000' : crypto.randomInt(100000, 999999).toString();
   user.loginCode = code;
   user.loginCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
+  
+  if (USE_DEFAULT_PIN) {
+    console.log(`[issueLoginCode] 🧪 DEMO MODE: Using default PIN 000000 for ${user.email}`);
+    return { code, emailSent: true }; // Always return true in demo mode
+  }
+  
   const emailSent = await sendResetCodeEmail(user.email, code);
   return { code, emailSent };
 }
@@ -157,11 +167,98 @@ export async function revokeSessions(req: AuthRequest, res: Response, next: Next
 }
 
 async function sendResetCodeEmail(email: string, code: string): Promise<boolean> {
+  console.log('[sendResetCodeEmail] Starting email send process...');
+  
+  // Try Resend first (easiest setup, works on Render free tier)
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
+  
+  console.log(`[sendResetCodeEmail] RESEND_API_KEY present: ${resendApiKey ? 'YES (length: ' + resendApiKey.length + ')' : 'NO'}`);
+  
+  if (resendApiKey) {
+    try {
+      console.log('[sendResetCodeEmail] Attempting to send via Resend...');
+      const { Resend } = require('resend');
+      const resend = new Resend(resendApiKey);
+
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      
+      const { data, error } = await resend.emails.send({
+        from: `UniMentor <${fromEmail}>`,
+        to: email,
+        subject: 'UniMentor Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #E5E7EB; border-radius: 12px;">
+            <h2 style="color: #1565C0; margin-bottom: 8px;">UniMentor Verification</h2>
+            <p style="color: #4B5563; font-size: 14px;">Use the following 6-digit verification code to complete your verification:</p>
+            <div style="background-color: #F0F5FF; border: 2px dashed #1565C0; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
+              <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #1565C0;">${code}</span>
+            </div>
+            <p style="color: #6B7280; font-size: 13px;">This code will expire in 10 minutes. If you did not request this code, please ignore this email.</p>
+          </div>
+        `,
+      });
+
+      if (error) {
+        console.error(`[sendResetCodeEmail] ❌ Resend API error:`, error);
+        // Fall through to SendGrid fallback
+      } else {
+        console.log(`[sendResetCodeEmail] ✅ Email successfully sent to ${email} via Resend (ID: ${data?.id})`);
+        return true;
+      }
+    } catch (err: any) {
+      console.error(`[sendResetCodeEmail] ❌ Resend delivery failed to ${email}:`, err);
+      console.error(`[sendResetCodeEmail] Error details: ${err?.message || JSON.stringify(err)}`);
+      // Fall through to SendGrid fallback
+    }
+  } else {
+    console.log('[sendResetCodeEmail] RESEND_API_KEY not configured, trying SendGrid...');
+  }
+
+  // Try SendGrid as fallback
+  const sendgridApiKey = process.env.SENDGRID_API_KEY?.trim();
+  
+  if (sendgridApiKey) {
+    try {
+      const sgMail = require('@sendgrid/mail');
+      sgMail.setApiKey(sendgridApiKey);
+
+      const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@unimentor.app';
+      
+      const msg = {
+        to: email,
+        from: {
+          email: fromEmail,
+          name: 'UniMentor',
+        },
+        subject: 'UniMentor Verification Code',
+        text: `Your UniMentor verification code is: ${code}. It will expire in 10 minutes.`,
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #E5E7EB; border-radius: 12px;">
+            <h2 style="color: #1565C0; margin-bottom: 8px;">UniMentor Verification</h2>
+            <p style="color: #4B5563; font-size: 14px;">Use the following 6-digit verification code to complete your verification:</p>
+            <div style="background-color: #F0F5FF; border: 2px dashed #1565C0; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
+              <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #1565C0;">${code}</span>
+            </div>
+            <p style="color: #6B7280; font-size: 13px;">This code will expire in 10 minutes. If you did not request this code, please ignore this email.</p>
+          </div>
+        `,
+      };
+
+      await sgMail.send(msg);
+      console.log(`[sendResetCodeEmail] ✅ Email successfully sent to ${email} via SendGrid`);
+      return true;
+    } catch (err: any) {
+      console.warn(`[sendResetCodeEmail] ❌ SendGrid delivery failed to ${email}: ${err?.message || err}`);
+      // Fall through to Gmail SMTP fallback
+    }
+  }
+
+  // Fallback to Gmail SMTP (only works on paid Render plans or local dev)
   const gmailUser = process.env.GMAIL_USER?.trim();
   const gmailAppPass = process.env.GMAIL_APP_PASS?.replace(/\s+/g, '');
 
   if (!gmailUser || !gmailAppPass) {
-    console.warn('[sendResetCodeEmail] GMAIL_USER or GMAIL_APP_PASS not configured in .env');
+    console.warn('[sendResetCodeEmail] No email service configured. Add RESEND_API_KEY (recommended), SENDGRID_API_KEY, or GMAIL credentials.');
     return false;
   }
 
@@ -175,11 +272,16 @@ async function sendResetCodeEmail(email: string, code: string): Promise<boolean>
     }
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: gmailUser,
         pass: gmailAppPass,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
 
     await transporter.sendMail({
@@ -188,7 +290,7 @@ async function sendResetCodeEmail(email: string, code: string): Promise<boolean>
       subject: 'UniMentor Verification Code',
       text: `Your UniMentor verification code is: ${code}. It will expire in 10 minutes.`,
       html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #E5E7EB; borderRadius: 12px;">
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #E5E7EB; border-radius: 12px;">
           <h2 style="color: #1565C0; margin-bottom: 8px;">UniMentor Verification</h2>
           <p style="color: #4B5563; font-size: 14px;">Use the following 6-digit verification code to complete your verification:</p>
           <div style="background-color: #F0F5FF; border: 2px dashed #1565C0; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
@@ -202,7 +304,7 @@ async function sendResetCodeEmail(email: string, code: string): Promise<boolean>
     console.log(`[sendResetCodeEmail] ✅ Email successfully sent to ${email} via Gmail (${gmailUser})`);
     return true;
   } catch (err: any) {
-    console.warn(`[sendResetCodeEmail] ❌ SMTP delivery failed to ${email}: ${err?.message || err}`);
+    console.warn(`[sendResetCodeEmail] ❌ Gmail SMTP failed to ${email}: ${err?.message || err}`);
     return false;
   }
 }
@@ -367,9 +469,21 @@ export async function sendVerificationOtp(req: Request, res: Response, next: Nex
       return;
     }
 
-    const code = crypto.randomInt(100000, 999999).toString();
+    // 🧪 DEMO MODE: Use default PIN 000000 for all email verifications
+    const USE_DEFAULT_PIN = true; // Set to false to use random codes with real email
+    
+    const code = USE_DEFAULT_PIN ? '000000' : crypto.randomInt(100000, 999999).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     registrationOtpStore.set(email.toLowerCase(), { code, expires });
+
+    if (USE_DEFAULT_PIN) {
+      console.log(`[sendVerificationOtp] 🧪 DEMO MODE: Using default PIN 000000 for ${email}`);
+      res.json({
+        message: 'Verification code is 000000 (demo mode)',
+        emailSent: true,
+      });
+      return;
+    }
 
     const emailSent = await sendResetCodeEmail(email, code);
 

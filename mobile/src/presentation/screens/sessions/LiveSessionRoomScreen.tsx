@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { useAuthStore } from '../../../domain/stores/authStore';
 import { liveSessionRoomRepository } from '../../../data/repositories/liveSessionRoomRepository';
+import { sessionRepository } from '../../../data/repositories/sessionRepository';
 
 const { width } = Dimensions.get('window');
 
@@ -444,10 +445,62 @@ export default function LiveSessionRoomScreen({ route, navigation }: any) {
 
   const handleLeaveConfirm = () => {
     setShowLeaveModal(false);
-    if (navigation?.canGoBack()) {
-      navigation.goBack();
+    
+    // If tutor is leaving, ask if they want to mark session as completed
+    if (isActualTutor || viewerRole === 'mentor') {
+      Alert.alert(
+        'Mark Session as Completed?',
+        'Would you like to mark this session as completed? This will move it to your completed sessions list.',
+        [
+          {
+            text: 'Not Yet',
+            style: 'cancel',
+            onPress: () => {
+              console.log('[LiveSession] Tutor left without completing session');
+              // Just leave without marking complete
+              if (navigation?.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('MainTabs', { screen: 'Sessions' });
+              }
+            }
+          },
+          {
+            text: 'Mark as Completed',
+            onPress: async () => {
+              try {
+                // Update session status to completed
+                if (session._id) {
+                  console.log('[LiveSession] Marking session as completed:', session._id);
+                  const result = await sessionRepository.updateStatus(session._id, 'completed');
+                  console.log('[LiveSession] Session marked as completed:', result);
+                  Alert.alert('Session Completed', 'This session has been marked as completed.');
+                } else {
+                  console.error('[LiveSession] No session ID found:', session);
+                  Alert.alert('Error', 'Could not find session ID to mark as completed.');
+                }
+              } catch (error) {
+                console.error('[LiveSession] Failed to mark session as completed:', error);
+                Alert.alert('Error', 'Failed to mark session as completed. Please try again.');
+              } finally {
+                if (navigation?.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('MainTabs', { screen: 'Sessions' });
+                }
+              }
+            }
+          }
+        ]
+      );
     } else {
-      navigation.navigate('MainTabs', { screen: 'Sessions' });
+      // Student leaving - just leave normally
+      console.log('[LiveSession] Student left session');
+      if (navigation?.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('MainTabs', { screen: 'Sessions' });
+      }
     }
   };
 

@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { colors } from '../../../shared/theme';
-import { Video, Mic, MicOff, VideoOff, PhoneOff } from 'lucide-react-native';
+import { Video, Mic, MicOff, VideoOff, PhoneOff, Link } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
@@ -61,6 +62,18 @@ export default function VideoCallScreen() {
     setFacing(current => (current === 'front' ? 'back' : 'front'));
   };
 
+  const copySessionLink = async () => {
+    // Generate a shareable link for the session
+    const sessionLink = `unimentor://session/${sessionId}?channel=${channelName}`;
+    
+    try {
+      await Clipboard.setStringAsync(sessionLink);
+      Alert.alert('Link Copied', 'Session link has been copied to clipboard. You can share it with others.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy link to clipboard.');
+    }
+  };
+
   const endCall = () => {
     Alert.alert('End Call', 'Are you sure you want to end this session?', [
       { text: 'Cancel', style: 'cancel' },
@@ -108,6 +121,10 @@ export default function VideoCallScreen() {
         <Text style={styles.sessionText}>
           {isTutor ? '👨‍🏫 Tutor' : '🎓 Student'} | Session: {sessionId.slice(0, 8)}
         </Text>
+        <TouchableOpacity style={styles.copyLinkBtn} onPress={copySessionLink}>
+          <Link size={18} color={colors.white} />
+          <Text style={styles.copyLinkText}>Copy Link</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Controls */}
@@ -241,10 +258,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   sessionText: {
     color: colors.white,
     fontSize: 12,
+    fontWeight: '600',
+  },
+  copyLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  copyLinkText: {
+    color: colors.white,
+    fontSize: 11,
     fontWeight: '600',
   },
 });
